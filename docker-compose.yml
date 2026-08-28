@@ -1,0 +1,66 @@
+# Curry Takeaway Ordering System — Clawsrv deployment (D-28, spec §17/§17.5)
+#
+# No caddy service here on purpose: Clawsrv's host Caddy already owns 80/443
+# for other tenants. `web` binds to a loopback-only port that the host Caddy
+# reverse-proxies to (see deploy/caddy-site.conf). `db` and `minio` are never
+# published — reachable only on this compose network.
+#
+# mem_limits are set because Clawsrv is shared with Skulcozm, Lekker Swot and
+# others on a box with no swap configured (§17.5) — do not remove them.
+
+services:
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3}
+    env_file: .env
+    ports:
+      - "127.0.0.1:${WEB_BIND_PORT:-8102}:8000"
+    depends_on:
+      - db
+      - minio
+    mem_limit: 1g
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    command: python manage.py run_scheduler
+    env_file: .env
+    depends_on:
+      - db
+    mem_limit: 512m
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: curry
+      POSTGRES_USER: curry
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-curry}
+    volumes:
+      - curry_pgdata:/var/lib/postgresql/data
+    mem_limit: 768m
+    restart: unless-stopped
+    # No ports: — internal network only (§17.5). Clawsrv already exposes
+    # several Postgres instances on 5432/5433/5434; this stack adds none.
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - curry_minio:/data
+    ports:
+      - "127.0.0.1:${MINIO_API_BIND_PORT:-8103}:9000"
+      # S3 API only, loopback-only — host Caddy (a systemd service outside
+      # this compose network) reverse-proxies it for the public media
+      # bucket (deploy/caddy-site.conf). Signed proof URLs also resolve
+      # through this port. The admin console (:9001) is never published.
+    mem_limit: 512m
+    restart: unless-stopped
+    # Run deploy/minio-bootstrap.sh once after first start.
+
+volumes:
+  curry_pgdata:
+  curry_minio:
