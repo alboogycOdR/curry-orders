@@ -1,0 +1,7 @@
+# Deploy scripts run on Clawsrv (Linux) — CRLF line endings from a Windows
+# checkout would break the shebang. Force LF regardless of platform.
+*.sh text eol=lf
+deploy/caddy-site.conf text eol=lf
+docker-compose.yml text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
