@@ -1,0 +1,125 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Brandon's Kitchen{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
+  <script src="{% static 'js/print-plates.js' %}" defer></script>
+
+  {% comment %}
+  Header — Broadsheet's own .nav/.nav-brand classes (styles.css) are
+  generic defaults (18px brand, 14px links, no active-state border) and
+  don't match this screen's spec, so the header below is bespoke markup
+  scoped to .site-header, still built entirely from the system's var(--*)
+  tokens per the design system's own rule (readme.md "How to use this":
+  take every color/font/spacing from the variables, never hard-code a hex
+  or px value the tokens already carry). Values here are the ones
+  README.md's "Front page" §1 Header spells out explicitly (14px/700
+  uppercase wordmark, 14.5px nav, 2px accent-2 active underline, 13px
+  uppercase tabular-nums cart summary) since the token sheet has no
+  variables for those.
+
+  IMPORTANT for future edits: Django's short-form comment tag (curly-brace
+  hash, on one line, closed on that same line) cannot span multiple lines
+  -- its tokenizer has no DOTALL, so it only matches within a single line.
+  A multi-line block written with that short form would silently leak any
+  tag-shaped text inside it back out as real, executable template code.
+  This long-form comment block is the safe way to write a multi-line note;
+  never nest a literal worked example of this same block-comment syntax
+  inside one of these blocks -- the parser matches the first end marker it
+  sees, wherever it appears, so an example end marker written out in full
+  closes the comment early and strands the real one as an invalid tag.
+  {% endcomment %}
+  <style>
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-divider);
+      backdrop-filter: saturate(1.1);
+      -webkit-backdrop-filter: saturate(1.1);
+    }
+    .site-header .wordmark {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      text-decoration: none;
+      color: var(--color-text);
+      margin-right: var(--space-6);
+    }
+    .site-header .site-nav {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-right: auto;
+    }
+    .site-header .site-nav a {
+      font-size: 14.5px;
+      text-decoration: none;
+      line-height: 1.2;
+      padding-bottom: 4px;
+      color: var(--color-neutral-600);
+      border-bottom: 2px solid transparent;
+    }
+    .site-header .site-nav a[aria-current="page"] {
+      color: var(--color-text);
+      border-bottom-color: var(--color-accent-2);
+    }
+    .site-header .cart-summary {
+      font-size: 13px;
+      text-transform: uppercase;
+      font-variant-numeric: tabular-nums;
+      color: var(--color-neutral-700);
+      white-space: nowrap;
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% comment %}
+Header / nav — Broadsheet header pattern, README "Front page" §1 Header:
+sticky, --color-bg background, 1px bottom divider, backdrop-filter:
+saturate(1.1). Wordmark links to "/". Nav covers the four screens; the
+active item takes --color-text with a 2px --color-accent-2 bottom border,
+inactive items --color-neutral-600 with a transparent border (kept in the
+markup so the layout doesn't shift on state change). Right-aligned cart
+summary at 13px uppercase tabular-nums — cart state is a later concern, so
+it's a template variable a view can override; defaults to the empty-cart
+copy from the README.
+
+Nav URL names (public:home / public:order / public:checkout /
+manage:kitchen) don't resolve yet — src/config/urls.py doesn't exist in
+this pass, and a url tag would hard-fail the render before it does
+(NoReverseMatch). Using plain hrefs for now; swap each href for the url
+tag once the URLconf lands — see the per-link TODO comments below and
+src/templates/README.md.
+{% endcomment %}
+<header class="site-header">
+  <a href="/" class="wordmark">Brandon's Kitchen</a>
+
+  <nav class="site-nav" aria-label="Primary">
+    {# TODO: swap href for {% url 'public:home' %} once src/config/urls.py defines it #}
+    <a href="/" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
+    {# TODO: swap href for {% url 'public:order' %} once src/config/urls.py defines it #}
+    <a href="/order/" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
+    {# TODO: swap href for {% url 'public:checkout' %} once src/config/urls.py defines it #}
+    <a href="/checkout/" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
+    {# TODO: swap href for {% url 'manage:kitchen' %} once src/config/urls.py defines it #}
+    <a href="/kitchen/" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
+  </nav>
+
+  <span class="cart-summary">{{ cart_summary|default:"No order started" }}</span>
+</header>
+
+{% block content %}{% endblock %}
+
+</body>
+</html>

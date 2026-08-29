@@ -3,7 +3,10 @@ __pycache__/
 *.egg-info/
 .Python
 .venv/
+.venv*/
 venv/
+__pycache__/
+db.sqlite3
 .env
 .env.*
 !.env.example

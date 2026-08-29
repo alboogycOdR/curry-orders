@@ -1,10 +1,22 @@
-# Design system — placeholder theme
+# Design system — dark jewel-tone theme (superseded)
 
-**Status: placeholder.** Direction chosen 2026-08-29; swaps for the owner's
-real logo and brand colours once §23 lands ("Outstanding" as of this
-writing). Tokens live in [`design/tokens.css`](../design/tokens.css) —
-change the palette there, not inline in templates, so the swap is a
-one-file edit later.
+**Superseded 2026-08-29.** The owner has confirmed the "Broadsheet"
+newsprint design system (paper white, Source Serif 4, process cyan/
+magenta — delivered via Claude Design, see `updates/`) as the **permanent**
+visual identity. This is not a placeholder swap-back situation: there is
+no further reversion to the dark theme this document describes. `design/
+tokens.css` and `design/preview.html` (referenced below) have been
+deleted. See `docs/DECISIONS.md` D-30.
+
+Kept for history — the WCAG contrast methodology below is still a useful
+reference for the new system's own accent-on-body-text rules (Broadsheet
+has its own version of this constraint: the base accents hit ~3:1 against
+the paper ground, fine for icons/large text/chrome, not body copy — same
+kind of check, different numbers).
+
+---
+
+*Original content follows, describing the now-retired direction:*
 
 ## Where this came from
 
