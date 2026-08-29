@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% comment %}
+Policies — spec §6.1 `/policies`: cancellation (§19), the allergen/
+home-kitchen disclaimer (owner-editable `Settings.allergen_disclaimer`/
+`home_kitchen_notice` — both still unset per §23's own owner-input table,
+so this template shows a plain "not yet provided" fallback rather than
+inventing wording on the owner's behalf), and the POPIA notice §11.12
+requires verbatim in spirit (what's stored, why, retention, deletion, and
+the EU/Finland-hosting line).
+{% endcomment %}
+
+{% block title %}Policies — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .pl-wrap { max-width: 680px; margin: 0 auto; padding: 48px 32px 80px; }
+  .pl-heading { font-family: var(--font-heading); font-size: clamp(28px, 4vw, 40px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
+  .pl-intro { font-size: 15.5px; color: var(--color-neutral-700); margin: 0 0 36px; max-width: 56ch; }
+  .pl-section { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--color-divider); }
+  .pl-section-title { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-2-700); margin: 0 0 10px; }
+  .pl-section p { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin: 0 0 10px; }
+  .pl-section ul { margin: 0 0 10px; padding-left: 20px; }
+  .pl-section li { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin-bottom: 6px; }
+  .pl-fallback { color: var(--color-neutral-600); font-style: italic; }
+  .pl-links { margin-top: 40px; font-size: 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pl-wrap">
+  <h1 class="pl-heading">Policies</h1>
+  <p class="pl-intro">Collection, cancellation, allergens and how we handle your information.</p>
+
+  <section class="pl-section">
+    <h2 class="pl-section-title">Cancellation</h2>
+    <ul>
+      <li>An order can be cancelled by the customer while it's still awaiting payment or verification, before the kitchen has started preparing it.</li>
+      <li>Once the kitchen has started preparing your order, it can no longer be cancelled.</li>
+      <li>Staff may cancel an order — for example an EFT payment that was never verified, or a cash order that was never accepted or collected — and will let you know if this happens.</li>
+      <li>An order not collected during the collection window may be marked as a no-show at the end of the day.</li>
+    </ul>
+  </section>
+
+  <section class="pl-section">
+    <h2 class="pl-section-title">Allergens &amp; home kitchen</h2>
+    {% if settings.allergen_disclaimer %}
+    <p>{{ settings.allergen_disclaimer|linebreaksbr }}</p>
+    {% else %}
+    <p class="pl-fallback">Allergen information has not yet been provided by the kitchen. If you have an allergy or dietary requirement, please check with staff before ordering.</p>
+    {% endif %}
+    {% if settings.home_kitchen_notice %}
+    <p>{{ settings.home_kitchen_notice|linebreaksbr }}</p>
+    {% else %}
+    <p class="pl-fallback">Home-kitchen notice has not yet been provided by the kitchen.</p>
+    {% endif %}
+  </section>
+
+  <section class="pl-section">
+    <h2 class="pl-section-title">Your information (POPIA)</h2>
+    <p>To take and fulfil your order, we store your name, mobile number, order details and — for EFT orders — a copy of your proof of payment. This is used only for order fulfilment and payment reconciliation.</p>
+    <p>Proof-of-payment images are kept for {{ proof_retention_days }} days. Order records are kept for {{ order_retention_months }} months, after which they are removed.</p>
+    <p>Your data is processed and stored on a server in the EU (Finland) on the owner's behalf, and remains subject to South Africa's Protection of Personal Information Act (POPIA).</p>
+    <p>
+      To request that your information be deleted,
+      {% if support_whatsapp_e164 %}
+      message us on WhatsApp at <a href="https://wa.me/{{ support_whatsapp_e164|cut:'+' }}">{{ support_whatsapp_e164 }}</a>.
+      {% else %}
+      contact the kitchen directly.
+      {% endif %}
+    </p>
+    <p><strong>Please don't place routine orders on WhatsApp</strong> — it's for order or payment problems only. Place orders through the site so they're captured correctly.</p>
+  </section>
+
+  <p class="pl-links"><a href="{% url 'public:help' %}">← Back to Help</a></p>
+</div>
+{% endblock %}

@@ -331,3 +331,47 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
             bool(order.payment.proof_uploaded_at) if show_eft_panel else False
         ),
     })
+
+
+# ---------------------------------------------------------------- help / policies (§11.12)
+
+
+def help_page(request: HttpRequest) -> HttpResponse:
+    """§6.1's `/help`: "how to order, collection, payment, cut-off" —
+    every figure here is a live `Settings` value, not hard-coded copy,
+    so a settings change (§20's own acceptance line: "cut-off, hold
+    minutes, ... editable without deploy") is reflected here without a
+    second place to update.
+    """
+    settings = Settings.current()
+    return render(request, "public/help.html", {
+        "same_day_cutoff": coerce_time(settings.same_day_cutoff).strftime("%H:%M"),
+        "preorder_days": settings.preorder_days,
+        "slot_minutes": settings.slot_minutes,
+        "collection_window": (
+            f"{coerce_time(settings.default_window_start).strftime('%H:%M')}"
+            f"–{coerce_time(settings.default_window_end).strftime('%H:%M')}"
+        ),
+        "eft_hold_minutes": settings.eft_hold_minutes,
+        "cash_enabled": settings.cash_enabled,
+        "cash_same_day_only": settings.cash_same_day_only,
+        "support_whatsapp_e164": settings.support_whatsapp_e164,
+    })
+
+
+def policies_page(request: HttpRequest) -> HttpResponse:
+    """§6.1's `/policies`: cancellation (§19), allergens/home-kitchen
+    (owner wording — `Settings.allergen_disclaimer`/`home_kitchen_notice`,
+    both still unset per §23's own owner-input table; rendered with a
+    plain "not yet provided" fallback rather than inventing wording on
+    the owner's behalf), and the POPIA notice §11.12 spells out
+    verbatim (what's stored, purpose, retention, deletion, and the
+    Finland-hosting/POPIA line).
+    """
+    settings = Settings.current()
+    return render(request, "public/policies.html", {
+        "settings": settings,
+        "proof_retention_days": settings.proof_retention_days,
+        "order_retention_months": settings.order_retention_months,
+        "support_whatsapp_e164": settings.support_whatsapp_e164,
+    })

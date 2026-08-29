@@ -80,6 +80,19 @@
       color: var(--color-neutral-700);
       white-space: nowrap;
     }
+    .site-footer {
+      margin-top: 64px;
+      padding: var(--space-4);
+      border-top: 1px solid var(--color-divider);
+      display: flex;
+      gap: var(--space-4);
+      justify-content: center;
+      font-size: 13px;
+      color: var(--color-neutral-600);
+    }
+    .site-footer a {
+      color: var(--color-neutral-600);
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -120,6 +133,17 @@ public:checkout, manage:kitchen), so the nav links below are real
 </header>
 
 {% block content %}{% endblock %}
+
+{% comment %}
+Footer — customer-facing Help/Policies links (§6.1/§11.12). Kept separate
+from .site-nav above, which already mixes customer nav with five
+staff-board links; policy links belong somewhere a customer will look,
+not buried in that list.
+{% endcomment %}
+<footer class="site-footer">
+  <a href="{% url 'public:help' %}">Help</a>
+  <a href="{% url 'public:policies' %}">Policies</a>
+</footer>
 
 </body>
 </html>

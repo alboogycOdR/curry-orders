@@ -27,4 +27,8 @@ urlpatterns = [
     # instructions / confirmed view) — named `order_status` rather than
     # `order` to leave that name free for the screen above.
     path("orders/<str:public_token>/", views.order_status, name="order_status"),
+    # §6.1/§11.12 (milestone 10, Phase 1's own narrow slice of it — see
+    # docs/DECISIONS.md).
+    path("help/", views.help_page, name="help"),
+    path("policies/", views.policies_page, name="policies"),
 ]
