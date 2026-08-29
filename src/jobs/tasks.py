@@ -5,12 +5,12 @@ startup behaviour), never the logic itself, so a test or a one-off
 `manage.py` invocation can call a task directly without spinning up
 APScheduler.
 
-Milestone 1 added `materialise_days` and `heartbeat`; milestone 4 adds
-`expire_holds` (`core.eft.expire_holds`). The rest of §17.1's table
-(`close_out_days`, `purge_proofs`, `purge_throttle_and_idempotency`,
-`disk_check`) depends on domain machinery (`core.transitions`, retention
-rules) that doesn't exist yet — later milestones add functions here, not
-a parallel module.
+Milestone 1 added `materialise_days` and `heartbeat`; milestone 4 added
+`expire_holds` (`core.eft.expire_holds`); milestone 6 adds
+`close_out_days` (`core.transitions.close_out_day`). The rest of §17.1's
+table (`purge_proofs`, `purge_throttle_and_idempotency`, `disk_check`)
+depends on retention rules that don't exist yet — later milestones add
+functions here, not a parallel module.
 """
 from __future__ import annotations
 
@@ -20,7 +20,9 @@ from django.utils import timezone
 
 from core.eft import expire_holds as _expire_holds
 from core.materialise import materialise_days as _materialise_days
-from core.models import JobHeartbeat, Settings
+from core.models import JobHeartbeat, Settings, TradingDay
+from core.transitions import SYSTEM_ACTOR
+from core.transitions import close_out_day as _close_out_day
 from core.tz import now_sast
 
 logger = logging.getLogger("jobs")
@@ -63,6 +65,24 @@ def run_expire_holds() -> None:
     except Exception:
         logger.exception("expire_holds job failed")
         _record("expire_holds", ok=False, detail="see server logs")
+        raise
+
+
+def run_close_out_days() -> None:
+    """§17.1: "daily 23:30 SAST". "For today" — the trading day that's
+    ending as this runs, not every open day: `core.transitions.close_out_day`
+    already no-ops before the grace deadline, but scoping the query to
+    `today` keeps this job from doing a pointless full-table scan of every
+    materialised trading day for the ones that are nowhere near closing.
+    """
+    try:
+        today = now_sast().date()
+        trading_day = TradingDay.objects.filter(pk=today).first()
+        count = _close_out_day(trading_day, SYSTEM_ACTOR) if trading_day else 0
+        _record("close_out_days", ok=True, detail=f"{count} order(s) closed out no-show")
+    except Exception:
+        logger.exception("close_out_days job failed")
+        _record("close_out_days", ok=False, detail="see server logs")
         raise
 
 

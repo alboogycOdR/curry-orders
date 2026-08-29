@@ -216,28 +216,53 @@ class TestKitchen:
             {"email": "owner@example.test", "password": "correct horse battery staple"},
         )
 
-    def test_renders_run_sheet_and_meters(self, client) -> None:
+    def test_renders_run_sheet_and_meters(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        # Real now (milestone 6) — a real board order, not sample data.
+        # `?date=` targets the shared `trading_day` fixture's fixed date
+        # rather than relying on "today" matching it (real wall-clock
+        # dependence bit this suite before, see test_capacity.py's own
+        # NOW constant comment).
+        import datetime as dt
+
+        from core.capacity import CheckoutLine, ReservationRequest, reserve
+
         self._login(client)
-        resp = client.get(reverse("manage:kitchen"))
+        order = reserve(
+            ReservationRequest(
+                trading_day_date=trading_day.date, slot_id=slot.pk, payment_method="eft",
+                customer_name="Jane Customer", customer_mobile_e164="+27821234567",
+                lines=[CheckoutLine(dish_id=dish.pk, quantity=2)],
+                now=dt.datetime(2026, 8, 31, 6, 0, tzinfo=dt.UTC),
+            ),
+            biz_settings,
+        )
+        order.status = "confirmed_prep"
+        order.save(update_fields=["status"])
+
+        resp = client.get(reverse("manage:kitchen"), {"date": trading_day.date.isoformat()})
         assert resp.status_code == 200
         content = resp.content.decode()
         assert "Today's run" in content
-        assert "1041" in content  # sample order ref
-        assert "of 24 orders secured" in content
+        assert order.order_number in content
+        assert "orders secured" in content
 
-    def test_service_window_from_settings(self, client) -> None:
-        from datetime import time
+    def test_service_window_from_trading_day(self, client, biz_settings) -> None:
+        import datetime as dt
+
+        from core.models import TradingDay
 
         self._login(client)
-        Settings.objects.create(
-            id=1,
-            public_site_name="Brandon's Kitchen",
-            default_window_start=time(16, 0),
-            default_window_end=time(19, 30),
+        trading_day = TradingDay.objects.create(
+            date=dt.date(2026, 9, 5), is_open=True,
+            window_start=dt.time(16, 0), window_end=dt.time(19, 30),
+            cutoff_time=dt.time(10, 0), daily_order_cap=50,
         )
-        resp = client.get(reverse("manage:kitchen"))
-        assert "16:00" in resp.content.decode()
-        assert "19:30" in resp.content.decode()
+        resp = client.get(reverse("manage:kitchen"), {"date": trading_day.date.isoformat()})
+        content = resp.content.decode()
+        assert "16:00" in content
+        assert "19:30" in content
 
 
 class TestSettingsCurrent:

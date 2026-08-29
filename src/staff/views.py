@@ -1,19 +1,23 @@
 """Staff-facing views: auth (login/logout/change-password), the
-owner-only settings editor, the kitchen desk, and (milestone 5) the EFT
-payment queue — see `public/views.py`'s module docstring for the "visual
-pass" framing that still applies to the kitchen desk's sample run
-sheet/meters, which this milestone doesn't touch.
+owner-only settings editor, and the three real boards this project has
+so far — the EFT payment queue (milestone 5), and the kitchen desk +
+collection board (milestone 6). `public/views.py`'s "visual pass"
+framing no longer applies to any of the three; the kitchen desk's old
+sample run sheet/meters (design handoff README §4) are gone, replaced
+by real `core.Order` aggregates.
 
 Auth is `staff.sessions`, not `django.contrib.auth` — see that module's
-docstring and `docs/DECISIONS.md` D-33 for why. The kitchen desk is now
-gated by `@staff_login_required`, closing the gap the previous pass
-flagged (design handoff README §4: "must be behind auth").
+docstring and `docs/DECISIONS.md` D-33 for why.
 
-`payments_queue` (§12.3) is real: real `core.Order` rows, real actions
-(`core.transitions.apply()`, via `staff/api.py`'s transition endpoint).
-It's the one board this milestone builds a UI for — see
-`core/transitions.py`'s own module docstring for why the other
-fourteen actions are implemented and tested but still unwired.
+All three boards are real: real `core.Order` rows, real actions
+(`core.transitions.apply()`, via `staff/api.py`'s transition endpoint
+and its two day-level siblings). Kitchen/collection cover exactly
+§9.3's board membership and §12.4/§12.5's acceptance items (summary
+grouping, exceptions band, added-after-lock, lock prep list, mark
+ready/collected, uncollect, close out day) — everything else in
+`core/transitions.py` that isn't reachable from one of these three
+boards (cash accept/reject, `change_slot`, `amend_items`) is still
+real and tested, just unwired, waiting for milestone 7/9's board.
 """
 from __future__ import annotations
 
@@ -35,8 +39,17 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
-from core.models import Order, OrderStatus, Settings, SettingsEvent, User
-from core.tz import coerce_time, now_sast
+from core.capacity import OCCUPYING_STATUSES
+from core.models import (
+    Order,
+    OrderStatus,
+    PaymentMethod,
+    Settings,
+    SettingsEvent,
+    TradingDay,
+    User,
+)
+from core.tz import SAST, coerce_time, now_sast
 
 from . import sessions
 from .decorators import owner_required, staff_login_required
@@ -205,65 +218,181 @@ def settings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "staff/settings.html", {"form": form, "creating": creating})
 
 
-# ---------------------------------------------------------------- kitchen desk
+# ---------------------------------------------------------------- kitchen desk (§12.4)
 
 
-# Sample-only run sheet (handoff README §4 "Today's run") — a real version
-# is `core.Order`/`core.Payment` rows for the trading day, joined to slots,
-# with `advance` as a POST through `core.transitions.apply()` (milestone
-# 5/6, spec §12.4/§9). `si` = status index into STATUSES below, matching
-# the handoff's own STATUS[]/STATUS_TAG[] arrays and its forward-only
-# advance() reducer.
-_STATUSES = ["Awaiting payment", "Confirmed", "Cooking", "Ready", "Collected"]
-_STATUS_TAG_CLASS = {
-    "Awaiting payment": "tag tag-outline",
-    "Confirmed": "tag tag-accent",
-    "Cooking": "tag tag-accent-2",
-    "Ready": "tag tag-accent",
-    "Collected": "tag tag-neutral",
-}
-_SAMPLE_ORDERS = [
-    {"ref": "1041", "who": "Naledi M.", "items": "2× Chicken Gatsby", "slot": "16:00",
-     "pay": "EFT", "value": "R 190.00", "si": 4},
-    {"ref": "1042", "who": "Riaan P.", "items": "1× Full House", "slot": "16:15",
-     "pay": "Cash", "value": "R 130.00", "si": 3},
-    {"ref": "1043", "who": "Thandi K.", "items": "3× Chicken Roti Roll", "slot": "16:30",
-     "pay": "EFT", "value": "R 195.00", "si": 2},
-    {"ref": "1044", "who": "Fatima D.", "items": "1× Beef Lasagne, 1× Steak Curry", "slot": "17:00",
-     "pay": "EFT", "value": "R 185.00", "si": 1},
-    {"ref": "1045", "who": "Josh v/d B.", "items": "2× Steak Masala Gatsby", "slot": "17:30",
-     "pay": "Cash", "value": "R 200.00", "si": 0},
-    {"ref": "1046", "who": "Ayanda S.", "items": "1× Chicken Curry & Roti", "slot": "17:45",
-     "pay": "EFT", "value": "R 85.00", "si": 0},
+# §9.3's own table: exactly these four statuses ever appear on the
+# kitchen board — never awaiting_eft/payment_review/cash_request (not
+# confirmed yet), payment_expired/cancelled (dead), collected (done).
+KITCHEN_BOARD_STATUSES = [
+    OrderStatus.CONFIRMED_PREP, OrderStatus.CASH_DUE, OrderStatus.IN_KITCHEN, OrderStatus.READY,
 ]
+# §9.3: ready is the collection board's primary status; in_kitchen shows
+# "greyed, not ready"; collected shows "today, collapsed".
+COLLECTION_BOARD_STATUSES = [OrderStatus.READY, OrderStatus.IN_KITCHEN, OrderStatus.COLLECTED]
+
+
+def _parse_date_param(request: HttpRequest) -> dt.date:
+    raw = request.GET.get("date")
+    if raw:
+        try:
+            return dt.date.fromisoformat(raw)
+        except ValueError:
+            pass
+    return now_sast().date()
+
+
+def _date_label(date: dt.date) -> str:
+    is_today = date == now_sast().date()
+    prefix = "Today, " if is_today else ""
+    return f"{prefix}{_DAY_NAMES_FULL[date.weekday()]} {date.day} {_MONTH_NAMES[date.month - 1]}"
 
 
 @staff_login_required
 def kitchen(request: HttpRequest) -> HttpResponse:
+    """§12.4: date selector (default today), the summary view (grouped
+    `dish_name_snapshot → option_key → SUM(quantity)`), the exceptions
+    band (a note, a `kitchen_note`, or an allergen-flagged dish), the
+    "Added after lock" band (derived from `confirmed_at` vs
+    `kitchen_locked_at`, not a stored flag — correct regardless of which
+    transition, `verify_eft` or `accept_cash`, put an order on the
+    board), and the per-order ticket list `static/js/kitchen.js` drives
+    `start_kitchen`/`mark_ready` from.
+    """
     settings = Settings.current()
-    today = now_sast().date()
-    today_label = f"{_DAY_NAMES_FULL[today.weekday()]} {today.day} {_MONTH_NAMES[today.month - 1]}"
-    service_window = (
-        f"{coerce_time(settings.default_window_start).strftime('%H:%M')}"
-        f"–{coerce_time(settings.default_window_end).strftime('%H:%M')}"
+    date = _parse_date_param(request)
+    trading_day = TradingDay.objects.filter(pk=date).first()
+    context: dict[str, object] = {
+        "date": date, "date_label": _date_label(date), "trading_day": trading_day,
+        "prev_date": (date - dt.timedelta(days=1)).isoformat(),
+        "next_date": (date + dt.timedelta(days=1)).isoformat(),
+    }
+    if trading_day is None:
+        return render(request, "staff/kitchen.html", context)
+
+    board_orders = list(
+        Order.objects.filter(trading_day=trading_day, status__in=KITCHEN_BOARD_STATUSES)
+        .select_related("payment")
+        .prefetch_related("lines__dish")
+        .order_by("slot__start_at", "order_number")
     )
-    orders = [
-        {**o, "status": _STATUSES[o["si"]], "tag_class": _STATUS_TAG_CLASS[_STATUSES[o["si"]]]}
-        for o in _SAMPLE_ORDERS
+
+    summary_map: dict[tuple[str, str], dict] = {}
+    exceptions = []
+    for order in board_orders:
+        order_lines = list(order.lines.all())
+        for line in order_lines:
+            key = (line.dish_name_snapshot, line.option_key)
+            entry = summary_map.setdefault(key, {
+                "dish": line.dish_name_snapshot, "option_key": line.option_key,
+                "qty": 0, "orders": [],
+            })
+            entry["qty"] += line.quantity
+            entry["orders"].append(f"{order.order_number} ({line.quantity})")
+
+        kitchen_notes = [line for line in order_lines if line.kitchen_note]
+        allergen_lines = [line for line in order_lines if line.dish_id and line.dish.allergen_text]
+        if order.note or kitchen_notes or allergen_lines:
+            exceptions.append({
+                "order": order, "note": order.note,
+                "kitchen_notes": kitchen_notes, "allergen_lines": allergen_lines,
+            })
+
+    summary = sorted(summary_map.values(), key=lambda e: (e["dish"], e["option_key"]))
+
+    added_after_lock = []
+    if trading_day.kitchen_locked_at is not None:
+        added_after_lock = [
+            o for o in board_orders
+            if o.confirmed_at is not None and o.confirmed_at > trading_day.kitchen_locked_at
+        ]
+
+    tickets = [
+        {
+            "order": order,
+            "items_summary": ", ".join(
+                f"{line.quantity}× {line.dish_name_snapshot}" for line in order.lines.all()
+            ),
+        }
+        for order in board_orders
     ]
-    return render(request, "staff/kitchen.html", {
-        "today_label": today_label,
-        "service_window": service_window,
-        "orders": orders,
-        "statuses": _STATUSES,
-        "status_tag_class": _STATUS_TAG_CLASS,
-        # Sample-only capacity meters (handoff README §4) — real figures
-        # are `core.Order`/`core.Payment` aggregates for the trading day
-        # against `Settings`/`TradingDay` ceilings (milestone 6, §8.2).
-        "meter_orders": {"value": 18, "of": 24, "label": "of 24 orders secured"},
-        "meter_cash": {"value": "R 420", "of": "R 600", "label": "of R 600 cash ceiling"},
-        "meter_dish": {"value": 12, "of": 20, "label": "of 20 Gatsby loaves left"},
+
+    occupying_today = Order.objects.filter(
+        trading_day=trading_day, status__in=OCCUPYING_STATUSES,
+    ).count()
+    cash_occupying_today = Order.objects.filter(
+        trading_day=trading_day, payment_method=PaymentMethod.CASH, status__in=OCCUPYING_STATUSES,
+    ).count()
+
+    context.update({
+        "service_window": (
+            f"{coerce_time(trading_day.window_start).strftime('%H:%M')}"
+            f"–{coerce_time(trading_day.window_end).strftime('%H:%M')}"
+        ),
+        "summary": summary,
+        "exceptions": exceptions,
+        "added_after_lock": added_after_lock,
+        "tickets": tickets,
+        "meter_orders": {"value": occupying_today, "of": trading_day.daily_order_cap},
+        "meter_cash": {"value": cash_occupying_today, "of": settings.cash_daily_cap},
     })
+    return render(request, "staff/kitchen.html", context)
+
+
+# ---------------------------------------------------------------- collection board (§12.5)
+
+
+@staff_login_required
+def collection_board(request: HttpRequest) -> HttpResponse:
+    """§12.5: grouped by slot in time order, current slot highlighted;
+    `ready` past `window_end + collection_grace_minutes` moves to its
+    own "Uncollected" bucket instead of a slot group, with the
+    "Close out day" action (`core.transitions.close_out_day`) shown once
+    that deadline has passed.
+    """
+    settings = Settings.current()
+    date = _parse_date_param(request)
+    trading_day = TradingDay.objects.filter(pk=date).first()
+    context: dict[str, object] = {
+        "date": date, "date_label": _date_label(date), "trading_day": trading_day,
+        "prev_date": (date - dt.timedelta(days=1)).isoformat(),
+        "next_date": (date + dt.timedelta(days=1)).isoformat(),
+    }
+    if trading_day is None:
+        return render(request, "staff/collection.html", context)
+
+    now = now_sast()
+    deadline = dt.datetime.combine(
+        trading_day.date, trading_day.window_end, tzinfo=SAST,
+    ) + dt.timedelta(minutes=settings.collection_grace_minutes)
+    past_deadline = now >= deadline
+
+    orders = (
+        Order.objects.filter(trading_day=trading_day, status__in=COLLECTION_BOARD_STATUSES)
+        .select_related("payment", "slot")
+        .order_by("slot__start_at", "order_number")
+    )
+
+    current_slot = trading_day.slots.filter(start_at__lte=now.time(), end_at__gt=now.time()).first()
+
+    groups: dict[int, dict] = {}
+    uncollected = []
+    for order in orders:
+        if past_deadline and order.status == OrderStatus.READY:
+            uncollected.append(order)
+            continue
+        group = groups.setdefault(order.slot_id, {"slot": order.slot, "orders": []})
+        group["orders"].append(order)
+    slots = sorted(groups.values(), key=lambda g: g["slot"].start_at)
+
+    context.update({
+        "slots": slots,
+        "uncollected": uncollected,
+        "current_slot_id": current_slot.pk if current_slot else None,
+        "past_deadline": past_deadline,
+        "closed_out": trading_day.closed_out_at is not None,
+    })
+    return render(request, "staff/collection.html", context)
 
 
 # ---------------------------------------------------------------- EFT payment queue (§12.3)

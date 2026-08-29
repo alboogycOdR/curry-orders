@@ -700,3 +700,46 @@ def apply(
         )
     locked.refresh_from_db()
     return locked
+
+
+def close_out_day(trading_day: TradingDay, actor: Actor, *, now: dt.datetime | None = None) -> int:
+    """§12.5's "Close out day" button and §17.1's nightly `close_out_days`
+    job (23:30 SAST) are the same operation with a different actor: every
+    order still `ready` for this trading day -> `no_show` (one
+    `close_out_no_show` `apply()` call each, so each gets its own
+    transaction/lock/audit row, not one giant one), then `closed_out_at`
+    set if it isn't already. A no-op (returns 0, touches nothing) before
+    the grace deadline — safe to call from a job or a button with no
+    external gating required, though `staff/views.py`'s button still
+    only renders once the deadline has passed (§12.5: "visible after
+    grace").
+    """
+    now = now or now_sast()
+    settings = Settings.current()
+    deadline = dt.datetime.combine(
+        trading_day.date, trading_day.window_end, tzinfo=SAST
+    ) + dt.timedelta(minutes=settings.collection_grace_minutes)
+    if now < deadline:
+        return 0
+
+    order_ids = list(
+        Order.objects.filter(trading_day=trading_day, status=OrderStatus.READY)
+        .values_list("pk", flat=True)
+    )
+    closed = 0
+    for order_id in order_ids:
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist:
+            continue
+        try:
+            apply(order, "close_out_no_show", actor, OrderStatus.READY, now=now)
+            closed += 1
+        except TransitionError:
+            continue  # e.g. a concurrent staff action already moved it on
+
+    if trading_day.closed_out_at is None:
+        trading_day.closed_out_at = now
+        trading_day.closed_out_by = actor.user
+        trading_day.save(update_fields=["closed_out_at", "closed_out_by"])
+    return closed

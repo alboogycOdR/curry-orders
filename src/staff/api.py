@@ -1,28 +1,35 @@
-"""The one staff JSON API endpoint this pass builds: `POST
-/manage/api/orders/:id/transition` (spec §17.3's staff table) — backs
-the EFT payment queue's row actions (§12.3, `static/js/payments.js`).
-Session-authed (`staff.sessions`) + CSRF, same as every other staff POST
-in this project; the `{% csrf_token %}` on `staff/payments.html` is what
-puts the cookie this endpoint's caller reads.
+"""Staff JSON API endpoints: the generic `POST /manage/api/orders/:id/
+transition` (spec §17.3's staff table) backing every board's row
+actions, plus two milestone-6 day-level endpoints that aren't a single
+order's transition (`lock_prep_list`, `close_out_day`) — `core.
+transitions.apply()` only ever touches one order at a time, by design
+(§17.2), so a day-wide action needs its own small endpoint rather than
+being shoehorned through it. Session-authed (`staff.sessions`) + CSRF,
+same as every other staff POST in this project; the `{% csrf_token %}`
+on `staff/payments.html`/`kitchen.html`/`collection.html` is what puts
+the cookie these endpoints' callers read.
 
-A single generic endpoint rather than one route per action, matching
-`core.transitions.apply()`'s own single-dispatcher shape (§17.2) and the
-spec's literal `{action, expected_status, reason?, payload?}` body —
-every action this pass implements (§9.1's fifteen non-checkout,
-non-EFT-upload rows) is reachable through it, even the ones with no
-staff UI yet (see `core/transitions.py`'s module docstring); only the
-EFT queue actually calls it today.
+`transition` is a single generic endpoint rather than one route per
+action, matching `core.transitions.apply()`'s own single-dispatcher
+shape and the spec's literal `{action, expected_status, reason?,
+payload?}` body — every action this project implements (§9.1's fifteen
+non-checkout, non-EFT-upload rows) is reachable through it, even the
+ones with no staff UI yet (see `core/transitions.py`'s module
+docstring).
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 
-from core.models import ActorKind, Order
+from core.models import ActorKind, Order, TradingDay
 from core.transitions import Actor, TransitionError, apply
+from core.transitions import close_out_day as _close_out_day
+from core.tz import now_sast
 
 from .decorators import staff_login_required
 
@@ -82,3 +89,46 @@ def transition(request: HttpRequest, order_id: int) -> JsonResponse:
         return _error_response(exc.code, exc.message, **exc.extra)
 
     return JsonResponse({"order_number": order.order_number, "status": order.status})
+
+
+@staff_login_required
+@require_POST
+@csrf_protect
+def lock_prep_list(request: HttpRequest, date: str) -> JsonResponse:
+    """§12.4's "Lock prep list" — freezes `trading_day.kitchen_locked_at`
+    so the kitchen board can flag anything verified/accepted afterwards
+    under "Added after lock" (`staff/views.py`'s `kitchen` computes that
+    band from this timestamp, not a stored per-order flag, so it stays
+    correct no matter which transition put an order on the board).
+    """
+    try:
+        trading_day = TradingDay.objects.get(pk=dt.date.fromisoformat(date))
+    except (TradingDay.DoesNotExist, ValueError):
+        return _error_response("not_found", "No such trading day.")
+
+    if trading_day.kitchen_locked_at is None:
+        trading_day.kitchen_locked_at = now_sast()
+        trading_day.kitchen_locked_by = request.staff_user
+        trading_day.save(update_fields=["kitchen_locked_at", "kitchen_locked_by"])
+
+    return JsonResponse({"kitchen_locked_at": trading_day.kitchen_locked_at.isoformat()})
+
+
+@staff_login_required
+@require_POST
+@csrf_protect
+def close_out_day(request: HttpRequest, date: str) -> JsonResponse:
+    """§12.5's "Close out day" button — every order still `ready` for
+    this trading day -> `no_show`, then `closed_out_at` set. A no-op
+    (200, `closed: 0`) before the grace deadline; `staff/views.py`'s
+    `collection_board` only renders the button once that's passed
+    anyway, so hitting this early only happens by a direct API call.
+    """
+    try:
+        trading_day = TradingDay.objects.get(pk=dt.date.fromisoformat(date))
+    except (TradingDay.DoesNotExist, ValueError):
+        return _error_response("not_found", "No such trading day.")
+
+    actor = Actor(kind=ActorKind.STAFF, user=request.staff_user)
+    closed = _close_out_day(trading_day, actor)
+    return JsonResponse({"closed": closed})

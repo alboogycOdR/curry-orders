@@ -4,7 +4,7 @@ per process — this project's "single deployable" (D-13) runs it as its
 own `scheduler` container/service (`docker-compose.yml`), separate from
 the `web` process, not inside a Django request/response cycle.
 
-Wires the jobs milestones 1 and 4 need; see `jobs/tasks.py`'s module
+Wires the jobs milestones 1, 4 and 6 need; see `jobs/tasks.py`'s module
 docstring for why the rest of §17.1's table isn't here yet.
 """
 from __future__ import annotations
@@ -89,6 +89,20 @@ def build_scheduler() -> BlockingScheduler:
         name="expire_holds",
         next_run_time=_now_sast_cron(),
         misfire_grace_time=120,
+    )
+
+    # §17.1: "daily 23:30 SAST". No on-startup run — unlike the jobs
+    # above, running this the moment the scheduler starts (e.g. after a
+    # redeploy at 14:00) would be actively wrong: it would try to close
+    # out *today* hours before the collection window even ends. The
+    # function's own grace-deadline check would no-op it harmlessly, but
+    # there's no reason to invite that instead of just waiting for 23:30.
+    scheduler.add_job(
+        _logged(tasks.run_close_out_days, "close_out_days"),
+        trigger=CronTrigger(hour=23, minute=30, timezone=_SAST_CRON_TZ),
+        id="close_out_days",
+        name="close_out_days",
+        misfire_grace_time=3600,
     )
 
     return scheduler

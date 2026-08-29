@@ -2,12 +2,15 @@
 {% load static %}
 
 {% comment %}
-Kitchen desk — design handoff README §"Screens" §4. Capacity meters and
-the run sheet are server-rendered from `staff.views.kitchen`'s sample
-data; only the status-tag advance is interactive (kitchen.js), and it's
-purely client-side — see staff/views.py's module docstring for both the
-"sample data, not a real aggregate" caveat and the **auth gap** this view
-still has.
+Kitchen desk — spec §12.4, real now (milestone 6): the summary view
+(`dish_name_snapshot → option_key → SUM(quantity)`), the exceptions band
+(a note, a `kitchen_note`, or an allergen-flagged dish), the "Added
+after lock" band, and per-order tickets with real `start_kitchen`/
+`mark_ready` actions via `static/js/kitchen.js` ->
+`manage:api_transition`. Board membership is exactly §9.3's four
+statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
+`awaiting_eft`/`payment_review`/`cash_request`/`payment_expired`/
+`cancelled`/`collected`.
 {% endcomment %}
 
 {% block title %}Kitchen desk — Brandon's Kitchen{% endblock %}
@@ -17,32 +20,13 @@ still has.
   .kd-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
   .kd-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
   .kd-dateline-row {
-    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline;
     padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--color-neutral-700);
     border-bottom: 1px solid var(--color-text);
   }
-  .kd-dateline-row .accent { color: var(--color-accent-700); }
-  .kd-dateline-row .push { margin-left: auto; }
-
-  .kd-meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 56px; margin-top: 36px; }
-  .kd-meter-head { display: flex; align-items: baseline; gap: 10px; }
-  .kd-meter-value { font-family: var(--font-heading); font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .kd-meter-label { font-size: 15px; color: var(--color-neutral-700); }
-  .kd-meter-track { height: 8px; background: var(--color-neutral-300); margin-top: 12px; }
-  .kd-meter-fill { height: 8px; }
-
-  .kd-run-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 60px 0 0; }
-  .kd-run-hint { font-size: 14px; color: var(--color-neutral-700); margin: 8px 0 0; }
-  .kd-table-wrap { overflow-x: auto; margin-top: 20px; }
-  .kd-table { width: 100%; }
-  .kd-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .kd-table td.ref { font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
-  .kd-table td.items { color: var(--color-neutral-700); }
-  .kd-table td.pay { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); }
-  .kd-table td.value { text-align: right; font-variant-numeric: tabular-nums; }
-  .kd-status-btn { border: none; cursor: pointer; font-family: var(--font-body); }
-  .kd-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+  .kd-dateline-row a { color: var(--color-accent-700); }
+  .kd-dateline-row .push { margin-left: auto; display: flex; gap: 16px; align-items: baseline; }
   .kd-account-bar {
     display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
     font-size: 13px; color: var(--color-neutral-700);
@@ -53,11 +37,44 @@ still has.
     background: none; border: none; padding: 0; cursor: pointer;
     color: var(--color-accent-700); font: inherit; text-decoration: underline;
   }
+
+  .kd-meters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 56px; margin-top: 36px; max-width: 640px; }
+  .kd-meter-head { display: flex; align-items: baseline; gap: 10px; }
+  .kd-meter-value { font-family: var(--font-heading); font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kd-meter-label { font-size: 15px; color: var(--color-neutral-700); }
+  .kd-meter-track { height: 8px; background: var(--color-neutral-300); margin-top: 12px; }
+  .kd-meter-fill { height: 8px; }
+
+  .kd-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 48px 0 0; display: flex; align-items: baseline; gap: 16px; }
+  .kd-section-hint { font-size: 13px; color: var(--color-neutral-700); font-weight: 400; letter-spacing: normal; text-transform: none; }
+  .kd-lock-btn { margin-left: auto; }
+  .kd-empty { font-size: 14.5px; color: var(--color-neutral-600); margin: 12px 0 0; }
+
+  .kd-table-wrap { overflow-x: auto; margin-top: 16px; }
+  .kd-table { width: 100%; }
+  .kd-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .kd-table td.ref { font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+  .kd-table td.orders-list { color: var(--color-neutral-600); font-size: 13px; }
+  .kd-note-tag { display: inline-block; font-size: 12px; padding: 2px 7px; border: 1px solid var(--color-accent-2-700); color: var(--color-accent-2-700); border-radius: 3px; margin-right: 6px; }
+  .kd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .kd-actions button {
+    font-family: var(--font-body); font-size: 12.5px; padding: 5px 10px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+  }
+  .kd-actions button:hover { background: var(--color-text); color: var(--color-bg); }
+  .kd-row-error { font-size: 12px; color: #b3261e; margin-top: 4px; }
+  .kd-bulk-row { margin-top: 14px; display: flex; gap: 10px; }
+  .kd-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+
+  @media print {
+    .kd-account-bar, .site-header, .kd-lock-btn, .kd-actions, .kd-bulk-row, .kd-note, .kd-dateline-row .push { display: none !important; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="kd-wrap">
+  {% csrf_token %}
   <div class="kd-account-bar">
     <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
     {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
@@ -66,71 +83,140 @@ still has.
   <div class="kd-dateline-thick"></div>
   <div class="kd-dateline-row">
     <span>Kitchen desk</span>
-    <span>{{ today_label }}</span>
-    <span class="accent">Service {{ service_window }}</span>
-    <span class="push">Run sheet</span>
+    <span>{{ date_label }}</span>
+    {% if service_window %}<span>Service {{ service_window }}</span>{% endif %}
+    <span class="push">
+      <a href="?date={{ prev_date }}">&larr; Prev day</a>
+      <a href="?date={{ next_date }}">Next day &rarr;</a>
+      <button type="button" onclick="window.print()">Print</button>
+    </span>
   </div>
 
+  {% if not trading_day %}
+  <p class="kd-empty">No trading day exists for this date yet.</p>
+  {% else %}
   <div class="kd-meters">
     <div>
       <div class="kd-meter-head">
         <span class="kd-meter-value">{{ meter_orders.value }}</span>
-        <span class="kd-meter-label">{{ meter_orders.label }}</span>
+        <span class="kd-meter-label">of {{ meter_orders.of }} orders secured</span>
       </div>
       <div class="kd-meter-track"><div class="kd-meter-fill" style="width:{% widthratio meter_orders.value meter_orders.of 100 %}%;background:var(--color-accent)"></div></div>
     </div>
     <div>
       <div class="kd-meter-head">
         <span class="kd-meter-value">{{ meter_cash.value }}</span>
-        <span class="kd-meter-label">{{ meter_cash.label }}</span>
+        <span class="kd-meter-label">of {{ meter_cash.of }} cash orders today</span>
       </div>
-      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:70%;background:var(--color-accent-2)"></div></div>
-    </div>
-    <div>
-      <div class="kd-meter-head">
-        <span class="kd-meter-value">{{ meter_dish.value }}</span>
-        <span class="kd-meter-label">{{ meter_dish.label }}</span>
-      </div>
-      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:{% widthratio meter_dish.value meter_dish.of 100 %}%;background:var(--color-text)"></div></div>
+      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:{% widthratio meter_cash.value meter_cash.of 100 %}%;background:var(--color-accent-2)"></div></div>
     </div>
   </div>
 
-  <h3 class="kd-run-title">Today's run</h3>
-  <p class="kd-run-hint">Click a status to advance the order &mdash; awaiting payment, confirmed, cooking, ready, collected.</p>
+  <h3 class="kd-section-title">
+    Summary
+    <span class="kd-section-hint">dish &rarr; option &rarr; total units</span>
+    {% if trading_day.kitchen_locked_at %}
+      <span class="kd-section-hint">Locked {{ trading_day.kitchen_locked_at|time:"H:i" }}</span>
+    {% else %}
+      <button type="button" class="kd-lock-btn" id="kd-lock-btn">Lock prep list</button>
+    {% endif %}
+  </h3>
+  {% if not summary %}
+  <p class="kd-empty">Nothing on the kitchen board yet.</p>
+  {% else %}
   <div class="kd-table-wrap">
     <table class="table kd-table">
-      <thead>
+      <thead><tr><th>Dish</th><th>Option</th><th class="num">Qty</th><th>Orders</th></tr></thead>
+      <tbody>
+        {% for row in summary %}
         <tr>
-          <th>Slot</th>
-          <th>Ref</th>
-          <th>Customer</th>
-          <th>Items</th>
-          <th>Pay</th>
-          <th style="text-align:right">Value</th>
-          <th>Status</th>
+          <td>{{ row.dish }}</td>
+          <td>{{ row.option_key|default:"—" }}</td>
+          <td class="num">&times;{{ row.qty }}</td>
+          <td class="orders-list">{{ row.orders|join:", " }}</td>
         </tr>
-      </thead>
-      <tbody id="kd-run-body">
-        {% for o in orders %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if exceptions %}
+  <h3 class="kd-section-title">Exceptions</h3>
+  <div class="kd-table-wrap">
+    <table class="table kd-table">
+      <thead><tr><th>Order</th><th>Flags</th></tr></thead>
+      <tbody>
+        {% for x in exceptions %}
         <tr>
-          <td class="num">{{ o.slot }}</td>
-          <td class="ref">{{ o.ref }}</td>
-          <td>{{ o.who }}</td>
-          <td class="items">{{ o.items }}</td>
-          <td class="pay">{{ o.pay }}</td>
-          <td class="value">{{ o.value }}</td>
+          <td class="ref">{{ x.order.order_number }}</td>
           <td>
-            <button type="button" class="{{ o.tag_class }} kd-status-btn" data-status-index="{{ o.si }}">{{ o.status }}</button>
+            {% if x.note %}<span class="kd-note-tag">Note</span>{{ x.note }}<br>{% endif %}
+            {% for line in x.kitchen_notes %}<span class="kd-note-tag">Kitchen note</span>{{ line.dish_name_snapshot }}: &ldquo;{{ line.kitchen_note }}&rdquo;<br>{% endfor %}
+            {% for line in x.allergen_lines %}<span class="kd-note-tag">Allergen</span>{{ line.dish_name_snapshot }}: {{ line.dish.allergen_text }}<br>{% endfor %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p class="kd-note">Capacity ceilings, the cash cap and the payment hold are the product &mdash; this sheet is the staff-side view of them. Numbers shown are sample data for review.</p>
+  {% endif %}
+
+  {% if added_after_lock %}
+  <h3 class="kd-section-title">Added after lock</h3>
+  <div class="kd-table-wrap">
+    <table class="table kd-table">
+      <thead><tr><th>Order</th><th>Confirmed</th></tr></thead>
+      <tbody>
+        {% for order in added_after_lock %}
+        <tr><td class="ref">{{ order.order_number }}</td><td>{{ order.confirmed_at|time:"H:i" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h3 class="kd-section-title">Today's run</h3>
+  {% if not tickets %}
+  <p class="kd-empty">Nothing on the kitchen board yet.</p>
+  {% else %}
+  <div class="kd-bulk-row">
+    <button type="button" id="kd-bulk-start">Start kitchen (all confirmed)</button>
+    <button type="button" id="kd-bulk-ready">Mark ready (all in kitchen)</button>
+  </div>
+  <div class="kd-table-wrap">
+    <table class="table kd-table">
+      <thead>
+        <tr><th>Slot</th><th>Ref</th><th>Customer</th><th>Items</th><th>Pay</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="kd-run-body">
+        {% for t in tickets %}
+        <tr data-order-id="{{ t.order.pk }}" data-status="{{ t.order.status }}">
+          <td class="num">{{ t.order.slot.start_at|time:"H:i" }}</td>
+          <td class="ref">{{ t.order.order_number }}</td>
+          <td>{{ t.order.customer_name_snapshot }}</td>
+          <td>{{ t.items_summary }}</td>
+          <td>{% if t.order.payment_method == "cash" %}CASH{% else %}EFT{% endif %}</td>
+          <td>{{ t.order.get_status_display }}</td>
+          <td>
+            <div class="kd-actions">
+              {% if t.order.status == "confirmed_prep" or t.order.status == "cash_due" %}
+              <button type="button" data-action="start_kitchen">Start kitchen</button>
+              {% elif t.order.status == "in_kitchen" %}
+              <button type="button" data-action="mark_ready">Mark ready</button>
+              {% endif %}
+            </div>
+            <p class="kd-row-error" hidden></p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  <p class="kd-note">Actions here call the real transitions engine (core.transitions.apply). Reload to see other staff's changes; this page doesn't poll yet.</p>
+  {% endif %}
 </div>
 
-{{ statuses|json_script:"kd-statuses" }}
-{{ status_tag_class|json_script:"kd-status-tag-class" }}
 <script src="{% static 'js/kitchen.js' %}" defer></script>
 {% endblock %}
