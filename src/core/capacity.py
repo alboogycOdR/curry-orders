@@ -175,7 +175,9 @@ def check_slot_cap(slot: Slot) -> None:
         )
 
 
-def dish_units_used(trading_day: TradingDay, dish_ids: list[int]) -> dict[int, int]:
+def dish_units_used(
+    trading_day: TradingDay, dish_ids: list[int], *, exclude_order_id: int | None = None
+) -> dict[int, int]:
     """§8.1's `v_dish_units_used`, as an ORM aggregate rather than a DB
     view — units on lines whose order is in the occupying set **or**
     has `dish_units_consumed = true` (D-03), grouped by dish. Called
@@ -184,6 +186,13 @@ def dish_units_used(trading_day: TradingDay, dish_ids: list[int]) -> dict[int, i
     trading day/slot/availability rows are locked, since nothing else
     can insert a competing order against this trading day until this
     transaction commits).
+
+    `exclude_order_id`: `core.transitions.amend_items` (milestone 5)
+    rechecks ceilings for an order that already holds some of this same
+    capacity — its own current lines would otherwise double-count
+    against themselves when comparing the *new* quantity to what's
+    left. Checkout (`reserve()`, no existing order yet) never needs
+    this.
     """
     rows = (
         OrderLine.objects.filter(
@@ -191,6 +200,7 @@ def dish_units_used(trading_day: TradingDay, dish_ids: list[int]) -> dict[int, i
             dish_id__in=dish_ids,
         )
         .filter(_occupying_or_consumed_q())
+        .exclude(order_id=exclude_order_id if exclude_order_id is not None else -1)
         .values("dish_id")
         .annotate(units=Sum("quantity"))
     )

@@ -55,6 +55,14 @@ def staff_user(db) -> User:
 
 
 @pytest.fixture
+def owner_user(db) -> User:
+    return User.objects.create(
+        email="owner@example.test", name="Test Owner", role=UserRole.OWNER,
+        password_hash="unused-in-these-tests",
+    )
+
+
+@pytest.fixture
 def dish(db) -> Dish:
     return Dish.objects.create(
         slug="chicken-curry-roti",

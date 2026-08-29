@@ -1,12 +1,19 @@
 """Staff-facing views: auth (login/logout/change-password), the
-owner-only settings editor, and the kitchen desk — see
-`public/views.py`'s module docstring for the "visual pass" framing that
-still applies to the kitchen desk's sample run sheet/meters.
+owner-only settings editor, the kitchen desk, and (milestone 5) the EFT
+payment queue — see `public/views.py`'s module docstring for the "visual
+pass" framing that still applies to the kitchen desk's sample run
+sheet/meters, which this milestone doesn't touch.
 
 Auth is `staff.sessions`, not `django.contrib.auth` — see that module's
 docstring and `docs/DECISIONS.md` D-33 for why. The kitchen desk is now
 gated by `@staff_login_required`, closing the gap the previous pass
 flagged (design handoff README §4: "must be behind auth").
+
+`payments_queue` (§12.3) is real: real `core.Order` rows, real actions
+(`core.transitions.apply()`, via `staff/api.py`'s transition endpoint).
+It's the one board this milestone builds a UI for — see
+`core/transitions.py`'s own module docstring for why the other
+fourteen actions are implemented and tested but still unwired.
 """
 from __future__ import annotations
 
@@ -28,7 +35,7 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
-from core.models import Settings, SettingsEvent, User
+from core.models import Order, OrderStatus, Settings, SettingsEvent, User
 from core.tz import coerce_time, now_sast
 
 from . import sessions
@@ -256,4 +263,39 @@ def kitchen(request: HttpRequest) -> HttpResponse:
         "meter_orders": {"value": 18, "of": 24, "label": "of 24 orders secured"},
         "meter_cash": {"value": "R 420", "of": "R 600", "label": "of R 600 cash ceiling"},
         "meter_dish": {"value": 12, "of": 20, "label": "of 20 Gatsby loaves left"},
+    })
+
+
+# ---------------------------------------------------------------- EFT payment queue (§12.3)
+
+
+@staff_login_required
+def payments_queue(request: HttpRequest) -> HttpResponse:
+    """§9.3's EFT queue board: exactly `awaiting_eft`/`payment_review`,
+    hold expiry ascending (lapsed first), then slot start. Row actions
+    (Verify/Reject/Extend hold/Expire now) POST to `manage:api_transition`
+    (`staff/api.py`) via `static/js/payments.js` — this view only reads.
+    """
+    now = now_sast()
+    orders = (
+        Order.objects.filter(status__in=[OrderStatus.AWAITING_EFT, OrderStatus.PAYMENT_REVIEW])
+        .select_related("payment", "slot", "trading_day")
+        .order_by("hold_expires_at", "slot__start_at")
+    )
+    rows = []
+    for order in orders:
+        lapsed = order.hold_expires_at is not None and order.hold_expires_at < now
+        remaining_seconds = (
+            None if order.hold_expires_at is None
+            else int((order.hold_expires_at - now).total_seconds())
+        )
+        rows.append({
+            "order": order,
+            "lapsed": lapsed,
+            "remaining_seconds": remaining_seconds,
+            "has_proof": order.payment.current_proof_media_id is not None,
+        })
+    return render(request, "staff/payments.html", {
+        "rows": rows,
+        "now_label": now.strftime("%H:%M"),
     })
