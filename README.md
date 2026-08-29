@@ -30,6 +30,9 @@ production configuration.
   go-live per §23, formatted to hand to the owner.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — deploy, backup/restore, rotate
   secrets, common ops (stub until milestone 10).
+- [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md) — what's actually live
+  right now and where (currently: a stale static prototype on Clawsrv,
+  port 8104 — the real app isn't deployed anywhere yet).
 - [`docs/DISH_LIST_DRAFT.md`](docs/DISH_LIST_DRAFT.md) — draft menu
   content pending owner confirmation (§23).
 
@@ -49,7 +52,8 @@ docker-compose.yml web, scheduler, db, minio — no caddy container; the
 .env.example       see Appendix D of the spec
 schema_v1_1.sql    reference DDL
 deploy/            backup.sh, minio-bootstrap.sh, caddy-site.conf
-docs/              SPEC_v1.1.md, DECISIONS.md, RUNBOOK.md, DISH_LIST_DRAFT.md
+docs/              SPEC_v1.1.md, DECISIONS.md, RUNBOOK.md, DEPLOYMENTS.md,
+                   DISH_LIST_DRAFT.md
 src/
   config/          settings (split base/prod/test), urls, asgi/wsgi
   core/            domain: models, capacity.py, transitions.py, ordering.py,
