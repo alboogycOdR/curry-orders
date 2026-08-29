@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Curry Takeaway — theme preview (placeholder, dark jewel-tone)</title>
+<link rel="stylesheet" href="tokens.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    padding: 2rem 1.25rem 4rem;
+  }
+  h1, h2, .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+  }
+  h1 { font-size: 2.25rem; }
+  h2 { font-size: 1.375rem; margin-top: 3rem; color: var(--color-text-muted); font-weight: 600; }
+  .note { color: var(--color-text-muted); font-size: 0.9rem; max-width: 60ch; }
+  .divider {
+    border: none;
+    height: 1px;
+    margin: 2.5rem 0;
+    background: linear-gradient(90deg, transparent, var(--color-gold-line), transparent);
+    opacity: 0.4;
+  }
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+  .swatch {
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+  .swatch .fill { height: 72px; }
+  .swatch .label {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  .swatch .label b { display: block; font-size: 0.85rem; }
+  .swatch .label span { color: var(--color-text-muted); }
+
+  .row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 1rem; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 1.5rem;
+    border-radius: 999px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--color-saffron); color: var(--color-bg); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-text);
+    border: 1px solid var(--color-maroon);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-bg);
+  }
+  .badge-success { background: var(--color-success); }
+  .badge-warning { background: var(--color-warning); }
+  .badge-danger { background: var(--color-danger); }
+  .badge-magenta { background: var(--color-magenta); font-size: 0.95rem; } /* large/bold only */
+
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    max-width: 320px;
+    position: relative;
+  }
+  .card .price {
+    font-family: var(--font-display);
+    color: var(--color-saffron);
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+  }
+  .card .tag {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .type-scale div { margin-bottom: 1rem; }
+  .type-scale .display-lg { font-family: var(--font-display); font-size: 2.5rem; font-weight: 600; }
+  .type-scale .display { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; font-style: italic; color: var(--color-gold-line); }
+  .type-scale .body { font-family: var(--font-body); font-size: 1rem; }
+  .type-scale .small { font-family: var(--font-body); font-size: 0.875rem; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+  <p class="note">PLACEHOLDER THEME — dark jewel-tone direction, chosen 2026-08-29. Swaps for the owner's real brand palette once §23 lands. See docs/DESIGN_SYSTEM.md.</p>
+  <h1>Curry Takeaway Ordering System</h1>
+  <p class="note">A working preview of design/tokens.css — colour, type and core components, rendered unprocessed (no build step) so it can be checked directly in a browser.</p>
+
+  <h2>Colour</h2>
+  <div class="swatches">
+    <div class="swatch"><div class="fill" style="background:var(--color-bg)"></div><div class="label"><b>bg</b><span>#140d0b</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-surface)"></div><div class="label"><b>surface</b><span>#2a1714</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-saffron)"></div><div class="label"><b>saffron</b><span>#e8930a — 7.9:1</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-maroon)"></div><div class="label"><b>maroon</b><span>#7a1e2b</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-gold-line)"></div><div class="label"><b>gold-line</b><span>#d9a648</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-magenta)"></div><div class="label"><b>magenta</b><span>#c6296b — 3.6:1 (large/UI only)</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-success)"></div><div class="label"><b>success</b><span>#2e9370 — 5.1:1</span></div></div>
+    <div class="swatch"><div class="fill" style="background:var(--color-danger)"></div><div class="label"><b>danger</b><span>#e85a5a — 5.5:1</span></div></div>
+  </div>
+
+  <hr class="divider" />
+
+  <h2>Typography — Fraunces (display) / Inter (body)</h2>
+  <div class="type-scale">
+    <div class="display-lg">Butter chicken, medium spice</div>
+    <div class="display">from a home kitchen in Cape Town</div>
+    <div class="body">Collection slots open daily 16:00–18:00. Order by 10:00 for same-day collection, or choose any of the next 7 days. Pay by EFT or cash on the day.</div>
+    <div class="small">R 185.00 · Serves 1 · Contains dairy</div>
+  </div>
+
+  <hr class="divider" />
+
+  <h2>Buttons &amp; badges</h2>
+  <div class="row">
+    <button class="btn btn-primary">Add to cart</button>
+    <button class="btn btn-secondary">View menu</button>
+    <span class="badge badge-success">● Ready</span>
+    <span class="badge badge-warning">● Hold lapsed</span>
+    <span class="badge badge-danger">● Expired</span>
+    <span class="badge badge-magenta">Grand opening</span>
+  </div>
+
+  <hr class="divider" />
+
+  <h2>Dish card</h2>
+  <div class="card">
+    <span class="tag">Curry · Medium</span>
+    <div class="display" style="font-style:normal;color:var(--color-text);font-size:1.25rem;margin-top:0.25rem;">Butter Chicken</div>
+    <p class="note" style="margin-top:0.5rem;">Slow-cooked chicken in a tomato-butter gravy, served with basmati rice.</p>
+    <div class="price">R 185.00</div>
+  </div>
+
+</body>
+</html>

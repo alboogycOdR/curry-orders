@@ -1,0 +1,53 @@
+/*
+ * Curry Takeaway Ordering System — placeholder theme tokens
+ * Direction: dark jewel-tone (chosen 2026-08-29 from a Magnific gallery
+ * survey of "Indian restaurant landing page" designs — see
+ * docs/DESIGN_SYSTEM.md for the full rationale and contrast workings).
+ *
+ * PLACEHOLDER: swaps for the owner's real brand palette once §23 lands
+ * (logo, brand colours — currently "Outstanding"). Keep this file as the
+ * single source of truth in the meantime; don't hand-pick colours inline
+ * in templates.
+ *
+ * Plain :root custom properties — works unprocessed in any browser today.
+ * docs/DESIGN_SYSTEM.md also shows the Tailwind v4 `@theme` mapping for
+ * when milestone 2 wires up the real build (Tailwind's `@theme` is a
+ * build-time-only at-rule, not something a browser reads directly, so it
+ * is not duplicated here as a second, unverifiable file).
+ */
+
+:root {
+  /* Surfaces, darkest to lightest */
+  --color-bg: #140d0b;
+  --color-bg-elevated: #1d1210;
+  --color-surface: #2a1714;
+  --color-surface-raised: #33201b;
+  --color-border: #4a2e27;
+
+  /* Text */
+  --color-text: #f5eae0;       /* 16.2:1 on --color-bg */
+  --color-text-muted: #c9b8ac; /* 10.0:1 on --color-bg */
+
+  /* Brand / accent */
+  --color-saffron: #e8930a;   /* primary CTA fill; 7.9:1 as text on --color-bg */
+  --color-maroon: #7a1e2b;    /* secondary / decorative, borders, motif strokes */
+  --color-gold-line: #d9a648; /* muted — thin decorative line art only, not CTAs */
+  --color-magenta: #c6296b;   /* rare accent — large/bold labels + icons only,
+                                  3.6:1 on --color-bg: passes AA for large text/UI
+                                  components, NOT for normal body text */
+
+  /* Status — reused for order-state badges (spec §9.2 / §12 boards) */
+  --color-success: #2e9370; /* 5.1:1 on --color-bg — confirmed/ready */
+  --color-danger: #e85a5a;  /* 5.5:1 on --color-bg — expired/cancelled */
+  --color-warning: #e8930a; /* = saffron — hold-lapsed / SLA-breached flags */
+
+  /* Fixed rule for all three status fills + saffron buttons: pair with
+     --color-bg as the foreground text/icon colour. Every fill above was
+     checked against --color-bg specifically (ratios noted inline) — do not
+     substitute --color-text (near-white) on these fills without rechecking;
+     white-on-saffron measures ~2.4:1 and fails AA. */
+
+  /* Typography */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+}
