@@ -428,3 +428,28 @@ def payments_queue(request: HttpRequest) -> HttpResponse:
         "rows": rows,
         "now_label": now.strftime("%H:%M"),
     })
+
+
+# ---------------------------------------------------------------- cash requests (§12.2/M7)
+
+
+@staff_login_required
+def cash_requests(request: HttpRequest) -> HttpResponse:
+    """The one piece of §12.2's Inbox this milestone needs on its own
+    (spec's own board split names it there; "Inbox" itself, with the
+    hold-lapsed/notes/recently-expired sections around it, is milestone
+    9's board — see `core/transitions.py`'s module docstring). Exactly
+    `cash_request` orders, oldest first — no date filter, since cash is
+    same-day by default and this queue needs a same-day answer either
+    way. Accept/Reject POST to `manage:api_transition` like every other
+    board.
+    """
+    orders = (
+        Order.objects.filter(status=OrderStatus.CASH_REQUEST)
+        .select_related("slot", "trading_day")
+        .order_by("created_at")
+    )
+    return render(request, "staff/cash_requests.html", {
+        "orders": orders,
+        "now_label": now_sast().strftime("%H:%M"),
+    })

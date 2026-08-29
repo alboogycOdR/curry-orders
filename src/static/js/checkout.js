@@ -111,8 +111,32 @@
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
     }
 
+    var payCashRow = document.getElementById("ck-pay-cash-row");
+    var cashConfig = window.BK_CASH || { todayIso: null, available: false };
+
+    // §20's "cash hidden on advance dates and when cap reached" — the
+    // day picker lives on the order screen (order.js), one page back,
+    // so this page re-derives "is the chosen day today" on every render
+    // rather than trusting whatever was true when the page first loaded.
+    function cashIsOfferable() {
+      var day = currentDay();
+      return cashConfig.available && !!day && day.iso === cashConfig.todayIso;
+    }
+
     function renderPay() {
+      var offerable = cashIsOfferable();
+      if (payCashRow) payCashRow.hidden = !offerable;
       var pay = window.BKCart.getPay();
+      if (pay === "cash" && !offerable) {
+        // The chosen day changed (or cash filled up) since "cash" was
+        // picked — fall back to EFT rather than leave a hidden radio
+        // silently checked. reserve() would refuse a stale cash choice
+        // anyway (§8.2's own cash_not_allowed/cash_cap ceilings), but
+        // there's no reason to let the form say "cash" when the button
+        // for it is gone.
+        pay = "eft";
+        window.BKCart.setPay("eft");
+      }
       payEft.checked = pay === "eft";
       payCash.checked = pay === "cash";
     }

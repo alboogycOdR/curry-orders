@@ -12,6 +12,7 @@ urlpatterns = [
     path("kitchen/", views.kitchen, name="kitchen"),
     path("collection/", views.collection_board, name="collection"),
     path("payments/", views.payments_queue, name="payments"),
+    path("cash/", views.cash_requests, name="cash_requests"),
     # §17.3's staff API contract — no trailing slash, same convention
     # public/urls.py's api_checkout uses (POST-only, so APPEND_SLASH's
     # GET/HEAD-only redirect would just 404 a slashed-vs-not mismatch).

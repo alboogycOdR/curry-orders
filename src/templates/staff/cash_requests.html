@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Cash requests — spec §12.2's own "Cash requests (accept -> cash_due,
+reject)" item, built now (milestone 7's own scope) rather than waiting
+for the full Inbox board (milestone 9) — see staff/views.py's
+cash_requests docstring. Exactly `cash_request` orders, oldest first;
+Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
+{% endcomment %}
+
+{% block title %}Cash requests — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cr-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .cr-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .cr-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .cr-dateline-row .push { margin-left: auto; }
+  .cr-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .cr-account-bar a { color: var(--color-accent-700); }
+  .cr-account-bar form { margin: 0; }
+  .cr-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+
+  .cr-table-wrap { overflow-x: auto; margin-top: 28px; }
+  .cr-table { width: 100%; }
+  .cr-table td.ref { font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+  .cr-table td.value { text-align: right; font-variant-numeric: tabular-nums; }
+  .cr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cr-actions button {
+    font-family: var(--font-body); font-size: 12.5px; padding: 5px 10px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+  }
+  .cr-actions button:hover { background: var(--color-text); color: var(--color-bg); }
+  .cr-empty { font-size: 15.5px; color: var(--color-neutral-600); margin: 32px 0; }
+  .cr-row-error { font-size: 12.5px; color: #b3261e; margin-top: 6px; }
+  .cr-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cr-wrap">
+  {% csrf_token %}
+  <div class="cr-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="cr-dateline-thick"></div>
+  <div class="cr-dateline-row">
+    <span>Cash requests</span>
+    <span class="push">{{ now_label }} SAST</span>
+  </div>
+
+  {% if not orders %}
+  <p class="cr-empty">No cash requests waiting right now.</p>
+  {% else %}
+  <div class="cr-table-wrap">
+    <table class="table cr-table">
+      <thead>
+        <tr><th>Order</th><th>Customer</th><th style="text-align:right">Amount</th><th>Collect</th><th>Slot</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="cr-body">
+        {% for order in orders %}
+        <tr data-order-id="{{ order.pk }}" data-status="{{ order.status }}">
+          <td class="ref">{{ order.order_number }}</td>
+          <td>{{ order.customer_name_snapshot }}</td>
+          <td class="value">{{ order.total_cents|cents }}</td>
+          <td>{{ order.trading_day.date|date:"D j M" }}</td>
+          <td>{{ order.slot.start_at|time:"H:i" }}&ndash;{{ order.slot.end_at|time:"H:i" }}</td>
+          <td>
+            <div class="cr-actions">
+              <button type="button" data-action="accept_cash">Accept</button>
+              <button type="button" data-action="reject_cash">Reject</button>
+            </div>
+            <p class="cr-row-error" hidden></p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  <p class="cr-note">Accept moves the order onto the kitchen board as cash_due; reject cancels it and frees its slot/day/cash-cap capacity. Reload to see other staff's changes; this page doesn't poll yet.</p>
+</div>
+
+<script src="{% static 'js/cash_requests.js' %}" defer></script>
+{% endblock %}

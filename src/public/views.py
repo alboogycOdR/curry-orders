@@ -267,18 +267,32 @@ def order(request: HttpRequest) -> HttpResponse:
 
 
 def checkout(request: HttpRequest) -> HttpResponse:
+    """§20's own acceptance line "cash hidden on advance dates and when
+    cap reached" — `cash_daily_cap` is a *count* of cash orders per day
+    (`core.capacity.check_cash`), not a rand figure, so `cash_remaining`
+    is a live count too. `checkout.js` hides the cash option itself once
+    the customer's chosen day isn't `today_iso`, or once
+    `cash_available` is false; `reserve()` re-checks all of this
+    server-side regardless (§8.6), same as every other client-side
+    convenience check in this app.
+    """
     settings = Settings.current()
     today = now_sast().date()
+    trading_day = materialise_days(today, settings, count=1)[0]
+    cash_occupying_today = Order.objects.filter(
+        trading_day=trading_day, payment_method=PaymentMethod.CASH, status__in=OCCUPYING_STATUSES,
+    ).count()
+    cash_remaining = max(0, settings.cash_daily_cap - cash_occupying_today)
+
     return render(request, "public/checkout.html", {
         # Cart lines already carry {name, price} (cart.js), so checkout
         # doesn't need the menu price map — only the day list, to turn the
         # day index the order screen stored back into a display label.
         "days": _orderable_day_list(today, settings),
         "eft_hold_minutes": settings.eft_hold_minutes,
-        # Sample-only (milestone 3/7, D-06/§8.2's cash ceiling) — the
-        # remaining daily cash allowance is a live aggregate over today's
-        # occupying cash orders, not a constant.
-        "cash_left": "R 180.00",
+        "today_iso": today.isoformat(),
+        "cash_available": settings.cash_enabled and cash_remaining > 0,
+        "cash_remaining": cash_remaining,
     })
 
 

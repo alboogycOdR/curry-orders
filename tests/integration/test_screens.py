@@ -192,6 +192,50 @@ class TestCheckout:
         content = resp.content.decode()
         assert 'id="days-data"' in content
 
+    def test_cash_row_hidden_when_disabled(self, client, biz_settings) -> None:
+        biz_settings.cash_enabled = False
+        biz_settings.save(update_fields=["cash_enabled"])
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-pay-cash-row" hidden' in content
+
+    def test_cash_row_hidden_when_cap_reached(self, client, biz_settings, dish) -> None:
+        import datetime as dt
+
+        from core.capacity import CheckoutLine, ReservationRequest, reserve
+        from core.models import TradingDay
+        from core.tz import now_sast
+
+        biz_settings.cash_enabled = True
+        biz_settings.cash_daily_cap = 1
+        biz_settings.save(update_fields=["cash_enabled", "cash_daily_cap"])
+        today = now_sast().date()
+        trading_day = TradingDay.objects.create(
+            date=today, is_open=True, window_start=dt.time(16, 0), window_end=dt.time(18, 0),
+            cutoff_time=dt.time(23, 59), daily_order_cap=50,
+        )
+        slot = trading_day.slots.create(start_at=dt.time(16, 0), end_at=dt.time(16, 15), capacity=5)
+        reserve(
+            ReservationRequest(
+                trading_day_date=today, slot_id=slot.pk, payment_method="cash",
+                customer_name="Jane", customer_mobile_e164="+27821234567",
+                lines=[CheckoutLine(dish_id=dish.pk, quantity=1)],
+            ),
+            biz_settings,
+        )
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-pay-cash-row" hidden' in content
+
+    def test_cash_row_shown_with_remaining_count(self, client, biz_settings) -> None:
+        biz_settings.cash_enabled = True
+        biz_settings.cash_daily_cap = 7
+        biz_settings.save(update_fields=["cash_enabled", "cash_daily_cap"])
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-pay-cash-row" hidden' not in content
+        assert "7 cash orders still open today" in content
+
 
 class TestKitchen:
     """Now behind `@staff_login_required` (staff/decorators.py) — see

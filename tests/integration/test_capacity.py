@@ -439,3 +439,54 @@ class TestConcurrency:
         t2.join()
 
         assert sorted(results) == ["dish_qty_exceeded", "ok"]
+
+    def test_cash_cap_race(self) -> None:
+        # §20.5's own worked example: "cash cap 20 under concurrency" —
+        # here with a cap of 1 so the race is deterministic rather than
+        # probabilistic. `check_cash()` counts occupying cash orders
+        # under the same `trading_days` row lock `check_day_cap`/
+        # `check_slot_cap` already take, so this is the same fixed-lock-
+        # ordering protection as the slot/dish races above, not a
+        # separate mechanism.
+        from django.db import connections
+
+        from core.materialise import materialise_day
+        from core.models import Dish, Settings
+
+        settings = Settings.objects.create(
+            id=1, public_site_name="Test", cash_enabled=True, cash_daily_cap=1,
+        )
+        trading_day = materialise_day(dt.date(2026, 9, 1), settings)
+        slots = list(trading_day.slots.order_by("start_at")[:2])
+        dish = Dish.objects.create(
+            slug="cash-race-dish", name="Cash Race Dish", category="C", price_cents=1000,
+            is_active_on_menu=True,
+        )
+        # Same calendar day as trading_day (cash_same_day_only defaults
+        # true) and before the default cutoff.
+        same_day_before_cutoff = dt.datetime(2026, 9, 1, 6, 0, tzinfo=dt.UTC)
+
+        results: list[object] = [None, None]
+
+        def attempt(i: int) -> None:
+            try:
+                req = _req(
+                    dish, slots[i], payment_method="cash",
+                    customer_mobile_e164=f"+2782000002{i}", now=same_day_before_cutoff,
+                )
+                reserve(req, settings)
+                results[i] = "ok"
+            except CapacityError as e:
+                results[i] = e.code
+            finally:
+                connections.close_all()
+
+        t1 = threading.Thread(target=attempt, args=(0,))
+        t2 = threading.Thread(target=attempt, args=(1,))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        assert sorted(results) == ["cash_cap", "ok"]
+        assert Order.objects.filter(status="cash_request").count() == 1
