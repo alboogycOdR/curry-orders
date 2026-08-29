@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+EFT payment queue — spec §12.3/§9.3. Real `core.Order` rows
+(`awaiting_eft`/`payment_review` only, hold expiry ascending), real
+actions via `static/js/payments.js` -> `manage:api_transition` ->
+`core.transitions.apply()`. Buttons are rendered per-status so only
+legal actions ever show (§12.1: "Action buttons show only legal
+transitions for status + role") — Verify/Reject/Extend hold/Expire now
+only; Reinstate isn't wired here (that's the inbox board, milestone 9)
+even though core.transitions.apply()'s `reinstate` action already
+exists and is tested.
+{% endcomment %}
+
+{% block title %}Payments — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .pq-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .pq-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .pq-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .pq-dateline-row .push { margin-left: auto; }
+  .pq-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .pq-account-bar a { color: var(--color-accent-700); }
+  .pq-account-bar form { margin: 0; }
+  .pq-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+
+  .pq-table-wrap { overflow-x: auto; margin-top: 28px; }
+  .pq-table { width: 100%; }
+  .pq-table td.ref { font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+  .pq-table td.value { text-align: right; font-variant-numeric: tabular-nums; }
+  .pq-table td.hold { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pq-table td.hold.is-lapsed { color: var(--color-accent-2-700); }
+  .pq-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pq-actions button {
+    font-family: var(--font-body); font-size: 12.5px; padding: 5px 10px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+    border-radius: var(--radius-sm, 3px);
+  }
+  .pq-actions button:hover { background: var(--color-text); color: var(--color-bg); }
+  .pq-actions button[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .pq-empty { font-size: 15.5px; color: var(--color-neutral-600); margin: 32px 0; }
+  .pq-row-error { font-size: 12.5px; color: #b3261e; margin-top: 6px; }
+  .pq-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pq-wrap">
+  {% csrf_token %}
+  <div class="pq-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="pq-dateline-thick"></div>
+  <div class="pq-dateline-row">
+    <span>EFT payment queue</span>
+    <span class="push">{{ now_label }} SAST</span>
+  </div>
+
+  {% if not rows %}
+  <p class="pq-empty">Nothing awaiting EFT payment or verification right now.</p>
+  {% else %}
+  <div class="pq-table-wrap">
+    <table class="table pq-table">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Customer</th>
+          <th style="text-align:right">Amount</th>
+          <th>Slot</th>
+          <th>Hold</th>
+          <th>Proof</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="pq-body">
+        {% for row in rows %}
+        <tr data-order-id="{{ row.order.pk }}" data-status="{{ row.order.status }}">
+          <td class="ref">{{ row.order.order_number }}</td>
+          <td>{{ row.order.customer_name_snapshot }}</td>
+          <td class="value">{{ row.order.total_cents|cents }}</td>
+          <td>{{ row.order.slot.start_at|time:"H:i" }}&ndash;{{ row.order.slot.end_at|time:"H:i" }}</td>
+          <td class="hold {% if row.lapsed %}is-lapsed{% endif %}">
+            {% if row.remaining_seconds is None %}&mdash;
+            {% elif row.lapsed %}Lapsed
+            {% else %}{{ row.remaining_seconds|floatformat:0 }}s
+            {% endif %}
+          </td>
+          <td>{% if row.has_proof %}Uploaded{% else %}&mdash;{% endif %}</td>
+          <td>{{ row.order.get_status_display }}</td>
+          <td>
+            <div class="pq-actions">
+              {% if row.order.status == "payment_review" %}
+              <button type="button" data-action="verify_eft">Verify</button>
+              <button type="button" data-action="reject_eft" data-needs-reason="1">Reject</button>
+              {% endif %}
+              {% if row.order.status == "awaiting_eft" %}
+              <button type="button" data-action="verify_eft" data-needs-reason="1">Verify (seen in bank app)</button>
+              <button type="button" data-action="expire_hold_now">Expire now</button>
+              {% endif %}
+              <button type="button" data-action="extend_hold">Extend hold</button>
+            </div>
+            <p class="pq-row-error" hidden></p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  <p class="pq-note">Actions here call the real transitions engine (core.transitions.apply) — a row disappears once its order moves to confirmed_prep/cash_due/awaiting_eft/payment_expired and off this board's two statuses. Reload to see other staff's changes; this page doesn't poll yet.</p>
+</div>
+
+<script src="{% static 'js/payments.js' %}" defer></script>
+{% endblock %}

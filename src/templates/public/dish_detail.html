@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Dish detail — spec §11.4. Gallery is omitted (no dish photos exist
+pre-seed — spec §23 lists real photos as an outstanding owner input; the
+handoff's own menu screen is "deliberately text-only" for the same
+reason, so this isn't a regression). Required options render as radio
+(exactly one value, §7.4); non-required options render as checkboxes
+(optional add-ons, e.g. "Extra cheese"). "Add to cart" uses the shared
+cart.js — see dish.js for why a dish-with-options needs a composite cart
+key, not just the dish id.
+{% endcomment %}
+
+{% block title %}{{ dish.name }} — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dd-wrap { max-width: 720px; margin: 0 auto; padding: 40px 32px 80px; }
+  .dd-eyebrow { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-accent-2-700); }
+  .dd-name { font-size: clamp(28px, 4vw, 44px); font-weight: 600; margin: 12px 0 0; letter-spacing: -0.01em; }
+  .dd-price { font-family: var(--font-heading); font-style: italic; font-size: 22px; font-variant-numeric: tabular-nums; margin-top: 10px; }
+  .dd-desc { font-size: 16px; color: var(--color-neutral-800); margin-top: 18px; max-width: 56ch; }
+  .dd-sold-out { margin-top: 18px; }
+
+  .dd-section { margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--color-divider); }
+  .dd-section-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+  .dd-option-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 15px; }
+  .dd-option-row .delta { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--color-neutral-700); font-size: 14px; }
+
+  .dd-qty-row { display: flex; align-items: center; gap: 14px; margin-top: 28px; }
+  .dd-qty-row .qty-count { font-family: var(--font-heading); font-size: 18px; font-variant-numeric: tabular-nums; min-width: 20px; text-align: center; }
+  .dd-add { min-height: 48px; margin-top: 20px; font-size: 15px; }
+  .dd-confirm { display: none; margin-top: 16px; font-size: 14.5px; color: var(--color-accent-700); }
+  .dd-confirm.is-visible { display: block; }
+  .dd-confirm a { margin-left: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dd-wrap">
+  {% if dish.portion_label %}<span class="dd-eyebrow">{{ dish.portion_label }}</span>{% endif %}
+  <h1 class="dd-name">{{ dish.name }}</h1>
+  <div class="dd-price">{{ dish.price_cents|cents }}</div>
+  {% if dish.short_description %}<p class="dd-desc">{{ dish.short_description }}</p>{% endif %}
+  {% if dish.long_description %}<p class="dd-desc">{{ dish.long_description }}</p>{% endif %}
+  {% if dish.allergen_text %}<p class="dd-desc">{{ dish.allergen_text }}</p>{% endif %}
+
+  {% if dish.archived_at %}
+    <p class="dd-desc">This dish is no longer on the menu.</p>
+  {% else %}
+    <div id="dd-form" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-base-price="{{ dish.price_cents }}">
+      {% for option in options %}
+      <div class="dd-section">
+        <div class="dd-section-label">{{ option.name }}{% if not option.required %} (optional){% endif %}</div>
+        {% for value in option.values %}
+        <label class="dd-option-row">
+          {% if option.required %}
+          <input type="radio" name="opt-{{ option.id }}" value="{{ value.id }}" data-delta="{{ value.price_delta_cents }}" {% if forloop.first %}checked{% endif %} {% if not value.is_available %}disabled{% endif %}>
+          {% else %}
+          <input type="checkbox" name="opt-{{ option.id }}" value="{{ value.id }}" data-delta="{{ value.price_delta_cents }}" {% if not value.is_available %}disabled{% endif %}>
+          {% endif %}
+          <span>{{ value.name }}</span>
+          {% if value.price_delta_cents %}<span class="delta">+{{ value.price_delta_cents|cents }}</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      {% endfor %}
+
+      <div class="dd-qty-row">
+        <button type="button" class="btn btn-secondary btn-icon" id="dd-qty-dec" aria-label="One fewer">&minus;</button>
+        <span class="qty-count" id="dd-qty-count">1</span>
+        <button type="button" class="btn btn-primary btn-icon" id="dd-qty-inc" aria-label="One more">+</button>
+      </div>
+
+      {% if sold_out %}
+        <p class="dd-sold-out"><span class="tag tag-neutral">Sold out</span> — not available for the selected date.</p>
+      {% else %}
+        <button type="button" class="btn btn-primary dd-add" id="dd-add">Add to cart</button>
+      {% endif %}
+      <p class="dd-confirm" id="dd-confirm">Added to your order.<a href="{% url 'public:order' %}" class="btn btn-ghost">Continue to your order</a></p>
+    </div>
+  {% endif %}
+</div>
+
+<script src="{% static 'js/dish.js' %}" defer></script>
+{% endblock %}

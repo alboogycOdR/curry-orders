@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% comment %}
+Help — spec §6.1 `/help`: "how to order, collection, payment, cut-off".
+Every figure below is a live `Settings` value passed by `help_page`
+(`public/views.py`), not hard-coded copy — a settings change is reflected
+here without touching this template, matching §20's own acceptance line
+("cut-off, hold minutes, ... editable without deploy").
+{% endcomment %}
+
+{% block title %}Help — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hp-wrap { max-width: 680px; margin: 0 auto; padding: 48px 32px 80px; }
+  .hp-heading { font-family: var(--font-heading); font-size: clamp(28px, 4vw, 40px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
+  .hp-intro { font-size: 15.5px; color: var(--color-neutral-700); margin: 0 0 36px; max-width: 56ch; }
+  .hp-section { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--color-divider); }
+  .hp-section-title { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-2-700); margin: 0 0 10px; }
+  .hp-section p { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin: 0 0 10px; }
+  .hp-section ul { margin: 0 0 10px; padding-left: 20px; }
+  .hp-section li { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin-bottom: 6px; }
+  .hp-links { margin-top: 40px; font-size: 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hp-wrap">
+  <h1 class="hp-heading">Help</h1>
+  <p class="hp-intro">How ordering, collection and payment work at Brandon's Kitchen.</p>
+
+  <section class="hp-section">
+    <h2 class="hp-section-title">Ordering &amp; cut-off</h2>
+    <p>Same-day orders close at <strong>{{ same_day_cutoff }}</strong>. You can order for any open day up to <strong>{{ preorder_days }} days</strong> ahead.</p>
+    <p>Orders are placed against <strong>{{ slot_minutes }}-minute collection slots</strong>, each with its own capacity — once a slot fills up, it stops appearing as a choice.</p>
+  </section>
+
+  <section class="hp-section">
+    <h2 class="hp-section-title">Collection</h2>
+    <p>Collection happens during the day's collection window, currently <strong>{{ collection_window }}</strong> (this can vary by day — always check the time on your order confirmation, not this page).</p>
+    <p>The kitchen only starts preparing your order once payment is verified (EFT) or your cash order is accepted by staff — see Payment below.</p>
+  </section>
+
+  <section class="hp-section">
+    <h2 class="hp-section-title">Payment</h2>
+    <p><strong>EFT:</strong> pay by bank transfer using the reference on your order confirmation. Your slot is held for <strong>{{ eft_hold_minutes }} minutes</strong> — if payment isn't verified within that time, the hold is released.</p>
+    {% if cash_enabled %}
+    <p><strong>Cash:</strong> available on a limited basis{% if cash_same_day_only %}, for same-day orders only{% endif %}. A cash order is only confirmed once staff accept it, and payment is due at collection.</p>
+    {% else %}
+    <p><strong>Cash:</strong> not currently accepted — EFT only.</p>
+    {% endif %}
+  </section>
+
+  {% if support_whatsapp_e164 %}
+  <section class="hp-section">
+    <h2 class="hp-section-title">Still need help?</h2>
+    <p>Message us on WhatsApp about a specific order from that order's status page — please don't place routine orders over WhatsApp.</p>
+  </section>
+  {% endif %}
+
+  <p class="hp-links"><a href="{% url 'public:policies' %}">Read our collection, cancellation &amp; privacy policies →</a></p>
+</div>
+{% endblock %}

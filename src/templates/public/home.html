@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Front page — design handoff README §"Screens" §1. Recreates the `isFront`
+branch of `Brandon's Kitchen.dc.html` as a normal Django template: the
+masthead/hero/picks/how-it-works/footer sections are all static structure
++ copy (kept verbatim per the handoff's instruction), with the three hero
+figures and the dateline driven by `public.views.home`'s context instead
+of hard-coded, per the handoff's own callout ("should come from settings,
+not hard-coded in the template").
+
+The `.cmyk`/`.cmyk-head`/`.cmyk-num` print-plate treatments are pure CSS +
+the shared SVG filter defs `print-plates.js` injects (base.html loads it
+already) — no page-specific JS needed for them.
+{% endcomment %}
+
+{% block title %}Brandon's Kitchen — home kitchen, collection only{% endblock %}
+
+{% block extra_head %}
+<style>
+  @keyframes fpInkIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fpRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fp-masthead, .fp-hero-left, .fp-hero-right { animation: none !important; opacity: 1 !important; transform: none !important; }
+  }
+
+  .fp-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+
+  .fp-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .fp-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+  }
+  .fp-dateline-row .accent { color: var(--color-accent-700); }
+  .fp-dateline-row .push { margin-left: auto; }
+  .fp-dateline-thin { height: 1px; background: var(--color-text); }
+
+  .fp-masthead {
+    font-family: var(--font-heading); font-weight: 700;
+    font-size: clamp(52px, 11.2vw, 158px); line-height: 0.9; letter-spacing: -0.02em;
+    margin: 22px 0 0; animation: fpInkIn 700ms ease-out both;
+  }
+
+  .fp-hero-grid {
+    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 64px;
+    margin-top: 56px; align-items: start;
+  }
+  .fp-hero-left { animation: fpRiseIn 620ms ease-out both; }
+  .fp-hero-right { animation: fpRiseIn 760ms ease-out both; }
+  .fp-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); }
+  .fp-hero-left h2 {
+    font-size: clamp(30px, 3.6vw, 50px); font-weight: 600; line-height: 1.06;
+    letter-spacing: -0.015em; margin: 14px 0 0; text-wrap: pretty;
+  }
+  .fp-lead { font-size: 19px; line-height: 1.6; max-width: 44ch; margin: 24px 0 0; color: var(--color-neutral-800); text-wrap: pretty; }
+  .fp-cta-row { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .fp-cta-row .btn { min-height: 46px; font-size: 15px; }
+  .fp-cta-row .btn-primary { padding-inline: 26px; }
+  .fp-cta-row .btn-secondary { padding-inline: 22px; }
+  .fp-stats-row { display: flex; gap: 40px; margin-top: 44px; padding-top: 26px; border-top: 1px solid var(--color-divider); }
+  .fp-stat-num { font-family: var(--font-heading); font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fp-stat-label { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-700); margin-top: 8px; }
+
+  .fp-hero-figure { margin: 0; width: 100%; aspect-ratio: 4 / 3.2; }
+  .fp-hero-caption { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; color: var(--color-neutral-700); line-height: 1.45; }
+  .fp-hero-caption .plate-label { color: var(--color-accent-700); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+  .fp-hero-caption span:last-child { text-wrap: pretty; }
+
+  .fp-picks { margin-top: 96px; }
+  .fp-picks-head { display: flex; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--color-text); padding-bottom: 10px; }
+  .fp-picks-title { font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 0; }
+  .fp-picks-note { font-size: 13px; color: var(--color-neutral-700); margin-left: auto; }
+  .fp-picks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 30px; }
+  .fp-picks-grid > div { padding: 0 36px; border-left: 1px solid var(--color-divider); }
+  .fp-picks-grid > div:first-child { padding-left: 0; border-left: none; }
+  .fp-picks-grid > div:last-child { padding-right: 0; }
+  .fp-pick-portion { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-accent-2-700); }
+  .fp-pick-name { font-size: 25px; font-weight: 600; line-height: 1.14; margin: 10px 0 0; }
+  .fp-pick-desc { font-size: 16px; color: var(--color-neutral-800); margin: 12px 0 0; max-width: 30ch; }
+  .fp-pick-price { font-family: var(--font-heading); font-size: 19px; font-style: italic; margin-top: 16px; font-variant-numeric: tabular-nums; }
+
+  .fp-how { margin-top: 110px; display: grid; grid-template-columns: 0.7fr 2.3fr; gap: 64px; align-items: start; }
+  .fp-how-title { font-size: clamp(26px, 2.4vw, 34px); font-weight: 600; line-height: 1.1; margin: 0; }
+  .fp-how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 44px; }
+  .fp-step-num { font-family: var(--font-heading); font-weight: 700; font-size: 70px; display: block; }
+  .fp-step-title { font-size: 20px; font-weight: 600; margin: 22px 0 0; }
+  .fp-step-desc { font-size: 16px; color: var(--color-neutral-800); margin: 10px 0 0; max-width: 30ch; }
+
+  .fp-footer { margin-top: 110px; padding-top: 14px; border-top: 7px solid var(--color-text); }
+  .fp-footer-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: baseline; }
+  .fp-footer-brand { font-family: var(--font-heading); font-weight: 700; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
+  .fp-footer-loc { font-size: 13px; color: var(--color-neutral-700); }
+  .fp-footer-cta { margin-left: auto; font-size: 14px; }
+  .fp-footer-note { font-size: 12.5px; color: var(--color-neutral-600); max-width: 66ch; margin: 18px 0 0; }
+
+  @media (max-width: 860px) {
+    .fp-hero-grid, .fp-how { grid-template-columns: 1fr; }
+    .fp-picks-grid { grid-template-columns: 1fr; gap: 28px; }
+    .fp-picks-grid > div { padding: 0 !important; border-left: none !important; }
+    .fp-how-steps { grid-template-columns: 1fr; gap: 28px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fp-wrap">
+
+  <div class="fp-dateline-thick"></div>
+  <div class="fp-dateline-row">
+    <span>Cape Town, South Africa</span>
+    <span>{{ today_label }}</span>
+    <span>Collection only</span>
+    <span class="accent">Slots {{ collection_window }}</span>
+    <span class="push">Edition No. 1</span>
+  </div>
+  <div class="fp-dateline-thin"></div>
+
+  <h1 class="cmyk-head fp-masthead">
+    <span class="paper">Brandon's Kitchen</span>
+    <span class="plate plate-c" aria-hidden="true">Brandon's Kitchen</span>
+    <span class="plate plate-m" aria-hidden="true">Brandon's Kitchen</span>
+    <span class="plate plate-y" aria-hidden="true">Brandon's Kitchen</span>
+  </h1>
+
+  <div class="fp-hero-grid">
+    <div class="fp-hero-left">
+      <span class="fp-eyebrow">The kitchen</span>
+      <h2>Roti, curry and Gatsby &mdash; cooked to order, from a home kitchen.</h2>
+      <p class="fp-lead">Brandon's Kitchen serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
+      <div class="fp-cta-row">
+        <a href="{% url 'public:menu' %}" class="btn btn-primary">View the menu</a>
+        <a href="{% url 'manage:kitchen' %}" class="btn btn-secondary">See the kitchen desk</a>
+      </div>
+      <div class="fp-stats-row">
+        <div>
+          <div class="fp-stat-num">{{ orders_per_day }}</div>
+          <div class="fp-stat-label">Orders a day, capped</div>
+        </div>
+        <div>
+          <div class="fp-stat-num">{{ slot_minutes }}</div>
+          <div class="fp-stat-label">Minute collection window</div>
+        </div>
+        <div>
+          <div class="fp-stat-num">{{ same_day_cutoff }}</div>
+          <div class="fp-stat-label">Same-day cut-off</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fp-hero-right">
+      <figure class="cmyk fp-hero-figure">
+        <img src="{% static 'img/hero-dish.jpg' %}" alt="A masala steak Gatsby, cut open">
+        <img class="sep-c" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
+        <img class="sep-m" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
+        <img class="sep-y" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
+        <img class="sep-k" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
+      </figure>
+      <figcaption class="fp-hero-caption">
+        <span class="plate-label">Plate 1</span>
+        <span>The full house masala steak Gatsby &mdash; egg and cheese, no shortcuts. Photographed in the kitchen, 28 August.</span>
+      </figcaption>
+    </div>
+  </div>
+
+  <div class="fp-picks">
+    <div class="fp-picks-head">
+      <h3 class="fp-picks-title">Today's picks</h3>
+      <span class="fp-picks-note">Sample selection &mdash; full menu on the order page</span>
+    </div>
+    <div class="fp-picks-grid">
+      {% for pick in picks %}
+      <div>
+        <div class="fp-pick-portion">{{ pick.portion }}</div>
+        <h4 class="fp-pick-name">{{ pick.dish.name }}</h4>
+        <p class="fp-pick-desc">{{ pick.dish.desc }}</p>
+        <div class="fp-pick-price">{{ pick.dish.price_cents|cents }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="fp-how">
+    <h3 class="fp-how-title">How collection works</h3>
+    <div class="fp-how-steps">
+      <div>
+        <span class="cmyk-num fp-step-num">
+          <span class="paper">1</span>
+          <span class="plate plate-c" aria-hidden="true">1</span>
+          <span class="plate plate-m" aria-hidden="true">1</span>
+          <span class="plate plate-y" aria-hidden="true">1</span>
+        </span>
+        <h4 class="fp-step-title">Choose your slot</h4>
+        <p class="fp-step-desc">Order online for today or any of the next 7 days. Same-day orders close at {{ same_day_cutoff }}.</p>
+      </div>
+      <div>
+        <span class="cmyk-num fp-step-num">
+          <span class="paper">2</span>
+          <span class="plate plate-c" aria-hidden="true">2</span>
+          <span class="plate plate-m" aria-hidden="true">2</span>
+          <span class="plate plate-y" aria-hidden="true">2</span>
+        </span>
+        <h4 class="fp-step-title">We confirm</h4>
+        <p class="fp-step-desc">Pay by EFT or cash &mdash; we start cooking once your order is confirmed, not before.</p>
+      </div>
+      <div>
+        <span class="cmyk-num fp-step-num">
+          <span class="paper">3</span>
+          <span class="plate plate-c" aria-hidden="true">3</span>
+          <span class="plate plate-m" aria-hidden="true">3</span>
+          <span class="plate plate-y" aria-hidden="true">3</span>
+        </span>
+        <h4 class="fp-step-title">Collect at the door</h4>
+        <p class="fp-step-desc">Swing by during your 15-minute window. Text on arrival &mdash; no hooting.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="fp-footer">
+    <div class="fp-footer-row">
+      <span class="fp-footer-brand">Brandon's Kitchen</span>
+      <span class="fp-footer-loc">Cape Town, South Africa &mdash; collection only</span>
+      <a href="{% url 'public:order' %}" class="btn btn-ghost fp-footer-cta">Start an order</a>
+    </div>
+    <p class="fp-footer-note">Prototype for internal review. Menu, portions and pricing shown here are placeholders and will be finalised with Brandon before this goes live.</p>
+  </div>
+</div>
+{% endblock %}

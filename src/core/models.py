@@ -141,9 +141,11 @@ class MediaKind(models.TextChoices):
 class User(models.Model):
     """Staff (owner/manager) account. Not django.contrib.auth's User —
     schema_v1_1.sql defines its own shape (`password_hash`, no username).
-    Wiring this up to Django's session auth (AbstractBaseUser / a custom
-    auth backend, Argon2id per D-12) is staff-auth-milestone work, not
-    this pass; see §4.
+    Password hashing/lockout: `core.auth`. Session auth: `staff.sessions`
+    + `StaffSessionMiddleware` (`request.staff_user`) — a fully custom
+    mechanism on top of Django's session store rather than
+    `django.contrib.auth`; see docs/DECISIONS.md D-33 for why, and §4 for
+    the D-12 rules it implements.
     """
 
     # CITextField -> Postgres citext, matching schema_v1_1.sql exactly
@@ -331,6 +333,19 @@ class Settings(models.Model):
 
     def __str__(self) -> str:
         return self.public_site_name or "Settings"
+
+    @classmethod
+    def current(cls) -> "Settings":
+        """The singleton row (`id=1`, D-24) if `/manage/settings` has ever
+        been saved, else an unsaved `Settings()` carrying the field
+        defaults declared above — so read-only display code (the public
+        site's hero figures, the kitchen desk's service window, ...) has
+        something sane to render in a pre-seed dev/pilot environment
+        instead of crashing on a missing row. Never persisted from here;
+        callers that need to *write* settings still go through the real
+        row plus a `SettingsEvent` diff (that's application logic, D-24).
+        """
+        return cls.objects.filter(pk=1).first() or cls()
 
 
 class SettingsEvent(models.Model):

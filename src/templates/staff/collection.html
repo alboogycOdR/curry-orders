@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Collection board — spec §12.5, real (milestone 6): grouped by slot in
+time order, current slot highlighted; `mark_ready`/`mark_collected`/
+`uncollect` via `static/js/collection.js` -> `manage:api_transition`;
+"Close out day" (`core.transitions.close_out_day`) once
+`window_end + collection_grace_minutes` has passed. Board membership is
+§9.3's three statuses (`staff.views.COLLECTION_BOARD_STATUSES`) —
+`ready` primary, `in_kitchen` greyed "not ready", `collected` collapsed.
+{% endcomment %}
+
+{% block title %}Collection — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cb-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .cb-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .cb-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .cb-dateline-row a { color: var(--color-accent-700); }
+  .cb-dateline-row .push { margin-left: auto; display: flex; gap: 16px; align-items: baseline; }
+  .cb-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .cb-account-bar a { color: var(--color-accent-700); }
+  .cb-account-bar form { margin: 0; }
+  .cb-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+
+  .cb-slot-group { margin-top: 40px; }
+  .cb-slot-head { display: flex; align-items: baseline; gap: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--color-text); }
+  .cb-slot-head h3 { font-family: var(--font-heading); font-size: 20px; font-weight: 600; margin: 0; }
+  .cb-slot-group.is-current .cb-slot-head h3 { color: var(--color-accent-700); }
+  .cb-slot-head .tag { margin-left: 4px; }
+
+  .cb-tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
+  .cb-ticket { border: 1px solid var(--color-divider); padding: 16px; }
+  .cb-ticket.is-in-kitchen { opacity: 0.55; }
+  .cb-ticket.is-collected { opacity: 0.4; }
+  .cb-ticket-ref { font-family: var(--font-heading); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cb-ticket-who { font-size: 15px; margin-top: 4px; }
+  .cb-ticket-meta { font-size: 13px; color: var(--color-neutral-700); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .cb-ticket-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .cb-ticket-actions button {
+    font-family: var(--font-body); font-size: 12.5px; padding: 5px 10px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+  }
+  .cb-ticket-actions button:hover { background: var(--color-text); color: var(--color-bg); }
+  .cb-row-error { font-size: 12px; color: #b3261e; margin-top: 6px; }
+  .cb-empty { font-size: 14.5px; color: var(--color-neutral-600); margin: 12px 0 0; }
+
+  .cb-close-out { margin-top: 48px; padding: 20px; border: 1px solid var(--color-accent-2-700); }
+  .cb-close-out h3 { font-family: var(--font-heading); font-size: 17px; margin: 0 0 8px; }
+  .cb-close-out-btn { margin-top: 12px; }
+  .cb-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cb-wrap">
+  {% csrf_token %}
+  <div class="cb-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="cb-dateline-thick"></div>
+  <div class="cb-dateline-row">
+    <span>Collection board</span>
+    <span>{{ date_label }}</span>
+    {% if closed_out %}<span>Closed out</span>{% endif %}
+    <span class="push">
+      <a href="?date={{ prev_date }}">&larr; Prev day</a>
+      <a href="?date={{ next_date }}">Next day &rarr;</a>
+    </span>
+  </div>
+
+  {% if not trading_day %}
+  <p class="cb-empty">No trading day exists for this date yet.</p>
+  {% else %}
+
+  {% if not slots and not uncollected %}
+  <p class="cb-empty">Nothing on the collection board yet.</p>
+  {% endif %}
+
+  {% for group in slots %}
+  <div class="cb-slot-group {% if group.slot.pk == current_slot_id %}is-current{% endif %}">
+    <div class="cb-slot-head">
+      <h3>{{ group.slot.start_at|time:"H:i" }}&ndash;{{ group.slot.end_at|time:"H:i" }}</h3>
+      {% if group.slot.pk == current_slot_id %}<span class="tag tag-accent">Now</span>{% endif %}
+    </div>
+    <div class="cb-tickets">
+      {% for order in group.orders %}
+      <div class="cb-ticket {% if order.status == 'in_kitchen' %}is-in-kitchen{% elif order.status == 'collected' %}is-collected{% endif %}"
+           data-order-id="{{ order.pk }}" data-status="{{ order.status }}" data-total-cents="{{ order.total_cents }}"
+           data-collected-at="{{ order.collected_at|date:'c' }}">
+        <div class="cb-ticket-ref">{{ order.order_number }}</div>
+        <div class="cb-ticket-who">{{ order.customer_name_snapshot }}</div>
+        <div class="cb-ticket-meta">
+          <span>{{ order.lines.count }} item{{ order.lines.count|pluralize }}</span>
+          {% if order.payment_method == "cash" %}
+            <span class="tag tag-outline">CASH {{ order.total_cents|cents }}</span>
+          {% else %}
+            <span class="tag tag-accent">PAID</span>
+          {% endif %}
+          {% if order.status == "ready" %}<span class="tag tag-accent-2">Ready</span>{% endif %}
+        </div>
+        <div class="cb-ticket-actions">
+          {% if order.status == "in_kitchen" %}
+          <button type="button" data-action="mark_ready">Mark ready</button>
+          {% elif order.status == "ready" %}
+          <button type="button" data-action="mark_collected">Collected</button>
+          {% elif order.status == "collected" %}
+          <button type="button" data-action="uncollect" data-needs-reason="1">Uncollect</button>
+          {% endif %}
+        </div>
+        <p class="cb-row-error" hidden></p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if uncollected %}
+  <div class="cb-slot-group">
+    <div class="cb-slot-head"><h3>Uncollected</h3></div>
+    <div class="cb-tickets">
+      {% for order in uncollected %}
+      <div class="cb-ticket" data-order-id="{{ order.pk }}" data-status="{{ order.status }}">
+        <div class="cb-ticket-ref">{{ order.order_number }}</div>
+        <div class="cb-ticket-who">{{ order.customer_name_snapshot }}</div>
+        <div class="cb-ticket-meta">
+          <span>{{ order.slot.start_at|time:"H:i" }}</span>
+          {% if order.payment_method == "cash" %}<span class="tag tag-outline">CASH {{ order.total_cents|cents }}</span>{% else %}<span class="tag tag-accent">PAID</span>{% endif %}
+        </div>
+        <div class="cb-ticket-actions">
+          <button type="button" data-action="close_out_no_show">No-show</button>
+        </div>
+        <p class="cb-row-error" hidden></p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if past_deadline and not closed_out %}
+  <div class="cb-close-out">
+    <h3>Close out day</h3>
+    <p>The collection window plus grace period has passed. Closing out marks every remaining <strong>ready</strong> order as a no-show.</p>
+    <button type="button" class="cb-close-out-btn" id="cb-close-out-btn">Close out day</button>
+  </div>
+  {% endif %}
+
+  <p class="cb-note">Actions here call the real transitions engine (core.transitions.apply). Reload to see other staff's changes; this page doesn't poll yet.</p>
+  {% endif %}
+</div>
+
+<script src="{% static 'js/collection.js' %}" defer></script>
+{% endblock %}

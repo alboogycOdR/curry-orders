@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Order screen — design handoff README §"Screens" §2. The menu listing
+(categories, dish names/descriptions/prices, sold-out state) and the slot
+grid's full/disabled state are server-rendered from real `core.Dish`/
+`core.Slot` data; the day picker, qty steppers, order sheet and total are
+client-side state (order.js + the shared cart.js) — that cart is only
+ever a client-side staging area, turned into one real order at checkout
+(see public/views.py's module docstring) — this mirrors the handoff's own
+reactive prototype, just re-homed onto plain DOM updates instead of a
+component re-render.
+{% endcomment %}
+
+{% block title %}Order — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .op-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .op-head { display: flex; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--color-text); padding: 36px 0 10px; }
+  .op-head h2 { font-size: clamp(30px, 4vw, 52px); font-weight: 600; line-height: 1; margin: 0; letter-spacing: -0.015em; }
+  .op-head-note { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); margin-left: auto; }
+
+  .op-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 72px; margin-top: 44px; align-items: start; }
+  .op-menu { display: flex; flex-direction: column; gap: 56px; }
+  .op-cat-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .op-cat-letter { font-family: var(--font-heading); font-style: italic; font-size: 16px; color: var(--color-accent-2-700); width: 34px; }
+  .op-cat-name { font-size: 23px; font-weight: 600; margin: 0; white-space: nowrap; }
+  .op-cat-rule { flex: 1; height: 1px; background: var(--color-divider); }
+  .op-cat-portion { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); }
+
+  .op-dish-row { display: grid; grid-template-columns: 1fr auto auto; gap: 24px; align-items: start; padding: 18px 0 18px 48px; border-top: 1px solid var(--color-divider); }
+  .op-dish-name { font-family: var(--font-heading); font-size: 19px; font-weight: 600; line-height: 1.2; }
+  .op-dish-desc { font-size: 15.5px; color: var(--color-neutral-700); margin-top: 5px; max-width: 46ch; }
+  .op-dish-note { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin-top: 8px; }
+  .op-dish-price { font-family: var(--font-heading); font-style: italic; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
+  .op-dish-qty { display: flex; align-items: center; gap: 10px; min-width: 112px; justify-content: flex-end; }
+  .op-dish-row.is-sold-out { opacity: 0.5; }
+  .op-dish-row.is-sold-out .op-dish-name { text-decoration: line-through; }
+  .op-dish-qty .qty-count { font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: center; }
+  .op-dish-qty .btn { min-height: 36px; }
+  .op-dish-qty .btn-add { padding-inline: 16px; }
+
+  .op-panel { position: sticky; top: 96px; }
+  .op-panel-bar { height: 4px; background: var(--color-text); }
+  .op-panel-title { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding: 9px 0; border-bottom: 1px solid var(--color-text); }
+  .op-section-label { font-family: var(--font-heading); font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .op-day-section { margin-top: 26px; }
+  .op-day-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .op-slot-section { margin-top: 30px; }
+  .op-slot-head { display: flex; align-items: baseline; gap: 12px; }
+  .op-slot-note-inline { font-size: 13px; color: var(--color-neutral-600); margin-left: auto; }
+  .op-slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .op-slot-note { font-size: 13px; color: var(--color-neutral-700); margin-top: 12px; }
+
+  .op-chip {
+    font-family: var(--font-body); font-size: 14px; cursor: pointer;
+    padding: 8px 6px; border-radius: var(--radius-md); text-align: center; line-height: 1.2;
+    transition: background 140ms ease, color 140ms ease;
+    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
+  }
+  .op-chip .op-chip-top { display: block; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+  .op-chip .op-chip-bottom { display: block; font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; }
+  .op-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  .op-slot-chip.is-full { color: var(--color-neutral-500); text-decoration: line-through; cursor: not-allowed; }
+
+  .op-sheet { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--color-divider); }
+  .op-sheet-line { display: flex; gap: 14px; align-items: baseline; padding: 9px 0; }
+  .op-sheet-qty { font-family: var(--font-heading); font-variant-numeric: tabular-nums; color: var(--color-accent-700); width: 26px; }
+  .op-sheet-name { flex: 1; font-size: 16px; }
+  .op-sheet-total { font-variant-numeric: tabular-nums; font-size: 16px; }
+  .op-sheet-empty { font-size: 15.5px; color: var(--color-neutral-600); margin: 6px 0 0; max-width: 34ch; }
+
+  .op-total-row { display: flex; align-items: baseline; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-text); }
+  .op-total-label { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .op-total-value { margin-left: auto; font-family: var(--font-heading); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .op-continue { min-height: 48px; font-size: 15px; margin-top: 18px; }
+  .op-ready-hint { font-size: 12.5px; color: var(--color-neutral-600); margin: 12px 0 0; }
+
+  {% comment %} Not the real responsive pass (handoff README: "worth a design pass rather than a developer guess") — just enough that the screen isn't broken on a phone. {% endcomment %}
+  @media (max-width: 900px) {
+    .op-grid { grid-template-columns: 1fr; }
+    .op-panel { position: static; }
+    .op-dish-row { grid-template-columns: 1fr; gap: 8px; padding-left: 0; }
+    .op-dish-qty { justify-content: flex-start; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="op-wrap">
+  <div class="op-head">
+    <h2>What's cooking</h2>
+    <span class="op-head-note">Sample menu &amp; pricing &mdash; for review</span>
+  </div>
+
+  <div class="op-grid">
+    <div class="op-menu" id="op-menu">
+      {% for category_name, dishes in categories %}
+      <div>
+        <div class="op-cat-head">
+          <h3 class="op-cat-name">{{ category_name }}</h3>
+          <span class="op-cat-rule"></span>
+          <span class="op-cat-portion">{{ dishes.0.portion_label }}</span>
+        </div>
+        {% for dish in dishes %}
+        <div class="op-dish-row {% if dish.sold_out %}is-sold-out{% endif %}" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price_cents }}">
+          <div>
+            <div class="op-dish-name">{{ dish.name }}</div>
+            <div class="op-dish-desc">{{ dish.short_description }}</div>
+          </div>
+          <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
+          {% if dish.sold_out %}
+          <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
+          {% else %}
+          <div class="op-dish-qty" data-qty-control></div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="op-panel">
+      <div class="op-panel-bar"></div>
+      <div class="op-panel-title">Your collection order</div>
+
+      <div class="op-day-section">
+        <div class="op-section-label">Day</div>
+        <div class="op-day-chips" id="op-day-chips">
+          {% for d in days %}
+          <button type="button" class="op-chip" data-day-index="{{ d.index }}" data-day-long="{{ d.long }}">
+            <span class="op-chip-top">{{ d.dow }}</span>
+            <span class="op-chip-bottom">{{ d.dom }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="op-slot-section">
+        <div class="op-slot-head">
+          <div class="op-section-label">Collection slot</div>
+          <span class="op-slot-note-inline">15-minute windows</span>
+        </div>
+        <div class="op-slot-grid" id="op-slot-grid">
+          {% for s in slots %}
+          <button type="button" class="op-chip op-slot-chip {% if s.full %}is-full{% endif %}"
+                  data-slot-id="{{ s.id }}" data-slot="{{ s.label }}" {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
+          {% endfor %}
+        </div>
+        <div class="op-slot-note" id="op-slot-note"></div>
+      </div>
+
+      <div class="op-sheet" id="op-sheet"></div>
+
+      <div class="op-total-row">
+        <span class="op-total-label">Total</span>
+        <span class="op-total-value" id="op-total-value">R 0.00</span>
+      </div>
+      <button type="button" class="btn btn-primary btn-block op-continue" id="op-continue"
+              data-checkout-url="{% url 'public:checkout' %}" disabled>Continue to payment</button>
+      <p class="op-ready-hint" id="op-ready-hint"></p>
+    </div>
+  </div>
+</div>
+
+{{ days|json_script:"days-data" }}
+{{ eft_hold_minutes|json_script:"eft-hold-minutes-data" }}
+<script src="{% static 'js/order.js' %}" defer></script>
+{% endblock %}

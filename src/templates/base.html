@@ -6,6 +6,7 @@
   <title>{% block title %}Brandon's Kitchen{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
   <script src="{% static 'js/print-plates.js' %}" defer></script>
+  <script src="{% static 'js/cart.js' %}" defer></script>
 
   {% comment %}
   Header — Broadsheet's own .nav/.nav-brand classes (styles.css) are
@@ -79,6 +80,19 @@
       color: var(--color-neutral-700);
       white-space: nowrap;
     }
+    .site-footer {
+      margin-top: 64px;
+      padding: var(--space-4);
+      border-top: 1px solid var(--color-divider);
+      display: flex;
+      gap: var(--space-4);
+      justify-content: center;
+      font-size: 13px;
+      color: var(--color-neutral-600);
+    }
+    .site-footer a {
+      color: var(--color-neutral-600);
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -91,35 +105,45 @@ saturate(1.1). Wordmark links to "/". Nav covers the four screens; the
 active item takes --color-text with a 2px --color-accent-2 bottom border,
 inactive items --color-neutral-600 with a transparent border (kept in the
 markup so the layout doesn't shift on state change). Right-aligned cart
-summary at 13px uppercase tabular-nums — cart state is a later concern, so
-it's a template variable a view can override; defaults to the empty-cart
-copy from the README.
+summary at 13px uppercase tabular-nums, server-rendered from
+`cart_summary` (defaults to the empty-cart copy from the README) and then
+kept live by cart.js reading its localStorage cart on every page load —
+see that file's header for why the cart lives there and not in a session
+yet.
 
-Nav URL names (public:home / public:order / public:checkout /
-manage:kitchen) don't resolve yet — src/config/urls.py doesn't exist in
-this pass, and a url tag would hard-fail the render before it does
-(NoReverseMatch). Using plain hrefs for now; swap each href for the url
-tag once the URLconf lands — see the per-link TODO comments below and
-src/templates/README.md.
+`config/urls.py` now defines all four names (public:home, public:order,
+public:checkout, manage:kitchen), so the nav links below are real
+`{% templatetag openblock %} url {% templatetag closeblock %}` calls.
 {% endcomment %}
 <header class="site-header">
-  <a href="/" class="wordmark">Brandon's Kitchen</a>
+  <a href="{% url 'public:home' %}" class="wordmark">Brandon's Kitchen</a>
 
   <nav class="site-nav" aria-label="Primary">
-    {# TODO: swap href for {% url 'public:home' %} once src/config/urls.py defines it #}
-    <a href="/" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
-    {# TODO: swap href for {% url 'public:order' %} once src/config/urls.py defines it #}
-    <a href="/order/" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
-    {# TODO: swap href for {% url 'public:checkout' %} once src/config/urls.py defines it #}
-    <a href="/checkout/" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
-    {# TODO: swap href for {% url 'manage:kitchen' %} once src/config/urls.py defines it #}
-    <a href="/kitchen/" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
+    <a href="{% url 'public:home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
+    <a href="{% url 'public:order' %}" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
+    <a href="{% url 'public:checkout' %}" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
+    <a href="{% url 'manage:kitchen' %}" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
+    <a href="{% url 'manage:collection' %}" {% if request.resolver_match.url_name == 'collection' %}aria-current="page"{% endif %}>Collection</a>
+    <a href="{% url 'manage:payments' %}" {% if request.resolver_match.url_name == 'payments' %}aria-current="page"{% endif %}>Payments</a>
+    <a href="{% url 'manage:cash_requests' %}" {% if request.resolver_match.url_name == 'cash_requests' %}aria-current="page"{% endif %}>Cash</a>
+    <a href="{% url 'manage:daily_controls_today' %}" {% if request.resolver_match.url_name == 'daily_controls' %}aria-current="page"{% endif %}>Daily controls</a>
   </nav>
 
-  <span class="cart-summary">{{ cart_summary|default:"No order started" }}</span>
+  <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>
 </header>
 
 {% block content %}{% endblock %}
+
+{% comment %}
+Footer — customer-facing Help/Policies links (§6.1/§11.12). Kept separate
+from .site-nav above, which already mixes customer nav with five
+staff-board links; policy links belong somewhere a customer will look,
+not buried in that list.
+{% endcomment %}
+<footer class="site-footer">
+  <a href="{% url 'public:help' %}">Help</a>
+  <a href="{% url 'public:policies' %}">Policies</a>
+</footer>
 
 </body>
 </html>

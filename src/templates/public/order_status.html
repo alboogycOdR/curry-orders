@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Order status — spec §6.1 `/orders/:public_token`, §11.7-9. Order number,
+plain-language status, the order sheet, collection details; for an EFT
+order still `awaiting_eft`/`payment_review` (§11.7), also bank details, a
+server-time hold countdown and the proof-upload control (eft.js). The
+staff EFT queue that verifies/rejects a proof (milestone 5) doesn't exist
+yet — a `payment_review` order here just says "we're checking it".
+{% endcomment %}
+
+{% block title %}Order {{ order.order_number }} — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  .os-wrap { max-width: 760px; margin: 0 auto; padding: 0 32px; }
+  .os-topbar { height: 4px; background: var(--color-text); margin-top: 36px; }
+  .os-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); margin-top: 28px; display: block; }
+  .os-heading { font-size: clamp(28px, 4vw, 46px); font-weight: 600; line-height: 1.05; margin: 14px 0 0; letter-spacing: -0.015em; }
+  .os-status { font-size: 17px; color: var(--color-neutral-800); margin: 16px 0 0; max-width: 52ch; }
+
+  .os-figures { display: flex; gap: 48px; margin-top: 38px; padding-top: 22px; border-top: 1px solid var(--color-text); flex-wrap: wrap; }
+  .os-figure-label { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .os-figure-value { font-family: var(--font-heading); font-size: 22px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  .os-eft-panel { margin-top: 40px; padding: 28px 28px 30px; border: 1px solid var(--color-text); border-radius: var(--radius-md); }
+  .os-eft-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .os-eft-title { font-family: var(--font-heading); font-size: 20px; font-weight: 600; margin: 0; }
+  .os-eft-countdown { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--color-accent-2-700); }
+  .os-eft-countdown.is-expired { color: var(--color-neutral-600); }
+  .os-bank-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px 24px; margin-top: 22px; }
+  .os-bank-label { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .os-bank-value { font-family: var(--font-heading); font-size: 16px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .os-bank-ref { color: var(--color-accent-2-700); }
+
+  .os-upload { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--color-divider); }
+  .os-upload-hint { font-size: 13.5px; color: var(--color-neutral-700); margin: 0 0 12px; }
+  .os-upload-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .os-upload-status { margin-top: 14px; font-size: 14.5px; }
+  .os-upload-status.is-ok { color: var(--color-accent-700); }
+  .os-upload-status.is-error { color: #b3261e; }
+  .os-uploaded-note { margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--color-divider); font-size: 15.5px; color: var(--color-neutral-800); }
+  .os-whatsapp-link { display: inline-block; margin-top: 18px; font-size: 13.5px; }
+
+  .os-address { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--color-divider); font-size: 15.5px; color: var(--color-neutral-800); line-height: 1.5; }
+
+  .os-sheet-head { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding-bottom: 10px; border-bottom: 1px solid var(--color-text); margin-top: 40px; }
+  .os-sheet-line { display: flex; gap: 14px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--color-divider); }
+  .os-sheet-qty { font-family: var(--font-heading); font-variant-numeric: tabular-nums; color: var(--color-accent-700); width: 26px; }
+  .os-sheet-name { flex: 1; font-size: 16px; }
+  .os-sheet-note { display: block; font-size: 13px; color: var(--color-neutral-600); margin-top: 2px; }
+  .os-sheet-total { font-variant-numeric: tabular-nums; font-size: 16px; }
+
+  .os-total-row { display: flex; align-items: baseline; margin-top: 16px; }
+  .os-total-label { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .os-total-value { margin-left: auto; font-family: var(--font-heading); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .os-actions { margin-top: 40px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="os-wrap">
+  {% csrf_token %}
+  <div class="os-topbar"></div>
+  <span class="os-eyebrow">Order status</span>
+  <h1 class="os-heading">{{ order.order_number }}</h1>
+  <p class="os-status" id="os-status-copy">{{ status_copy }}</p>
+
+  <div class="os-figures">
+    <div>
+      <div class="os-figure-label">Collect</div>
+      <div class="os-figure-value">{{ order.trading_day.date|date:"D j M" }}</div>
+    </div>
+    <div>
+      <div class="os-figure-label">Window</div>
+      <div class="os-figure-value">{{ order.slot.start_at|time:"H:i" }}&ndash;{{ order.slot.end_at|time:"H:i" }}</div>
+    </div>
+    <div>
+      <div class="os-figure-label">Payment</div>
+      <div class="os-figure-value">{{ order.get_payment_method_display }}</div>
+    </div>
+  </div>
+
+  {% if show_eft_panel %}
+  <div class="os-eft-panel" id="os-eft-panel" data-order-token="{{ order.public_token }}"
+       data-upload-url="{% url 'public:api_upload_proof' public_token=order.public_token %}"
+       data-hold-expires-at="{{ order.hold_expires_at|date:'c' }}">
+    <div class="os-eft-head">
+      <h2 class="os-eft-title">Pay by EFT</h2>
+      <span class="os-eft-countdown" id="os-eft-countdown"></span>
+    </div>
+    <div class="os-bank-grid">
+      <div><div class="os-bank-label">Bank</div><div class="os-bank-value">{{ settings.bank_name|default:"—" }}</div></div>
+      <div><div class="os-bank-label">Account name</div><div class="os-bank-value">{{ settings.account_name|default:"—" }}</div></div>
+      <div><div class="os-bank-label">Account number</div><div class="os-bank-value">{{ settings.account_number|default:"—" }}</div></div>
+      <div><div class="os-bank-label">Branch code</div><div class="os-bank-value">{{ settings.branch_code|default:"—" }}</div></div>
+      <div><div class="os-bank-label">Account type</div><div class="os-bank-value">{{ settings.account_type|default:"—" }}</div></div>
+      <div><div class="os-bank-label">Amount</div><div class="os-bank-value">{{ order.total_cents|cents }}</div></div>
+      <div><div class="os-bank-label">Reference &mdash; use this exact text</div><div class="os-bank-value os-bank-ref">{{ order.order_number }}</div></div>
+    </div>
+
+    {% if proof_already_uploaded %}
+    <div class="os-uploaded-note">Your proof is with us &mdash; no further action needed.</div>
+    {% else %}
+    <div class="os-upload" id="os-upload-block">
+      <p class="os-upload-hint">Upload a screenshot or PDF of the payment (JPEG, PNG, WebP or PDF, up to 8&nbsp;MB).</p>
+      <div class="os-upload-row">
+        <input type="file" id="os-upload-input" accept="image/jpeg,image/png,image/webp,application/pdf">
+        <button type="button" class="btn btn-primary" id="os-upload-submit" disabled>Upload proof</button>
+      </div>
+      <p class="os-upload-status" id="os-upload-status" hidden></p>
+    </div>
+    {% endif %}
+
+    {% if settings.support_whatsapp_e164 %}
+    <a class="os-whatsapp-link" href="https://wa.me/{{ settings.support_whatsapp_e164|cut:'+' }}?text=Payment%20problem%20with%20order%20{{ order.order_number }}">Payment problem? Message us on WhatsApp</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if show_address and settings.collection_address_line %}
+  <div class="os-address">
+    <div>{{ settings.collection_address_line }}</div>
+    {% if settings.collection_instructions %}<div>{{ settings.collection_instructions }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="os-sheet-head">Order sheet</div>
+  {% for line in lines %}
+  <div class="os-sheet-line">
+    <span class="os-sheet-qty">{{ line.quantity }}&times;</span>
+    <span class="os-sheet-name">
+      {{ line.dish_name_snapshot }}
+      {% if line.option_key %}<span class="os-sheet-note">{{ line.option_key }}</span>{% endif %}
+      {% if line.kitchen_note %}<span class="os-sheet-note">&ldquo;{{ line.kitchen_note }}&rdquo;</span>{% endif %}
+    </span>
+    <span class="os-sheet-total">{{ line.line_total_cents|cents }}</span>
+  </div>
+  {% endfor %}
+
+  <div class="os-total-row">
+    <span class="os-total-label">Total</span>
+    <span class="os-total-value">{{ order.total_cents|cents }}</span>
+  </div>
+
+  {% if order.note %}
+  <p class="os-status">Note: {{ order.note }}</p>
+  {% endif %}
+
+  <div class="os-actions">
+    <a href="{% url 'public:order' %}" class="btn btn-secondary">Start another order</a>
+  </div>
+</div>
+
+{% if show_eft_panel %}
+<script src="{% static 'js/eft.js' %}" defer></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Daily controls — spec §12.8, milestone 8 (narrowed to this; the menu
+editor is a separate, deferred piece — see staff/views.py's
+daily_controls docstring). Real TradingDay/Slot/DayDishAvailability
+rows: open/close the day, override window/cut-off/cap, per-slot
+capacity/close, per-dish available/max_units, internal notes. Closing
+the day or a slot with occupying orders needs typed confirmation
+(a checkbox that only appears once there's something to confirm) with
+a "Move all to…" picker per closing slot.
+{% endcomment %}
+
+{% block title %}Daily controls — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dc-wrap { max-width: 1000px; margin: 0 auto; padding: 0 32px 60px; }
+  .dc-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .dc-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .dc-dateline-row a { color: var(--color-accent-700); }
+  .dc-dateline-row .push { margin-left: auto; display: flex; gap: 16px; align-items: baseline; }
+  .dc-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .dc-account-bar a { color: var(--color-accent-700); }
+  .dc-account-bar form { margin: 0; display: inline; }
+  .dc-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+
+  .dc-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 44px 0 16px; }
+  .dc-day-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 20px; }
+  .dc-day-fields .field-wide { grid-column: 1 / -1; }
+  .dc-field label { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .dc-checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+
+  .dc-table-wrap { overflow-x: auto; margin-top: 12px; }
+  .dc-table { width: 100%; }
+  .dc-table td.num { font-variant-numeric: tabular-nums; }
+  .dc-table input.input { width: 80px; }
+  .dc-table input[type=checkbox] { transform: scale(1.1); }
+
+  .dc-errors { border: 1px solid #b3261e; padding: 14px 18px; margin-top: 24px; }
+  .dc-errors p { color: #b3261e; font-size: 13.5px; margin: 4px 0; }
+
+  .dc-confirm-banner { border: 1px solid var(--color-accent-2-700); padding: 18px; margin-top: 24px; }
+  .dc-confirm-banner h3 { font-family: var(--font-heading); font-size: 16px; margin: 0 0 10px; }
+  .dc-confirm-banner ul { margin: 8px 0; padding-left: 20px; font-size: 13.5px; }
+  .dc-move-row { display: flex; gap: 10px; align-items: center; margin: 10px 0; font-size: 13.5px; }
+  .dc-move-row select { font-family: var(--font-body); }
+  .dc-move-row button { font-size: 12.5px; padding: 4px 9px; border: 1px solid var(--color-text); background: none; cursor: pointer; }
+  .dc-confirm-checkbox { margin-top: 14px; display: flex; gap: 8px; align-items: center; font-size: 14px; }
+
+  .dc-save { margin-top: 32px; min-height: 44px; }
+  .dc-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 20px 0 0; max-width: 70ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dc-wrap">
+  <div class="dc-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="dc-dateline-thick"></div>
+  <div class="dc-dateline-row">
+    <span>Daily controls</span>
+    <span>{{ date_label }}</span>
+    <span class="push">
+      <a href="{% url 'manage:daily_controls' prev_date %}">&larr; Prev day</a>
+      <a href="{% url 'manage:daily_controls' next_date %}">Next day &rarr;</a>
+    </span>
+  </div>
+
+  {% if errors %}
+  <div class="dc-errors">
+    {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if confirm_needed %}
+  <div class="dc-confirm-banner" id="dc-confirm-banner">
+    <h3>This will affect orders already on the books</h3>
+    <ul>
+      {% for order in affected_orders %}
+      <li>{{ order.order_number }} &mdash; {{ order.customer_name_snapshot }} ({{ order.get_status_display }})</li>
+      {% endfor %}
+    </ul>
+    {% for s in closing_slots %}
+    <div class="dc-move-row" data-slot-id="{{ s.pk }}">
+      <span>Move {{ s.start_at|time:"H:i" }}&ndash;{{ s.end_at|time:"H:i" }}'s orders to</span>
+      <select class="dc-move-target">
+        <option value="">&mdash; choose a slot &mdash;</option>
+        {% for other in other_open_slots %}
+          {% if other.pk != s.pk %}
+          <option value="{{ other.pk }}">{{ other.start_at|time:"H:i" }}&ndash;{{ other.end_at|time:"H:i" }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <button type="button" class="dc-move-btn">Move all</button>
+      <span class="dc-move-result"></span>
+    </div>
+    {% endfor %}
+    <p>Or confirm and close anyway &mdash; the affected orders keep their slot; only new orders are refused.</p>
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <h3 class="dc-section-title">Day</h3>
+    <div class="dc-day-fields">
+      <div class="dc-field">
+        <label for="{{ form.is_open.id_for_label }}">Open</label>
+        <div class="dc-checkbox-row">{{ form.is_open }}<span>Taking orders</span></div>
+      </div>
+      <div class="dc-field">
+        <label for="{{ form.daily_order_cap.id_for_label }}">Daily order cap</label>
+        {{ form.daily_order_cap }}
+      </div>
+      <div class="dc-field">
+        <label for="{{ form.cutoff_time.id_for_label }}">Same-day cut-off</label>
+        {{ form.cutoff_time }}
+      </div>
+      <div class="dc-field">
+        <label for="{{ form.window_start.id_for_label }}">Window start</label>
+        {{ form.window_start }}
+      </div>
+      <div class="dc-field">
+        <label for="{{ form.window_end.id_for_label }}">Window end</label>
+        {{ form.window_end }}
+      </div>
+      <div class="dc-field field-wide">
+        <label for="{{ form.notes_internal.id_for_label }}">Internal notes</label>
+        {{ form.notes_internal }}
+      </div>
+    </div>
+
+    <h3 class="dc-section-title">Slots</h3>
+    <div class="dc-table-wrap">
+      <table class="table dc-table">
+        <thead><tr><th>Window</th><th>Capacity</th><th>Closed</th><th>Occupying</th></tr></thead>
+        <tbody>
+          {% for row in slot_rows %}
+          <tr>
+            <td>{{ row.slot.start_at|time:"H:i" }}&ndash;{{ row.slot.end_at|time:"H:i" }}</td>
+            <td><input class="input" type="number" min="0" name="slot_capacity_{{ row.slot.pk }}" value="{{ row.capacity }}"></td>
+            <td><input type="checkbox" name="slot_closed_{{ row.slot.pk }}" {% if row.closed %}checked{% endif %}></td>
+            <td class="num">{{ row.occupying }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="dc-section-title">Dishes today</h3>
+    <div class="dc-table-wrap">
+      <table class="table dc-table">
+        <thead><tr><th>Dish</th><th>Available</th><th>Max units</th><th>Used today</th></tr></thead>
+        <tbody>
+          {% for row in dish_rows %}
+          <tr>
+            <td>{{ row.dish.name }}</td>
+            <td><input type="checkbox" name="dish_available_{{ row.dish.pk }}" {% if row.available %}checked{% endif %}></td>
+            <td><input class="input" type="number" min="0" name="dish_max_units_{{ row.dish.pk }}" value="{{ row.max_units|default_if_none:'' }}" placeholder="Uncapped"></td>
+            <td class="num">{{ row.used_units }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if confirm_needed %}
+    <label class="dc-confirm-checkbox">
+      <input type="checkbox" name="confirm_close" value="1">
+      I understand this affects the orders listed above and want to save anyway.
+    </label>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary dc-save">Save daily controls</button>
+  </form>
+  <p class="dc-note">Sell out a dish or close a slot here without touching the monthly menu (that stays in the menu editor). Existing orders on a closed slot or day keep their booking; only new orders are refused.</p>
+</div>
+
+<script src="{% static 'js/daily_controls.js' %}" defer></script>
+{% endblock %}

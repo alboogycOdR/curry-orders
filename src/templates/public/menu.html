@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load moneyfmt %}
+
+{% comment %}
+Menu — spec §11.3. The crawlable, no-JS-required browse page: date
+switcher over `orderable_dates` only, dish cards with sold-out state,
+each card linking to `/dishes/:slug?date=` (§11.4). Not one of the four
+Broadsheet handoff screens (that set doesn't split menu from cart —
+D-32) — styled with the same design-system tokens, simpler layout, no
+cart interactivity. "Start an order" hands off to `/order/`, the
+handoff's interactive screen, once the customer is ready to build a cart.
+{% endcomment %}
+
+{% block title %}Menu — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .mn-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .mn-head { display: flex; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--color-text); padding: 36px 0 10px; flex-wrap: wrap; }
+  .mn-head h2 { font-size: clamp(30px, 4vw, 52px); font-weight: 600; line-height: 1; margin: 0; letter-spacing: -0.015em; }
+  .mn-head-cta { margin-left: auto; }
+
+  .mn-days { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 44px; }
+  .mn-day-chip {
+    font-family: var(--font-body); font-size: 14px; padding: 8px 14px;
+    border-radius: var(--radius-md); text-align: center; text-decoration: none;
+    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
+  }
+  .mn-day-chip[aria-current="true"] { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  .mn-day-chip .top { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.75; }
+  .mn-day-chip .bottom { display: block; font-family: var(--font-heading); font-size: 15px; font-variant-numeric: tabular-nums; }
+
+  .mn-category { margin-top: 48px; }
+  .mn-category-head { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--color-divider); padding-bottom: 10px; }
+  .mn-category-head h3 { font-size: 21px; font-weight: 600; margin: 0; }
+  .mn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-top: 22px; }
+  .mn-card { display: block; text-decoration: none; color: inherit; padding: 18px 0; border-top: 1px solid var(--color-divider); }
+  .mn-card.is-sold-out { opacity: 0.55; }
+  .mn-card-name { font-family: var(--font-heading); font-size: 18px; font-weight: 600; }
+  .mn-card.is-sold-out .mn-card-name { text-decoration: line-through; }
+  .mn-card-desc { font-size: 14.5px; color: var(--color-neutral-700); margin-top: 6px; max-width: 40ch; }
+  .mn-card-foot { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; }
+  .mn-card-price { font-family: var(--font-heading); font-style: italic; font-variant-numeric: tabular-nums; font-size: 16px; }
+  .mn-card-portion { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-600); }
+
+  .mn-empty { font-size: 15px; color: var(--color-neutral-700); margin: 40px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mn-wrap">
+  <div class="mn-head">
+    <h2>Menu</h2>
+    <a href="{% url 'public:order' %}" class="btn btn-primary mn-head-cta">Start an order</a>
+  </div>
+
+  <div class="mn-days">
+    {% for d in days %}
+    <a class="mn-day-chip" {% if d.iso == selected_iso %}aria-current="true"{% endif %} href="?date={{ d.iso }}">
+      <span class="top">{{ d.dow }}</span>
+      <span class="bottom">{{ d.dom }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if categories %}
+    {% for category_name, dishes in categories %}
+    <div class="mn-category">
+      <div class="mn-category-head"><h3>{{ category_name }}</h3></div>
+      <div class="mn-cards">
+        {% for dish in dishes %}
+        <a class="mn-card {% if dish.sold_out %}is-sold-out{% endif %}" href="{% url 'public:dish_detail' dish.slug %}?date={{ selected_iso }}">
+          <div class="mn-card-name">{{ dish.name }}</div>
+          {% if dish.short_description %}<div class="mn-card-desc">{{ dish.short_description }}</div>{% endif %}
+          <div class="mn-card-foot">
+            <span class="mn-card-price">{{ dish.price_cents|cents }}</span>
+            {% if dish.portion_label %}<span class="mn-card-portion">{{ dish.portion_label }}</span>{% endif %}
+            {% if dish.sold_out %}<span class="tag tag-neutral">Sold out</span>{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="mn-empty">Nothing on the menu for this date yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

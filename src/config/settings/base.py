@@ -78,9 +78,29 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Sets request.staff_user (a core.User or None) from the session —
+    # the staff-auth milestone's own middleware, independent of
+    # AuthenticationMiddleware above (which is for django.contrib.admin's
+    # unrelated auth). See staff/sessions.py's module docstring and
+    # docs/DECISIONS.md D-33 for why staff auth doesn't use
+    # django.contrib.auth at all. Must come after SessionMiddleware.
+    "staff.middleware.StaffSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# D-12: "Session absolute lifetime 12 hours, sliding idle timeout 2
+# hours". staff/sessions.py enforces both server-side on every request
+# regardless of what the cookie itself says (never trust the client for
+# this) — these two settings are the client-side backstop: the cookie's
+# own Max-Age matches the absolute cap, and re-sending it on every
+# request (rather than only when the session dict changes) lets it slide
+# forward the same way the server-side idle timeout does.
+SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_SAVE_EVERY_REQUEST = True
+# SESSION_COOKIE_HTTPONLY/SAMESITE (both D-12-compliant by Django default)
+# and SESSION_COOKIE_SECURE (True in prod.py; False here since local dev
+# and CI run over plain HTTP) are set per-environment, not here.
 
 ROOT_URLCONF = "config.urls"
 
@@ -142,9 +162,13 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = REPO_ROOT / "staticfiles"  # collectstatic target, not in src/
 
 # --- Object storage (self-hosted MinIO, D-28; Appendix D) ------------------
-# django-storages wiring (AWS_S3_ENDPOINT_URL etc. / STORAGES backends) is
-# milestone-2+ work once storage/ needs to actually read/write media; these
-# are just the raw settings values so they exist and are validated early.
+# `storage.service` (milestone 4) uses these directly via boto3 when
+# `S3_ENDPOINT` is set (Clawsrv/prod); when it's blank (local dev, tests —
+# no MinIO container in either), it falls back to writing proofs under
+# MEDIA_ROOT instead. Neither path goes through django-storages' FileField
+# machinery — `core.Media.storage_key` is a plain text column, not a
+# FileField, so a direct boto3/filesystem client is the natural fit; see
+# storage/service.py's own module docstring.
 S3_ENDPOINT = env("S3_ENDPOINT", default="")
 S3_PUBLIC_ENDPOINT = env("S3_PUBLIC_ENDPOINT", default="")
 S3_REGION = env("S3_REGION", default="us-east-1")
@@ -153,6 +177,13 @@ S3_SECRET_KEY = env("S3_SECRET_KEY", default="")
 S3_BUCKET_PROOFS = env("S3_BUCKET_PROOFS", default="curry-proofs")
 S3_BUCKET_PUBLIC = env("S3_BUCKET_PUBLIC", default="curry-media")
 CDN_BASE_URL = env("CDN_BASE_URL", default="")
+
+# Local-filesystem fallback used only when S3_ENDPOINT is unset (see
+# above) — not part of the spec's own infrastructure (§17.2 names no
+# local media path), purely a dev/test convenience so proof upload works
+# without a running MinIO. Never referenced when S3_ENDPOINT is set.
+MEDIA_ROOT = REPO_ROOT / "media"  # already gitignored
+MEDIA_URL = "media/"
 
 # --- Backups (§15 / §17.1 — consumed by deploy/backup.sh, not Django itself) --
 BACKUP_TARGET = env("BACKUP_TARGET", default="")
