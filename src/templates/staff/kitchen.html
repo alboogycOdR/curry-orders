@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Kitchen desk — design handoff README §"Screens" §4. Capacity meters and
+the run sheet are server-rendered from `staff.views.kitchen`'s sample
+data; only the status-tag advance is interactive (kitchen.js), and it's
+purely client-side — see staff/views.py's module docstring for both the
+"sample data, not a real aggregate" caveat and the **auth gap** this view
+still has.
+{% endcomment %}
+
+{% block title %}Kitchen desk — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .kd-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  .kd-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .kd-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .kd-dateline-row .accent { color: var(--color-accent-700); }
+  .kd-dateline-row .push { margin-left: auto; }
+
+  .kd-meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 56px; margin-top: 36px; }
+  .kd-meter-head { display: flex; align-items: baseline; gap: 10px; }
+  .kd-meter-value { font-family: var(--font-heading); font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kd-meter-label { font-size: 15px; color: var(--color-neutral-700); }
+  .kd-meter-track { height: 8px; background: var(--color-neutral-300); margin-top: 12px; }
+  .kd-meter-fill { height: 8px; }
+
+  .kd-run-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 60px 0 0; }
+  .kd-run-hint { font-size: 14px; color: var(--color-neutral-700); margin: 8px 0 0; }
+  .kd-table-wrap { overflow-x: auto; margin-top: 20px; }
+  .kd-table { width: 100%; }
+  .kd-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .kd-table td.ref { font-variant-numeric: tabular-nums; color: var(--color-neutral-700); }
+  .kd-table td.items { color: var(--color-neutral-700); }
+  .kd-table td.pay { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .kd-table td.value { text-align: right; font-variant-numeric: tabular-nums; }
+  .kd-status-btn { border: none; cursor: pointer; font-family: var(--font-body); }
+  .kd-note { font-size: 12.5px; color: var(--color-neutral-600); margin: 22px 0 40px; max-width: 70ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kd-wrap">
+  <div class="kd-dateline-thick"></div>
+  <div class="kd-dateline-row">
+    <span>Kitchen desk</span>
+    <span>{{ today_label }}</span>
+    <span class="accent">Service {{ service_window }}</span>
+    <span class="push">Run sheet</span>
+  </div>
+
+  <div class="kd-meters">
+    <div>
+      <div class="kd-meter-head">
+        <span class="kd-meter-value">{{ meter_orders.value }}</span>
+        <span class="kd-meter-label">{{ meter_orders.label }}</span>
+      </div>
+      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:{% widthratio meter_orders.value meter_orders.of 100 %}%;background:var(--color-accent)"></div></div>
+    </div>
+    <div>
+      <div class="kd-meter-head">
+        <span class="kd-meter-value">{{ meter_cash.value }}</span>
+        <span class="kd-meter-label">{{ meter_cash.label }}</span>
+      </div>
+      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:70%;background:var(--color-accent-2)"></div></div>
+    </div>
+    <div>
+      <div class="kd-meter-head">
+        <span class="kd-meter-value">{{ meter_dish.value }}</span>
+        <span class="kd-meter-label">{{ meter_dish.label }}</span>
+      </div>
+      <div class="kd-meter-track"><div class="kd-meter-fill" style="width:{% widthratio meter_dish.value meter_dish.of 100 %}%;background:var(--color-text)"></div></div>
+    </div>
+  </div>
+
+  <h3 class="kd-run-title">Today's run</h3>
+  <p class="kd-run-hint">Click a status to advance the order &mdash; awaiting payment, confirmed, cooking, ready, collected.</p>
+  <div class="kd-table-wrap">
+    <table class="table kd-table">
+      <thead>
+        <tr>
+          <th>Slot</th>
+          <th>Ref</th>
+          <th>Customer</th>
+          <th>Items</th>
+          <th>Pay</th>
+          <th style="text-align:right">Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="kd-run-body">
+        {% for o in orders %}
+        <tr>
+          <td class="num">{{ o.slot }}</td>
+          <td class="ref">{{ o.ref }}</td>
+          <td>{{ o.who }}</td>
+          <td class="items">{{ o.items }}</td>
+          <td class="pay">{{ o.pay }}</td>
+          <td class="value">{{ o.value }}</td>
+          <td>
+            <button type="button" class="{{ o.tag_class }} kd-status-btn" data-status-index="{{ o.si }}">{{ o.status }}</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="kd-note">Capacity ceilings, the cash cap and the payment hold are the product &mdash; this sheet is the staff-side view of them. Numbers shown are sample data for review.</p>
+</div>
+
+{{ statuses|json_script:"kd-statuses" }}
+{{ status_tag_class|json_script:"kd-status-tag-class" }}
+<script src="{% static 'js/kitchen.js' %}" defer></script>
+{% endblock %}

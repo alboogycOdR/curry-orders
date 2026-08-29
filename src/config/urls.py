@@ -1,11 +1,10 @@
 """Root URLconf.
 
-Real routes (spec §6.1/§6.2) land with the milestones that build the
-views behind them (menu, cart, checkout, EFT page, kitchen/collection
-boards, ...). For now this only needs to (a) not crash
-`python manage.py check` and (b) expose the exact namespaced URL names
-the other agent's `src/templates/base.html` already has TODOs for:
-`public:home`, `public:order`, `public:checkout`, `manage:kitchen`.
+The four Broadsheet screen templates (`public:home`, `public:order`,
+`public:checkout`, `manage:kitchen`) are real views now — see
+`public/urls.py` and `staff/urls.py`. Everything else in spec §6.1/§6.2
+(the EFT page, staff inbox/payments/collection boards, ...) still lands
+with the milestone that builds it.
 
 D-26: the staff app is served from the same origin under `/manage/` —
 no separate host/CORS setup. The Python package behind that prefix is

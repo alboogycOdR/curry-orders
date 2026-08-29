@@ -327,6 +327,19 @@ class Settings(models.Model):
     def __str__(self) -> str:
         return self.public_site_name or "Settings"
 
+    @classmethod
+    def current(cls) -> "Settings":
+        """The singleton row (`id=1`, D-24) if `/manage/settings` has ever
+        been saved, else an unsaved `Settings()` carrying the field
+        defaults declared above — so read-only display code (the public
+        site's hero figures, the kitchen desk's service window, ...) has
+        something sane to render in a pre-seed dev/pilot environment
+        instead of crashing on a missing row. Never persisted from here;
+        callers that need to *write* settings still go through the real
+        row plus a `SettingsEvent` diff (that's application logic, D-24).
+        """
+        return cls.objects.filter(pk=1).first() or cls()
+
 
 class SettingsEvent(models.Model):
     user = models.ForeignKey(
