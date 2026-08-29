@@ -1,14 +1,15 @@
 // cart.js — the customer cart, held in the browser only.
 //
 // This is the "visual pass" stand-in for real cart state (see
-// public/views.py's module docstring). Production milestone 3 replaces it
-// with a session or a draft `core.Order` row held against a slot by
-// `core.capacity.reserve()`; nothing here talks to the server. Cart lines
+// public/views.py's module docstring). `core.capacity.reserve()` already
+// exists (core/capacity.py) but has no view wired to it yet — the real
+// milestone-3 cart is a session or a draft `core.Order` row held against
+// a slot by that function; nothing here talks to the server. Cart lines
 // are denormalised ({id, name, price, qty} per line, not just id -> qty)
-// so any page can render totals/the header summary without also having
-// the full menu price list loaded — order.js is the only script that
-// needs the menu price map (to price a dish it doesn't yet have a line
-// for), everything downstream reads what's already in the cart.
+// so any page can render totals/the header summary without a second
+// price lookup. `price` is always integer cents (`core.Dish.price_cents`
+// plus any selected `DishOptionValue.price_delta_cents`) — never rands —
+// matching how the backend stores money everywhere (core/money.py).
 //
 // Loaded on every page (base.html, `defer`), before any per-page script —
 // order.js/checkout.js/kitchen.js all assume `window.BKCart` exists.
@@ -51,8 +52,21 @@
     }
   }
 
-  function rands(n) {
-    return "R " + Number(n).toFixed(2);
+  // Mirrors core.money.format_cents exactly (space-separated thousands,
+  // always two decimals) — `n` is integer cents, same unit as every
+  // price this cart ever stores (dish rows' data-dish-price,
+  // dish.js's data-base-price/data-delta are all `core.Dish.price_cents`/
+  // `DishOptionValue.price_delta_cents`, never rands) — matches spec
+  // §11.1's format and, more importantly, `core.money`'s own "integer
+  // cents everywhere, never floats" rule from the backend side.
+  function rands(cents) {
+    var n = Math.round(Number(cents));
+    var sign = n < 0 ? "-" : "";
+    var abs = Math.abs(n);
+    var wholeRand = Math.floor(abs / 100);
+    var subCents = abs % 100;
+    var grouped = String(wholeRand).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return sign + "R " + grouped + "." + (subCents < 10 ? "0" : "") + subCents;
   }
 
   function getCart() {

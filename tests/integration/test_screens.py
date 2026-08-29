@@ -13,9 +13,18 @@ from __future__ import annotations
 import pytest
 from django.urls import reverse
 
-from core.models import Settings
+from core.models import Dish, Settings
 
 pytestmark = pytest.mark.django_db
+
+
+def _make_dish(slug: str, name: str, category: str, price_cents: int = 8500, **overrides) -> Dish:
+    defaults = dict(
+        slug=slug, name=name, category=category, price_cents=price_cents,
+        is_active_on_menu=True,
+    )
+    defaults.update(overrides)
+    return Dish.objects.create(**defaults)
 
 
 class TestUrlNames:
@@ -51,39 +60,121 @@ class TestHome:
         assert resp.status_code == 200
         assert b">24<" in resp.content
 
-    def test_todays_picks_present(self, client) -> None:
+    def test_todays_picks_present_when_seeded(self, client) -> None:
+        _make_dish("full-house-masala-steak-gatsby", "Full House Masala Steak Gatsby", "Gatsby")
+        _make_dish("chicken-masala-roti-roll", "Chicken Masala Roti Roll", "Masala Roti Rolls")
+        _make_dish("beef-lasagne", "Beef Lasagne", "Italian Lasagne")
         resp = client.get(reverse("public:home"))
         content = resp.content.decode()
         for name in ("Full House Masala Steak Gatsby", "Chicken Masala Roti Roll", "Beef Lasagne"):
             assert name in content
 
+    def test_no_picks_section_crash_pre_seed(self, client) -> None:
+        # No dishes at all yet — home() must not 500 on an empty picks list.
+        resp = client.get(reverse("public:home"))
+        assert resp.status_code == 200
+
 
 class TestOrder:
-    def test_renders_full_menu(self, client) -> None:
+    def test_renders_seeded_menu_grouped_by_category(self, client) -> None:
+        _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry", 8500)
+        _make_dish("steak-curry-roti", "Steak Curry & Roti", "Roti & Curry", 9500)
+        _make_dish("beef-lasagne", "Beef Lasagne", "Italian Lasagne", 9000)
         resp = client.get(reverse("public:order"))
         assert resp.status_code == 200
         content = resp.content.decode()
-        # One row per category letter (handoff README §2's table) and at
-        # least one dish from each.
-        for letter in ("A", "A3", "B", "C", "D"):
-            assert f">{letter}<" in content
-        assert "Full House Masala Steak Gatsby" in content
-        assert "Portion to confirm" in content  # the one dish-level note
+        assert "Roti &amp; Curry" in content or "Roti & Curry" in content
+        assert "Chicken Curry &amp; Roti" in content or "Chicken Curry & Roti" in content
+        assert "Steak Curry &amp; Roti" in content or "Steak Curry & Roti" in content
+        assert "Beef Lasagne" in content
+        assert "R 85.00" in content
 
-    def test_seven_day_picker_present(self, client) -> None:
+    def test_sold_out_dish_shows_sold_out_not_add(self, client, biz_settings) -> None:
+        # Whichever date the order screen resolves as "soonest orderable"
+        # (today itself only if still before the cut-off — depends on
+        # wall-clock time, not something to assume in a test) — computed
+        # here the same way public.views._orderable_day_list does, not
+        # duplicated/guessed, so this stays correct at any time of day.
+        from core.materialise import materialise_days
+        from core.models import DayDishAvailability
+        from core.tz import now_sast, orderable_dates
+
+        today = now_sast().date()
+        horizon_count = biz_settings.preorder_days + 1
+        days_list = materialise_days(today, biz_settings, count=horizon_count)
+        trading_days = {td.date: td for td in days_list}
+        first_date = orderable_dates(
+            now_sast(),
+            is_open=lambda d: trading_days[d].is_open if d in trading_days else False,
+            cutoff_time=trading_days[today].cutoff_time,
+            preorder_days=biz_settings.preorder_days,
+        )[0]
+
+        dish = _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry")
+        DayDishAvailability.objects.create(
+            trading_day=trading_days[first_date], dish=dish, is_available=False
+        )
         resp = client.get(reverse("public:order"))
         content = resp.content.decode()
-        assert content.count('data-day-index="') == 7
+        assert 'class="op-dish-row is-sold-out"' in content
+        assert '<span class="tag tag-neutral">Sold out</span>' in content
 
-    def test_menu_price_map_matches_sample_menu(self, client) -> None:
-        from public import sample_menu
-
+    def test_day_picker_present_within_horizon(self, client) -> None:
         resp = client.get(reverse("public:order"))
         content = resp.content.decode()
-        for cat in sample_menu.MENU:
-            for dish in cat.dishes:
-                assert f'"{dish.id}"' in content
-                assert str(dish.price) in content
+        # today (if before cut-off) + up to 7 more days (D-05) — 7 or 8
+        # depending on the wall-clock time this test happens to run at
+        # relative to the default 10:00 SAST cut-off, not something to
+        # pin to a single number without mocking the clock.
+        count = content.count('data-day-index="')
+        assert 7 <= count <= 8
+
+    def test_dish_price_rendered_via_cents_filter(self, client) -> None:
+        _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry", 8500)
+        resp = client.get(reverse("public:order"))
+        content = resp.content.decode()
+        assert "R 85.00" in content
+
+
+class TestMenuPage:
+    def test_renders_and_links_to_dish_detail(self, client) -> None:
+        _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry", 8500)
+        resp = client.get(reverse("public:menu"))
+        assert resp.status_code == 200
+        content = resp.content.decode()
+        assert "Chicken Curry" in content
+        assert reverse("public:dish_detail", args=["chicken-curry-roti"]) in content
+
+    def test_date_param_outside_horizon_falls_back(self, client) -> None:
+        resp = client.get(reverse("public:menu"), {"date": "2099-01-01"})
+        assert resp.status_code == 200
+
+
+class TestDishDetail:
+    def test_renders_dish_with_options(self, client, dish_with_options) -> None:
+        resp = client.get(reverse("public:dish_detail", args=[dish_with_options.slug]))
+        assert resp.status_code == 200
+        content = resp.content.decode()
+        assert dish_with_options.name in content
+        assert "Spice" in content
+        assert "Mild" in content
+        assert "Extra cheese" in content
+
+    def test_unknown_slug_is_404(self, client) -> None:
+        resp = client.get(reverse("public:dish_detail", args=["no-such-dish"]))
+        assert resp.status_code == 404
+
+    def test_archived_dish_is_404(self, client) -> None:
+        from django.utils import timezone
+
+        dish = _make_dish("old-dish", "Old Dish", "Roti & Curry", archived_at=timezone.now())
+        resp = client.get(reverse("public:dish_detail", args=[dish.slug]))
+        assert resp.status_code == 404
+
+    def test_date_outside_horizon_is_clamped_not_500(self, client) -> None:
+        dish = _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry")
+        resp = client.get(reverse("public:dish_detail", args=[dish.slug]), {"date": "2099-01-01"})
+        assert resp.status_code == 200
 
 
 class TestCheckout:

@@ -17,7 +17,9 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    var menu = readJSONScript("menu-data", {}); // id -> {name, price}
+    // Dish name/price come off each .op-dish-row's data-* attributes
+    // (server-rendered from real core.Dish rows) — no separate menu
+    // price map needed here.
     var days = readJSONScript("days-data", []); // [{index, dow, dom, long, ...}]
     var fullSlotsToday = readJSONScript("full-slots-today", []);
 

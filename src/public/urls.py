@@ -6,13 +6,16 @@ app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # Spec §6.1's real per-dish permalink now exists (milestone 2), which
+    # is exactly the trigger docs/DECISIONS.md D-32 named for revisiting
+    # the /menu-vs-/order split — not revisited yet: /menu is the
+    # crawlable browse page (§11.3), /order stays the handoff's single
+    # interactive menu+cart+slot screen (§2's own framing, still true).
+    path("menu/", views.menu, name="menu"),
+    path("dishes/<slug:slug>/", views.dish_detail, name="dish_detail"),
     # The handoff's "Order" screen (menu + day/slot picker + cart) — plain
     # URL, no token, since it's a nav destination (base.html's "Order"
-    # link). Spec §6.1 actually splits this into /menu and /cart; the
-    # handoff deliberately merges them into one screen for now (README:
-    # "the four screens are separate URLs"). Revisit the split if/when
-    # /menu grows real per-dish permalinks (§6.1 "Dish detail... used in
-    # WhatsApp Status, Instagram, TikTok") that this single route can't serve.
+    # link).
     path("order/", views.order, name="order"),
     path("checkout/", views.checkout, name="checkout"),
     # Spec §6.1's real `/orders/:public_token` (order status / EFT

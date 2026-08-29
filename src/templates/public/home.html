@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static moneyfmt %}
 
 {% comment %}
 Front page — design handoff README §"Screens" §1. Recreates the `isFront`
@@ -130,7 +130,7 @@ already) — no page-specific JS needed for them.
       <h2>Roti, curry and Gatsby &mdash; cooked to order, from a home kitchen.</h2>
       <p class="fp-lead">Brandon's Kitchen serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
       <div class="fp-cta-row">
-        <a href="{% url 'public:order' %}" class="btn btn-primary">View the menu</a>
+        <a href="{% url 'public:menu' %}" class="btn btn-primary">View the menu</a>
         <a href="{% url 'manage:kitchen' %}" class="btn btn-secondary">See the kitchen desk</a>
       </div>
       <div class="fp-stats-row">
@@ -175,7 +175,7 @@ already) — no page-specific JS needed for them.
         <div class="fp-pick-portion">{{ pick.portion }}</div>
         <h4 class="fp-pick-name">{{ pick.dish.name }}</h4>
         <p class="fp-pick-desc">{{ pick.dish.desc }}</p>
-        <div class="fp-pick-price">R {{ pick.dish.price }}.00</div>
+        <div class="fp-pick-price">{{ pick.dish.price_cents|cents }}</div>
       </div>
       {% endfor %}
     </div>

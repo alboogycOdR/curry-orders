@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static moneyfmt %}
 
 {% comment %}
 Order screen — design handoff README §"Screens" §2. The menu listing
-(categories, dish names/descriptions/prices) is server-rendered from
-`sample_menu` so it's readable with JS off; the day picker, slot picker,
-qty steppers, order sheet and total are all client-side state (order.js +
-the shared cart.js) since there is no capacity/cart backend yet (see
+(categories, dish names/descriptions/prices, sold-out state) is
+server-rendered from real `core.Dish` data (`core.menu`, milestone 2) so
+it's readable with JS off; the day picker, slot picker, qty steppers,
+order sheet and total are all client-side state (order.js + the shared
+cart.js) since there is no capacity/cart *backend* yet (see
 public/views.py's module docstring) — this mirrors the handoff's own
 reactive prototype, just re-homed onto plain DOM updates instead of a
 component re-render.
@@ -35,6 +36,8 @@ component re-render.
   .op-dish-note { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin-top: 8px; }
   .op-dish-price { font-family: var(--font-heading); font-style: italic; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
   .op-dish-qty { display: flex; align-items: center; gap: 10px; min-width: 112px; justify-content: flex-end; }
+  .op-dish-row.is-sold-out { opacity: 0.5; }
+  .op-dish-row.is-sold-out .op-dish-name { text-decoration: line-through; }
   .op-dish-qty .qty-count { font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: center; }
   .op-dish-qty .btn { min-height: 36px; }
   .op-dish-qty .btn-add { padding-inline: 16px; }
@@ -94,23 +97,25 @@ component re-render.
 
   <div class="op-grid">
     <div class="op-menu" id="op-menu">
-      {% for cat in menu %}
+      {% for category_name, dishes in categories %}
       <div>
         <div class="op-cat-head">
-          <span class="op-cat-letter">{{ cat.letter }}</span>
-          <h3 class="op-cat-name">{{ cat.name }}</h3>
+          <h3 class="op-cat-name">{{ category_name }}</h3>
           <span class="op-cat-rule"></span>
-          <span class="op-cat-portion">{{ cat.portion }}</span>
+          <span class="op-cat-portion">{{ dishes.0.portion_label }}</span>
         </div>
-        {% for dish in cat.dishes %}
-        <div class="op-dish-row" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price }}">
+        {% for dish in dishes %}
+        <div class="op-dish-row {% if dish.sold_out %}is-sold-out{% endif %}" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price_cents }}">
           <div>
             <div class="op-dish-name">{{ dish.name }}</div>
-            <div class="op-dish-desc">{{ dish.desc }}</div>
-            {% if dish.note %}<div class="op-dish-note">{{ dish.note }}</div>{% endif %}
+            <div class="op-dish-desc">{{ dish.short_description }}</div>
           </div>
-          <div class="op-dish-price">R {{ dish.price }}.00</div>
+          <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
+          {% if dish.sold_out %}
+          <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
+          {% else %}
           <div class="op-dish-qty" data-qty-control></div>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -159,7 +164,6 @@ component re-render.
   </div>
 </div>
 
-{{ menu_price_map|json_script:"menu-data" }}
 {{ days|json_script:"days-data" }}
 {{ full_slots_today|json_script:"full-slots-today" }}
 <script src="{% static 'js/order.js' %}" defer></script>
