@@ -467,7 +467,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='settings',
             name='updated_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='core.user'),
+            field=models.ForeignKey(blank=True, db_column='updated_by', null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='core.user'),
         ),
         migrations.AddField(
             model_name='payment',
