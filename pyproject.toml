@@ -64,3 +64,11 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
 addopts = "-ra"
+# tests/ lives one level above src/ (repo root), so "config", "core" etc.
+# are not importable from the pytest rootdir by default. An editable
+# install (pyproject.toml's [tool.setuptools.packages.find] where=["src"])
+# already puts src/ on sys.path, which is enough on its own — this is
+# added defensively so `pytest` also works from a plain checkout/venv
+# that hasn't run `pip install -e .`, e.g. a CI step that only installs
+# requirements before running tests.
+pythonpath = ["src"]
