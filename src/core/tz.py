@@ -38,6 +38,21 @@ def now_sast() -> datetime:
     return to_sast(dj_timezone.now())
 
 
+def coerce_time(value: time | str) -> time:
+    """`Settings.default_window_start`/`default_window_end`/
+    `same_day_cutoff` (core/models.py, §7.2) declare "HH:MM"-string
+    defaults — Django only parses those to a real `datetime.time` on
+    save/refresh-from-db, so an unsaved `Settings()` fallback instance
+    (e.g. `Settings.current()` pre-seed) hands one of these back as the
+    raw string instead. Every caller that reads a `Settings` time field
+    without knowing whether the row was ever saved goes through this
+    rather than crashing on `.hour`/`.strftime()`.
+    """
+    if isinstance(value, str):
+        return datetime.strptime(value, "%H:%M").time()
+    return value
+
+
 def orderable_dates(
     now: datetime,
     *,

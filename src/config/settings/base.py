@@ -78,9 +78,29 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Sets request.staff_user (a core.User or None) from the session —
+    # the staff-auth milestone's own middleware, independent of
+    # AuthenticationMiddleware above (which is for django.contrib.admin's
+    # unrelated auth). See staff/sessions.py's module docstring and
+    # docs/DECISIONS.md D-33 for why staff auth doesn't use
+    # django.contrib.auth at all. Must come after SessionMiddleware.
+    "staff.middleware.StaffSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# D-12: "Session absolute lifetime 12 hours, sliding idle timeout 2
+# hours". staff/sessions.py enforces both server-side on every request
+# regardless of what the cookie itself says (never trust the client for
+# this) — these two settings are the client-side backstop: the cookie's
+# own Max-Age matches the absolute cap, and re-sending it on every
+# request (rather than only when the session dict changes) lets it slide
+# forward the same way the server-side idle timeout does.
+SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_SAVE_EVERY_REQUEST = True
+# SESSION_COOKIE_HTTPONLY/SAMESITE (both D-12-compliant by Django default)
+# and SESSION_COOKIE_SECURE (True in prod.py; False here since local dev
+# and CI run over plain HTTP) are set per-environment, not here.
 
 ROOT_URLCONF = "config.urls"
 

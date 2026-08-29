@@ -141,9 +141,11 @@ class MediaKind(models.TextChoices):
 class User(models.Model):
     """Staff (owner/manager) account. Not django.contrib.auth's User —
     schema_v1_1.sql defines its own shape (`password_hash`, no username).
-    Wiring this up to Django's session auth (AbstractBaseUser / a custom
-    auth backend, Argon2id per D-12) is staff-auth-milestone work, not
-    this pass; see §4.
+    Password hashing/lockout: `core.auth`. Session auth: `staff.sessions`
+    + `StaffSessionMiddleware` (`request.staff_user`) — a fully custom
+    mechanism on top of Django's session store rather than
+    `django.contrib.auth`; see docs/DECISIONS.md D-33 for why, and §4 for
+    the D-12 rules it implements.
     """
 
     # CITextField -> Postgres citext, matching schema_v1_1.sql exactly

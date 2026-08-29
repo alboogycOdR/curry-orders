@@ -44,7 +44,9 @@ class TestHome:
         assert b"100" in resp.content  # default_daily_order_cap default
 
     def test_hero_figures_come_from_settings_when_seeded(self, client) -> None:
-        Settings.objects.create(id=1, public_site_name="Brandon's Kitchen", default_daily_order_cap=24)
+        Settings.objects.create(
+            id=1, public_site_name="Brandon's Kitchen", default_daily_order_cap=24
+        )
         resp = client.get(reverse("public:home"))
         assert resp.status_code == 200
         assert b">24<" in resp.content
@@ -101,7 +103,30 @@ class TestCheckout:
 
 
 class TestKitchen:
+    """Now behind `@staff_login_required` (staff/decorators.py) — see
+    tests/integration/test_staff_auth_views.py for the gating itself
+    (anonymous redirect, role checks, ...); these log in first since
+    they're about the screen's content, not the gate.
+    """
+
+    def _login(self, client) -> None:
+        from core.auth import hash_password
+        from core.models import User, UserRole
+
+        User.objects.create(
+            email="owner@example.test",
+            name="Owner",
+            role=UserRole.OWNER,
+            password_hash=hash_password("correct horse battery staple"),
+            must_change_password=False,
+        )
+        client.post(
+            reverse("manage:login"),
+            {"email": "owner@example.test", "password": "correct horse battery staple"},
+        )
+
     def test_renders_run_sheet_and_meters(self, client) -> None:
+        self._login(client)
         resp = client.get(reverse("manage:kitchen"))
         assert resp.status_code == 200
         content = resp.content.decode()
@@ -112,6 +137,7 @@ class TestKitchen:
     def test_service_window_from_settings(self, client) -> None:
         from datetime import time
 
+        self._login(client)
         Settings.objects.create(
             id=1,
             public_site_name="Brandon's Kitchen",
@@ -137,7 +163,9 @@ class TestSettingsCurrent:
         assert settings.default_daily_order_cap == 100
 
     def test_returns_real_row_once_seeded(self) -> None:
-        Settings.objects.create(id=1, public_site_name="Brandon's Kitchen", default_daily_order_cap=24)
+        Settings.objects.create(
+            id=1, public_site_name="Brandon's Kitchen", default_daily_order_cap=24
+        )
         settings = Settings.current()
         assert settings.pk == 1
         assert settings.default_daily_order_cap == 24

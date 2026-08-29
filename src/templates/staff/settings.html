@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% comment %}
+Owner-only settings editor (spec §6.2 "/manage/settings — Owner only",
+D-24). Not one of the four Broadsheet handoff screens — a plain,
+functional form over every `Settings` field via `{% for field in form %}`
+rather than hand-listing ~40 fields individually. `staff.views.settings_view`
+writes a `SettingsEvent` diff on every save that actually changes something.
+{% endcomment %}
+
+{% block title %}Settings — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .settings-wrap { max-width: 760px; margin: 0 auto; padding: 40px 32px 80px; }
+  .settings-wrap h1 { font-size: 28px; margin-bottom: var(--space-2); }
+  .settings-lead { font-size: 14.5px; color: var(--color-neutral-700); margin-bottom: var(--space-6); }
+  .settings-messages { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+  .settings-messages li {
+    background: var(--color-accent-100); color: var(--color-accent-800);
+    border-radius: var(--radius-md); padding: var(--space-3); font-size: 14px;
+    margin-bottom: var(--space-2);
+  }
+  .settings-field { margin-bottom: var(--space-4); }
+  .settings-field label {
+    display: block; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-neutral-700); margin-bottom: 6px;
+  }
+  .settings-field .help { font-size: 12.5px; color: var(--color-neutral-600); margin-top: 6px; }
+  .settings-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: var(--color-accent-2-700); font-size: 13px; }
+  .settings-field.checkbox-field { display: flex; align-items: center; gap: 10px; }
+  .settings-field.checkbox-field label { margin-bottom: 0; text-transform: none; letter-spacing: normal; font-size: 14px; }
+  .settings-submit { margin-top: var(--space-6); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-wrap">
+  <h1>Settings</h1>
+  <p class="settings-lead">
+    {% if creating %}No settings row exists yet — saving this creates it (D-24's singleton row).{% else %}Owner-only (spec §6.2). Every save is recorded to the settings audit log.{% endif %}
+  </p>
+
+  {% if messages %}
+  <ul class="settings-messages">
+    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="settings-field {% if field.field.widget.input_type == 'checkbox' %}checkbox-field{% endif %}">
+        {{ field }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary settings-submit">Save settings</button>
+  </form>
+</div>
+{% endblock %}

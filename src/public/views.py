@@ -29,7 +29,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from core.models import Settings
-from core.tz import now_sast
+from core.tz import coerce_time, now_sast
 
 from . import sample_menu
 
@@ -38,19 +38,6 @@ _MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ]
-
-
-def _time(value: dt.time | str) -> dt.time:
-    """`Settings.default_window_start/end`/`same_day_cutoff` declare
-    "HH:MM"-string defaults (core/models.py) — Django only parses those to
-    a real `datetime.time` on save/refresh-from-db, so an unsaved
-    `Settings.current()` fallback instance (pre-seed) hands back the raw
-    string instead. Normalise either shape rather than crash on
-    `.strftime()`.
-    """
-    if isinstance(value, str):
-        return dt.datetime.strptime(value, "%H:%M").time()
-    return value
 
 
 def _day_list(today: dt.date, count: int = 7) -> list[dict]:
@@ -92,8 +79,8 @@ def _slot_list(settings: Settings) -> list[str]:
     before `window_end`. Which of these are *full* is still sample data
     (see order.html/order.js) — that's a real capacity query, milestone 3.
     """
-    start = _time(settings.default_window_start)
-    end = _time(settings.default_window_end)
+    start = coerce_time(settings.default_window_start)
+    end = coerce_time(settings.default_window_end)
     minutes = settings.slot_minutes
     labels = []
     cur = start.hour * 60 + start.minute
@@ -106,9 +93,9 @@ def _slot_list(settings: Settings) -> list[str]:
 
 def home(request: HttpRequest) -> HttpResponse:
     settings = Settings.current()
-    cutoff = _time(settings.same_day_cutoff)
-    window_start = _time(settings.default_window_start)
-    window_end = _time(settings.default_window_end)
+    cutoff = coerce_time(settings.same_day_cutoff)
+    window_start = coerce_time(settings.default_window_start)
+    window_end = coerce_time(settings.default_window_end)
     picks_ids = ("fh", "crr", "bl")  # the handoff's fixed "Today's picks" — copy to keep verbatim
     picks = []
     for cat in sample_menu.MENU:
