@@ -1,24 +1,29 @@
 """Customer-facing views for the four Broadsheet screens (design handoff:
 `updates/Curry orders modernization/design_handoff_brandons_kitchen/`)
-plus the real `/menu` and `/dishes/:slug` pages spec §6.1/§11.3/§11.4
-ask for (milestone 2).
+plus the real `/menu`, `/dishes/:slug` and `/orders/:public_token` pages
+spec §6.1/§11.3/§11.4/§11.7-9 ask for.
 
 Milestone 2 status: menu/dish/availability are real (`core.menu`,
 backed by `core.Dish`/`core.DayDishAvailability`, sold-out states
 computed via `core.capacity.dish_units_used`). Milestone 3 status:
-**not started** — order creation, the reservation transaction, and
-checkout are still client-side only. Two concessions worth flagging,
-neither of which is what the eventual production build will do:
+checkout is real — "Place the order" (checkout.js) calls the real
+`POST /api/checkout` (`public/api.py`), which runs `core.capacity.reserve()`
+(§8.3's transaction) and creates a real `core.Order`; the customer is
+handed off to this module's `order_status` view afterwards. One
+concession still worth flagging, not what the eventual production build
+will do:
 
 - The cart lives in the browser's `localStorage` (see `static/js/cart.js`),
-  not a session or a draft `Order` row. The handoff's own "State" section
-  names both as legitimate options for a prototype; a draft-Order-backed
-  cart is the real milestone-3 design, once `core.capacity.reserve()`
-  (already written, not yet wired to any view — see core/capacity.py's
-  own module docstring) has a caller.
-- Checkout's "confirmed" state is a same-page JS swap with a fabricated
-  reference, not a real order. Nothing is written to the database on
-  "Place the order" yet.
+  not a session or a draft `Order` row — it's only ever a client-side
+  staging area that gets turned into one real transaction at checkout,
+  never partially persisted server-side before that. The handoff's own
+  "State" section names both `localStorage` and a draft-Order as
+  legitimate prototype options; nothing about the current design forces
+  a move to the latter, but it remains open for a later pass (e.g. if
+  cross-device cart recovery becomes a real requirement).
+
+`order_status` itself is still minimal — no EFT bank-details/proof-of-
+payment panel yet (§11.8, milestone 4).
 """
 from __future__ import annotations
 
@@ -30,8 +35,24 @@ from django.shortcuts import render
 from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
-from core.models import Order, Settings, TradingDay
+from core.models import Order, OrderStatus, Settings, TradingDay
 from core.tz import coerce_time, now_sast, orderable_dates
+
+# §11.7-9's plain-language status copy — not the internal state-machine
+# name (OrderStatus's own label is closer to a kitchen-desk word than
+# something to put in front of a customer, e.g. "confirmed_prep").
+_STATUS_COPY: dict[str, str] = {
+    OrderStatus.AWAITING_EFT: "Awaiting your EFT payment.",
+    OrderStatus.PAYMENT_REVIEW: "Payment received — a staff member is confirming it.",
+    OrderStatus.CONFIRMED_PREP: "Confirmed — going into prep before your slot.",
+    OrderStatus.CASH_REQUEST: "Awaiting kitchen confirmation for cash on collection.",
+    OrderStatus.CASH_DUE: "Confirmed — bring cash at collection.",
+    OrderStatus.IN_KITCHEN: "In the kitchen now.",
+    OrderStatus.READY: "Ready for collection.",
+    OrderStatus.COLLECTED: "Collected — thank you!",
+    OrderStatus.PAYMENT_EXPIRED: "This order's payment window expired and the hold was released.",
+    OrderStatus.CANCELLED: "This order was cancelled.",
+}
 
 _DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 _DAY_NAMES_FULL = [
@@ -83,32 +104,33 @@ def _orderable_day_list(today: dt.date, settings: Settings) -> list[dict]:
     return days
 
 
-def _slot_list_for_day(trading_day: TradingDay | None) -> tuple[list[str], list[str]]:
-    """Real `Slot` rows for one trading day: `(all_labels, full_labels)`.
-    `full_labels` is computed from actual occupying orders
-    (`core.capacity.OCCUPYING_STATUSES`) — always empty right now since
-    no order-creation flow exists yet (milestone 3), which is the
-    correct, honest answer, not a placeholder.
+def _slot_list_for_day(trading_day: TradingDay | None) -> list[dict]:
+    """Real `Slot` rows for one trading day, each `{id, label, full}` —
+    `id` is the real `Slot` PK the checkout API needs (§17.3's
+    `POST /api/checkout` body takes `slot_id`, not a time label); `full`
+    is computed from actual occupying orders
+    (`core.capacity.OCCUPYING_STATUSES`).
 
-    Only ever looks at *one* day (the soonest orderable one) — the
-    order screen doesn't yet re-fetch slots when the customer picks a
-    different day (that needs `GET /api/availability?date=`, real
-    capacity-engine surface area, milestone 3); every materialised day
+    Only ever looks at *one* day (the soonest orderable one) — the order
+    screen doesn't yet re-fetch slots when the customer picks a different
+    day (that needs `GET /api/availability?date=`, still-unbuilt
+    optimistic-read surface area — checkout itself re-validates
+    everything server-side regardless, per §8.6); every materialised day
     shares the same default window today, so this is a visible
     simplification only once a specific day's window is customised.
     """
     if trading_day is None:
-        return [], []
+        return []
     slots = list(trading_day.slots.order_by("start_at"))
-    labels = []
-    full_labels = []
+    result = []
     for s in slots:
-        label = s.start_at.strftime("%H:%M")
-        labels.append(label)
         occupying = Order.objects.filter(slot=s, status__in=OCCUPYING_STATUSES).count()
-        if s.is_closed or occupying >= s.capacity:
-            full_labels.append(label)
-    return labels, full_labels
+        result.append({
+            "id": s.pk,
+            "label": s.start_at.strftime("%H:%M"),
+            "full": s.is_closed or occupying >= s.capacity,
+        })
+    return result
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -216,7 +238,7 @@ def order(request: HttpRequest) -> HttpResponse:
     days = _orderable_day_list(today, settings)
     first_day = TradingDay.objects.filter(date=dt.date.fromisoformat(days[0]["iso"])).first() \
         if days else None
-    slots, full_slots = _slot_list_for_day(first_day)
+    slots = _slot_list_for_day(first_day)
 
     dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
     categories = menu_queries.categories_ordered(dishes)
@@ -225,7 +247,6 @@ def order(request: HttpRequest) -> HttpResponse:
         "categories": categories,
         "days": days,
         "slots": slots,
-        "full_slots_today": full_slots,
     })
 
 
@@ -245,10 +266,23 @@ def checkout(request: HttpRequest) -> HttpResponse:
 
 
 def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
-    # Spec §6.1 `/orders/:public_token` — order status / EFT instructions /
-    # confirmed view, `noindex, nofollow`. Not one of the four handoff
-    # screens; still a placeholder pending milestone 4 (EFT page) and the
-    # `core.Order` lookup-by-token it depends on.
-    return HttpResponse(
-        f"public:order_status placeholder for {public_token!r} — see spec §11.7-9, milestone 4"
-    )
+    """Spec §6.1 `/orders/:public_token` — order status view,
+    `noindex, nofollow`. Not one of the four handoff screens. This is the
+    minimal real version milestone 3's checkout flow needs somewhere to
+    land after `POST /api/checkout` succeeds: order number, status in
+    plain language, the order sheet, collection details. The EFT bank
+    details / proof-of-payment upload panel §11.8 asks for on this same
+    page is still milestone 4 — `awaiting_eft` orders show the generic
+    status copy for now, not payment instructions.
+    """
+    order = Order.objects.filter(public_token=public_token).select_related(
+        "trading_day", "slot"
+    ).prefetch_related("lines").first()
+    if order is None:
+        raise Http404("No such order.")
+
+    return render(request, "public/order_status.html", {
+        "order": order,
+        "lines": order.lines.all(),
+        "status_copy": _STATUS_COPY.get(order.status, order.get_status_display()),
+    })

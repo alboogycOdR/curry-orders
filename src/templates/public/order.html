@@ -3,12 +3,12 @@
 
 {% comment %}
 Order screen — design handoff README §"Screens" §2. The menu listing
-(categories, dish names/descriptions/prices, sold-out state) is
-server-rendered from real `core.Dish` data (`core.menu`, milestone 2) so
-it's readable with JS off; the day picker, slot picker, qty steppers,
-order sheet and total are all client-side state (order.js + the shared
-cart.js) since there is no capacity/cart *backend* yet (see
-public/views.py's module docstring) — this mirrors the handoff's own
+(categories, dish names/descriptions/prices, sold-out state) and the slot
+grid's full/disabled state are server-rendered from real `core.Dish`/
+`core.Slot` data; the day picker, qty steppers, order sheet and total are
+client-side state (order.js + the shared cart.js) — that cart is only
+ever a client-side staging area, turned into one real order at checkout
+(see public/views.py's module docstring) — this mirrors the handoff's own
 reactive prototype, just re-homed onto plain DOM updates instead of a
 component re-render.
 {% endcomment %}
@@ -145,7 +145,8 @@ component re-render.
         </div>
         <div class="op-slot-grid" id="op-slot-grid">
           {% for s in slots %}
-          <button type="button" class="op-chip op-slot-chip" data-slot="{{ s }}">{{ s }}</button>
+          <button type="button" class="op-chip op-slot-chip {% if s.full %}is-full{% endif %}"
+                  data-slot-id="{{ s.id }}" data-slot="{{ s.label }}" {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
           {% endfor %}
         </div>
         <div class="op-slot-note" id="op-slot-note"></div>
@@ -165,6 +166,5 @@ component re-render.
 </div>
 
 {{ days|json_script:"days-data" }}
-{{ full_slots_today|json_script:"full-slots-today" }}
 <script src="{% static 'js/order.js' %}" defer></script>
 {% endblock %}

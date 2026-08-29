@@ -3,10 +3,9 @@
 
 {% comment %}
 Checkout screen — design handoff README §"Screens" §3. Two states in one
-view (payment form, then a confirmed receipt), toggled by checkout.js —
-see that file and public/views.py's module docstring for why "Place the
-order" doesn't create a real order yet (no `core.capacity`/order-creation
-code this pass).
+view (payment form, then a confirmed receipt) toggled by checkout.js,
+which really does call `POST /api/checkout` (public/api.py) and create a
+real `core.Order` — see that file's own header comment.
 {% endcomment %}
 
 {% block title %}Checkout — Brandon's Kitchen{% endblock %}
@@ -49,6 +48,7 @@ code this pass).
   .ck-collect-info { margin-top: 24px; font-size: 15.5px; color: var(--color-neutral-800); line-height: 1.5; }
   .ck-place { min-height: 48px; font-size: 15px; margin-top: 26px; }
   .ck-back { font-size: 14px; }
+  .ck-field-error { font-size: 13px; color: var(--color-error, #b3261e); margin: 6px 0 0; }
 
   #ck-confirmed-state { margin-top: 56px; animation: ckRiseIn 520ms ease-out both; }
   .ck-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); }
@@ -95,16 +95,31 @@ code this pass).
           </label>
         </div>
 
+        {% csrf_token %}
         <div class="ck-fields">
           <div class="field">
             <label for="ck-name">Name</label>
             <input class="input" id="ck-name" placeholder="Who's collecting?">
+            <p class="ck-field-error" id="ck-name-error" hidden></p>
           </div>
           <div class="field">
             <label for="ck-phone">Mobile</label>
             <input class="input" id="ck-phone" placeholder="082 000 0000">
+            <p class="ck-field-error" id="ck-phone-error" hidden></p>
+          </div>
+          <div class="field" style="grid-column: 1 / -1;">
+            <label for="ck-note">Order note <span style="text-transform: none; letter-spacing: 0;">(optional)</span></label>
+            <textarea class="input" id="ck-note" rows="2" maxlength="200" placeholder="Anything the kitchen should know"></textarea>
           </div>
         </div>
+
+        <label class="checkbox" style="display: flex; gap: 10px; align-items: flex-start; margin-top: 22px; font-size: 14.5px;">
+          <input type="checkbox" id="ck-accept-policies">
+          <span>I accept the collection and cancellation policies.</span>
+        </label>
+        <p class="ck-field-error" id="ck-accept-policies-error" hidden></p>
+
+        <p class="ck-field-error" id="ck-form-error" hidden style="margin-top: 18px;"></p>
       </div>
 
       <div>
@@ -151,7 +166,14 @@ code this pass).
 
 {{ days|json_script:"days-data" }}
 <script>
-  window.BK_CHECKOUT_URLS = { order: "{% url 'public:order' %}" };
+  window.BK_CHECKOUT_URLS = {
+    order: "{% url 'public:order' %}",
+    api_checkout: "{% url 'public:api_checkout' %}",
+    // %s stands in for the public_token — order_status takes a path
+    // argument, so there's no url-reverse-with-a-placeholder in Django;
+    // checkout.js does a plain string replace.
+    order_status: "{% url 'public:order_status' public_token='TOKEN_PLACEHOLDER' %}"
+  };
 </script>
 <script src="{% static 'js/checkout.js' %}" defer></script>
 {% endblock %}

@@ -1,15 +1,14 @@
 // cart.js — the customer cart, held in the browser only.
 //
-// This is the "visual pass" stand-in for real cart state (see
-// public/views.py's module docstring). `core.capacity.reserve()` already
-// exists (core/capacity.py) but has no view wired to it yet — the real
-// milestone-3 cart is a session or a draft `core.Order` row held against
-// a slot by that function; nothing here talks to the server. Cart lines
-// are denormalised ({id, name, price, qty} per line, not just id -> qty)
-// so any page can render totals/the header summary without a second
-// price lookup. `price` is always integer cents (`core.Dish.price_cents`
-// plus any selected `DishOptionValue.price_delta_cents`) — never rands —
-// matching how the backend stores money everywhere (core/money.py).
+// A client-side staging area (see public/views.py's module docstring) —
+// nothing here talks to the server until checkout.js turns it into one
+// `POST /api/checkout` call, which runs the real `core.capacity.reserve()`
+// transaction (core/capacity.py) server-side. Cart lines are denormalised
+// ({id, name, price, qty} per line, not just id -> qty) so any page can
+// render totals/the header summary without a second price lookup.
+// `price` is always integer cents (`core.Dish.price_cents` plus any
+// selected `DishOptionValue.price_delta_cents`) — never rands — matching
+// how the backend stores money everywhere (core/money.py).
 //
 // Loaded on every page (base.html, `defer`), before any per-page script —
 // order.js/checkout.js/kitchen.js all assume `window.BKCart` exists.
@@ -19,6 +18,7 @@
   var CART_KEY = "bk_cart_v1";
   var DAY_KEY = "bk_day_v1";
   var SLOT_KEY = "bk_slot_v1";
+  var SLOT_ID_KEY = "bk_slot_id_v1";
   var PAY_KEY = "bk_pay_v1";
 
   function readJSON(key, fallback) {
@@ -135,6 +135,18 @@
   function setSlot(s) {
     writeStr(SLOT_KEY, s);
   }
+  // The real Slot PK (checkout needs this — §17.3's POST /api/checkout
+  // body takes slot_id, not a time label) alongside the label above,
+  // which stays purely for display. Two keys, not one object, so
+  // getSlot()'s existing shape (a bare string) doesn't change for
+  // anything that only ever wanted the label.
+  function getSlotId() {
+    var v = readStr(SLOT_ID_KEY);
+    return v === null ? null : parseInt(v, 10);
+  }
+  function setSlotId(id) {
+    writeStr(SLOT_ID_KEY, id);
+  }
   function getPay() {
     return readStr(PAY_KEY) || "eft";
   }
@@ -155,6 +167,8 @@
     setDay: setDay,
     getSlot: getSlot,
     setSlot: setSlot,
+    getSlotId: getSlotId,
+    setSlotId: setSlotId,
     getPay: getPay,
     setPay: setPay,
   };

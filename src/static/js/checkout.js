@@ -1,8 +1,12 @@
 // checkout.js — the Checkout screen (design handoff §"Screens" §3).
-// Two states (payment form, then a confirmed receipt) toggled in place;
-// see checkout.html's comment and public/views.py's module docstring for
-// why "Place the order" fabricates a reference instead of creating a real
-// `core.Order` — that's milestone 3 (§8.3's reservation transaction).
+// Two states (payment form, then a confirmed receipt) toggled in place.
+// "Place the order" now really does call `POST /api/checkout`
+// (public/api.py, milestone 3, §11.6/§17.3) and creates a real
+// `core.Order` row via `core.capacity.reserve()` — the confirmed state
+// below shows the real order number/token the server assigned, not a
+// fabricated reference; on success it hands the customer off to the real
+// `/orders/:public_token/` page instead of just toggling in place, since
+// that URL is the one worth bookmarking/reloading.
 (function () {
   "use strict";
 
@@ -22,11 +26,62 @@
     return div.innerHTML;
   }
 
+  // Reads the `csrftoken` cookie Django's CsrfViewMiddleware sets once
+  // `{% csrf_token %}` is rendered anywhere on the page (checkout.html
+  // does) — the standard "AJAX and CSRF" pattern from Django's own docs,
+  // since this is a fetch() POST, not a plain form submit picking up the
+  // hidden input Django also rendered.
+  function getCookie(name) {
+    var prefix = name + "=";
+    var parts = document.cookie ? document.cookie.split("; ") : [];
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].indexOf(prefix) === 0) {
+        return decodeURIComponent(parts[i].slice(prefix.length));
+      }
+    }
+    return null;
+  }
+
+  // A cart line's id is a dish id, or (dish.js's composite key)
+  // "dishId:optId1,optId2" — split it back into what the API wants.
+  function parseLineKey(key) {
+    var parts = String(key).split(":");
+    var dishId = parseInt(parts[0], 10);
+    var optionValueIds = parts[1]
+      ? parts[1].split(",").map(function (s) { return parseInt(s, 10); })
+      : [];
+    return { dishId: dishId, optionValueIds: optionValueIds };
+  }
+
+  function cartToLines(cart) {
+    return Object.keys(cart).map(function (id) {
+      var parsed = parseLineKey(id);
+      return {
+        dish_id: parsed.dishId,
+        quantity: cart[id].qty,
+        option_value_ids: parsed.optionValueIds,
+      };
+    });
+  }
+
+  // One per page load — an Idempotency-Key is only meant to dedupe
+  // retries of the *same* attempt (a double-click, a flaky connection
+  // the browser retries), not every attempt a customer ever makes here.
+  function makeIdempotencyKey() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return "ck-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+  }
+  var idempotencyKey = makeIdempotencyKey();
+
   document.addEventListener("DOMContentLoaded", function () {
     var days = readJSONScript("days-data", []);
 
     var payEft = document.getElementById("ck-pay-eft");
     var payCash = document.getElementById("ck-pay-cash");
+    var nameInput = document.getElementById("ck-name");
+    var phoneInput = document.getElementById("ck-phone");
+    var noteInput = document.getElementById("ck-note");
+    var acceptPoliciesInput = document.getElementById("ck-accept-policies");
     var sheetEl = document.getElementById("ck-sheet");
     var totalEl = document.getElementById("ck-total-value");
     var collectDayEl = document.getElementById("ck-collect-day");
@@ -40,6 +95,12 @@
     var dayValueEl = document.getElementById("ck-day-value");
     var totalValue2El = document.getElementById("ck-total-value-2");
     var startAnotherBtn = document.getElementById("ck-start-another");
+    var formErrorEl = document.getElementById("ck-form-error");
+    var fieldErrorEls = {
+      name: document.getElementById("ck-name-error"),
+      mobile: document.getElementById("ck-phone-error"),
+      accept_policies: document.getElementById("ck-accept-policies-error"),
+    };
 
     function currentDay() {
       var idx = window.BKCart.getDay();
@@ -54,6 +115,31 @@
       var pay = window.BKCart.getPay();
       payEft.checked = pay === "eft";
       payCash.checked = pay === "cash";
+    }
+
+    function clearErrors() {
+      formErrorEl.hidden = true;
+      formErrorEl.textContent = "";
+      Object.keys(fieldErrorEls).forEach(function (key) {
+        fieldErrorEls[key].hidden = true;
+        fieldErrorEls[key].textContent = "";
+      });
+    }
+
+    function showErrors(message, fields) {
+      if (message) {
+        formErrorEl.textContent = message;
+        formErrorEl.hidden = false;
+      }
+      if (fields) {
+        Object.keys(fields).forEach(function (key) {
+          var el = fieldErrorEls[key];
+          if (el) {
+            el.textContent = fields[key];
+            el.hidden = false;
+          }
+        });
+      }
     }
 
     function renderSheetAndTotals() {
@@ -83,7 +169,7 @@
       collectDayEl.textContent = day ? titleCase(day.long) : "—";
       collectSlotEl.textContent = slot || "—";
 
-      var ready = t.count > 0 && !!slot;
+      var ready = t.count > 0 && !!slot && !!window.BKCart.getSlotId();
       placeBtn.disabled = !ready;
     }
 
@@ -94,36 +180,97 @@
       if (payCash.checked) window.BKCart.setPay("cash");
     });
 
+    function setPlacing(placing) {
+      placeBtn.disabled = placing;
+      placeBtn.textContent = placing ? "Placing your order…" : "Place the order";
+    }
+
     placeBtn.addEventListener("click", function () {
       if (placeBtn.disabled) return;
-      var t = window.BKCart.totals();
+      clearErrors();
+
       var day = currentDay();
-      var slot = window.BKCart.getSlot();
-      var pay = window.BKCart.getPay();
+      var slotId = window.BKCart.getSlotId();
+      var cart = window.BKCart.getCart();
+      var payload = {
+        name: nameInput.value.trim(),
+        mobile: phoneInput.value.trim(),
+        note: noteInput ? noteInput.value.trim() : "",
+        date: day ? day.iso : null,
+        slot_id: slotId,
+        payment_method: window.BKCart.getPay(),
+        accept_policies: !!(acceptPoliciesInput && acceptPoliciesInput.checked),
+        lines: cartToLines(cart),
+      };
 
-      // Fabricated — real order numbers are `trading_days.next_order_seq`
-      // under a row lock (D-04), assigned inside the reservation
-      // transaction (§8.3), not generated in the browser.
-      var ref = "DEMO-" + Math.floor(1000 + Math.random() * 9000);
+      setPlacing(true);
 
-      confirmHeading.textContent = "We've got it. Collection " + slot + ".";
-      confirmCopy.textContent =
-        pay === "cash"
-          ? "Bring " + window.BKCart.rands(t.total) +
-            " in cash. We start cooking once the kitchen confirms — you'll get an SMS either way."
-          : "Bank details are on their way by SMS. Your slot is held for 45 minutes; cooking starts the moment the payment is verified.";
-      refEl.textContent = ref;
-      dayValueEl.textContent = day ? titleCase(day.long) : "—";
-      totalValue2El.textContent = window.BKCart.rands(t.total);
+      fetch(window.BK_CHECKOUT_URLS.api_checkout, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify(payload),
+        credentials: "same-origin",
+      })
+        .then(function (resp) {
+          return resp.json().then(function (body) {
+            return { ok: resp.ok, status: resp.status, body: body };
+          });
+        })
+        .then(function (result) {
+          setPlacing(false);
+          if (!result.ok) {
+            if (result.body && result.body.fields) {
+              showErrors(result.body.message, result.body.fields);
+            } else {
+              showErrors((result.body && result.body.message) || "Something went wrong placing your order — try again.");
+            }
+            return;
+          }
 
-      formState.hidden = true;
-      confirmedState.hidden = false;
-      confirmedState.scrollIntoView({ behavior: "smooth", block: "start" });
+          // The reservation succeeded — this cart is spent regardless of
+          // what happens next, so clear it before navigating away.
+          window.BKCart.clearCart();
+          window.BKCart.setSlot(null);
+          window.BKCart.setSlotId(null);
+
+          var order = result.body;
+          refEl.textContent = order.order_number;
+          confirmHeading.textContent = "We've got it. Order " + order.order_number + ".";
+          var slot = collectSlotEl.textContent;
+          confirmCopy.textContent =
+            payload.payment_method === "cash"
+              ? "Bring your payment in cash. We start cooking once the kitchen confirms — you'll get an SMS either way."
+              : "Bank details are on their way by SMS. Your slot is held for 45 minutes; cooking starts the moment the payment is verified.";
+          dayValueEl.textContent = day ? titleCase(day.long) : "—";
+          totalValue2El.textContent = totalEl.textContent;
+
+          formState.hidden = true;
+          confirmedState.hidden = false;
+          confirmedState.scrollIntoView({ behavior: "smooth", block: "start" });
+
+          // A moment for the customer to read the confirmation, then on
+          // to the real order-status page (§6.1) — the URL worth
+          // bookmarking/reloading, unlike this one-shot checkout screen.
+          window.setTimeout(function () {
+            window.location.href = window.BK_CHECKOUT_URLS.order_status.replace(
+              "TOKEN_PLACEHOLDER", order.public_token
+            );
+          }, 1800);
+        })
+        .catch(function () {
+          setPlacing(false);
+          showErrors("Couldn't reach the server — check your connection and try again.");
+        });
     });
 
     startAnotherBtn.addEventListener("click", function () {
       window.BKCart.clearCart();
       window.BKCart.setSlot(null);
+      window.BKCart.setSlotId(null);
       window.location.href = window.BK_CHECKOUT_URLS.order;
     });
 

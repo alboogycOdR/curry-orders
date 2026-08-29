@@ -1,11 +1,15 @@
 from django.urls import path
 
-from . import views
+from . import api, views
 
 app_name = "public"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # §17.3's API contract — no trailing slash, matching the spec exactly
+    # (and Django's APPEND_SLASH redirect only fires for GET/HEAD, not
+    # POST, so a slashed-vs-not mismatch here would just 404 the client).
+    path("api/checkout", api.checkout, name="api_checkout"),
     # Spec §6.1's real per-dish permalink now exists (milestone 2), which
     # is exactly the trigger docs/DECISIONS.md D-32 named for revisiting
     # the /menu-vs-/order split — not revisited yet: /menu is the

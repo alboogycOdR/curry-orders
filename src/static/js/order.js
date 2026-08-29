@@ -21,7 +21,6 @@
     // (server-rendered from real core.Dish rows) — no separate menu
     // price map needed here.
     var days = readJSONScript("days-data", []); // [{index, dow, dom, long, ...}]
-    var fullSlotsToday = readJSONScript("full-slots-today", []);
 
     var menuEl = document.getElementById("op-menu");
     var dayChipsEl = document.getElementById("op-day-chips");
@@ -35,6 +34,7 @@
     var state = {
       day: clampDay(window.BKCart.getDay()),
       slot: window.BKCart.getSlot(),
+      slotId: window.BKCart.getSlotId(),
     };
 
     function clampDay(i) {
@@ -80,16 +80,17 @@
     }
 
     function renderSlotGrid() {
+      // Full/disabled state is server-rendered (order.html sets
+      // .is-full/disabled per slot from a real occupying-orders count —
+      // public.views._slot_list_for_day) — this only ever manages which
+      // chip looks selected, never which ones are clickable.
       slotGridEl.querySelectorAll(".op-slot-chip").forEach(function (btn) {
-        var slot = btn.getAttribute("data-slot");
-        var full = state.day === 0 && fullSlotsToday.indexOf(slot) > -1;
-        btn.classList.toggle("is-full", full);
-        btn.classList.toggle("is-selected", !full && slot === state.slot);
-        btn.disabled = full;
+        var slotId = parseInt(btn.getAttribute("data-slot-id"), 10);
+        btn.classList.toggle("is-selected", !btn.disabled && slotId === state.slotId);
       });
       slotNoteEl.textContent = state.slot
         ? "Held for 45 minutes once you place the order."
-        : "Two windows are already full for today.";
+        : "Pick a collection window — some may already be full for today.";
     }
 
     function renderSheet() {
@@ -170,7 +171,9 @@
       var btn = e.target.closest(".op-slot-chip");
       if (!btn || btn.disabled) return;
       state.slot = btn.getAttribute("data-slot");
+      state.slotId = parseInt(btn.getAttribute("data-slot-id"), 10);
       window.BKCart.setSlot(state.slot);
+      window.BKCart.setSlotId(state.slotId);
       renderSlotGrid();
       renderTotalsAndCta();
     });
