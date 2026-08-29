@@ -76,25 +76,39 @@ def _past_deadline_trading_day(biz_settings, dish, *, payment_method: str = "eft
     tests, which all need this same "it's now past the deadline" setup.
     """
     now = now_sast()
+    # `placed` is the moment the order goes in; every time-of-day below is
+    # derived from it so the whole window sits inside ONE calendar day.
+    # Shortly after midnight "now - 2h" is yesterday, and stamping its
+    # .time() onto today's date would put the window in the FUTURE (and,
+    # for cash, make the order's date mismatch the trading day — tripping
+    # the same-day-only rule). Anchor on yesterday evening instead: still
+    # entirely in the past relative to the real wall clock, which is all
+    # these tests need.
+    if now.hour < 3:
+        placed = (now - dt.timedelta(days=1)).replace(
+            hour=20, minute=0, second=0, microsecond=0
+        )
+    else:
+        placed = now - dt.timedelta(hours=2)
     trading_day = TradingDay.objects.create(
-        date=now.date(), is_open=True,
-        window_start=(now - dt.timedelta(hours=2)).time(),
-        window_end=(now - dt.timedelta(hours=1)).time(),
-        # 23:59, not 00:00 — the order below is placed "now - 2h", same
+        date=placed.date(), is_open=True,
+        window_start=placed.time(),
+        window_end=(placed + dt.timedelta(hours=1)).time(),
+        # 23:59, not 00:00 — the order below is placed at `placed`, same
         # calendar day; check_cutoff needs that time-of-day to still be
         # before cutoff, or reserve() itself would refuse it.
         cutoff_time=dt.time(23, 59), daily_order_cap=50,
     )
     slot = trading_day.slots.create(
-        start_at=(now - dt.timedelta(minutes=30)).time(),
-        end_at=(now - dt.timedelta(minutes=15)).time(),
+        start_at=(placed + dt.timedelta(minutes=90)).time(),
+        end_at=(placed + dt.timedelta(minutes=105)).time(),
         capacity=5,
     )
     order = reserve(
         ReservationRequest(
             trading_day_date=trading_day.date, slot_id=slot.pk, payment_method=payment_method,
             customer_name="Jane Customer", customer_mobile_e164="+27821234567",
-            lines=[CheckoutLine(dish_id=dish.pk, quantity=1)], now=now - dt.timedelta(hours=2),
+            lines=[CheckoutLine(dish_id=dish.pk, quantity=1)], now=placed,
         ),
         biz_settings,
     )
@@ -268,13 +282,27 @@ class TestCloseOutDayApi:
 
 
 class TestCloseOutDaysJob:
-    def test_run_close_out_days_task(self, biz_settings, dish) -> None:
+    def test_run_close_out_days_task(self, biz_settings, dish, monkeypatch) -> None:
         from core.models import JobHeartbeat
-        from jobs.tasks import run_close_out_days
+
+        import jobs.tasks as jobs_tasks
 
         trading_day, order = _past_deadline_trading_day(biz_settings, dish, payment_method="cash")
 
-        run_close_out_days()
+        # The job scopes itself to "today's" trading day (it fires 23:30
+        # SAST on the day that's ending). The helper anchors on yesterday
+        # when the real clock is just past midnight, so pin the job's
+        # clock to 23:30 on the trading day itself — the moment the
+        # scheduler actually runs it. `close_out_day`'s own grace-deadline
+        # check still uses the real wall clock, which is already past.
+        from core.tz import SAST
+
+        monkeypatch.setattr(
+            jobs_tasks, "now_sast",
+            lambda: dt.datetime.combine(trading_day.date, dt.time(23, 30), tzinfo=SAST),
+        )
+
+        jobs_tasks.run_close_out_days()
 
         order.refresh_from_db()
         assert order.status == OrderStatus.CANCELLED
