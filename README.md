@@ -20,6 +20,14 @@ production configuration.
   against an empty database to prove it still loads).
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — the decision log (spec
   Appendix A, maintained going forward).
+- [`docs/PHASE_2_PLAN.md`](docs/PHASE_2_PLAN.md) — **the current work
+  queue.** Phase 1 (milestones 1–7, narrowed 8, thin 10) is done and on
+  `main`; this is the checklist for what's left (menu editor, milestone
+  9, the rest of milestone 10) — start here to resume development.
+- [`docs/GO_LIVE_PREP_SHEET.md`](docs/GO_LIVE_PREP_SHEET.md) /
+  [`.pdf`](docs/GO_LIVE_PREP_SHEET.pdf) — the 14 owner-supplied items
+  (menu/prices/photos, bank details, address, etc.) blocking pilot
+  go-live per §23, formatted to hand to the owner.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — deploy, backup/restore, rotate
   secrets, common ops (stub until milestone 10).
 - [`docs/DISH_LIST_DRAFT.md`](docs/DISH_LIST_DRAFT.md) — draft menu
@@ -63,7 +71,40 @@ payment queue are the product (spec §22, design intent §24).
 
 ## Status
 
-Pre-milestone-1: repository scaffolded, schema reviewed against the spec,
-Clawsrv surveyed and provisioned for in the spec. Django project itself
-(`manage.py`, models, `config/settings/*`) not yet written. Owner inputs
-still outstanding are tracked in spec §23.
+**Phase 1 complete and merged to `main`.** Milestones 1–7 shipped in full,
+milestone 8 narrowed to daily controls (menu editor deferred), milestone
+10 narrowed to the help/policies copy blocks (reports, retention, backups,
+runbook and hardening deferred) — see decision D-34 in `docs/DECISIONS.md`
+for the reasoning. The order-taking core is real end to end: menu →
+checkout → capacity engine → EFT queue → kitchen board → collection board
+→ cash path → daily controls, all with real staff auth and a full audit
+trail. 335 tests passing.
+
+**Not yet built** (Phase 2 — see `docs/PHASE_2_PLAN.md` for the itemised
+checklist): the menu editor, assisted order entry, the preorder calendar,
+public lookup/reorder, the staff inbox, pilot reports, the retention purge
+job, automated backups, `RUNBOOK.md`'s real content, and the load/security
+test passes. §22 ties most of this directly to go-live readiness — it
+isn't polish.
+
+**Owner inputs still outstanding**, tracked in spec §23 and formatted for
+hand-off in `docs/GO_LIVE_PREP_SHEET.md`: final dish list/prices/photos,
+bank details, collection address, allergen/home-kitchen disclaimer
+wording, support WhatsApp number, logo/brand colours, staff names/emails,
+backup destination, site/media hostnames, EU-hosting sign-off, VAT status,
+and two policy decisions (cash ordering window, no-show refund policy).
+
+### Resuming on a new machine
+
+```
+git clone <this repo> && cd curry-orders
+git checkout main   # source of truth — see docs/DECISIONS.md D-34
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env   # fill in local DB creds, see spec Appendix D
+# start Postgres 16 locally, then:
+cd src && python manage.py migrate && cd ..
+pytest -q   # should show 335 passed
+```
+
+Then open `docs/PHASE_2_PLAN.md` and pick up the next unchecked item.
