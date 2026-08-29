@@ -1,9 +1,11 @@
-"""Forms for the staff auth flow and the (owner-only) settings editor."""
+"""Forms for the staff auth flow, the (owner-only) settings editor, and
+(milestone 8) daily controls.
+"""
 from __future__ import annotations
 
 from django import forms
 
-from core.models import Settings
+from core.models import Settings, TradingDay
 
 # Not a spec-mandated policy (D-12 doesn't state a minimum) — a plain
 # sanity floor so "Place the order" — sorry, "Change password" — can't be
@@ -94,4 +96,32 @@ class SettingsForm(forms.ModelForm):
                 continue
             if isinstance(field.widget, forms.Textarea) and name not in self.Meta.widgets:
                 field.widget = forms.TextInput()
+            field.widget.attrs.setdefault("class", "input")
+
+
+class TradingDayForm(forms.ModelForm):
+    """§12.8's day-level fields: open/close, window/cut-off override,
+    daily cap, internal notes. Per-slot capacity/close and per-dish
+    availability/`max_units` are dynamic (however many slots/active
+    dishes exist for the day) and are handled directly in
+    `staff/views.py::daily_controls` from the raw POST, not through a
+    formset — same reasoning `public/api.py`'s checkout payload parsing
+    already uses for a variable-length `lines[]`.
+    """
+
+    class Meta:
+        model = TradingDay
+        fields = [
+            "is_open", "window_start", "window_end", "cutoff_time",
+            "daily_order_cap", "notes_internal",
+        ]
+        widgets = {
+            "notes_internal": forms.Textarea(attrs={"rows": 3, "class": "input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if isinstance(field.widget, (forms.CheckboxInput, forms.Textarea)):
+                continue
             field.widget.attrs.setdefault("class", "input")

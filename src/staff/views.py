@@ -25,8 +25,9 @@ import datetime as dt
 from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.db import transaction
 from django.forms.models import model_to_dict
-from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -39,13 +40,17 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
-from core.capacity import OCCUPYING_STATUSES
+from core.capacity import OCCUPYING_STATUSES, dish_units_used
+from core.materialise import materialise_day
+from core.menu import active_dishes
 from core.models import (
+    DayDishAvailability,
     Order,
     OrderStatus,
     PaymentMethod,
     Settings,
     SettingsEvent,
+    Slot,
     TradingDay,
     User,
 )
@@ -53,7 +58,7 @@ from core.tz import SAST, coerce_time, now_sast
 
 from . import sessions
 from .decorators import owner_required, staff_login_required
-from .forms import ChangePasswordForm, LoginForm, SettingsForm
+from .forms import ChangePasswordForm, LoginForm, SettingsForm, TradingDayForm
 
 _DAY_NAMES_FULL = [
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
@@ -452,4 +457,164 @@ def cash_requests(request: HttpRequest) -> HttpResponse:
     return render(request, "staff/cash_requests.html", {
         "orders": orders,
         "now_label": now_sast().strftime("%H:%M"),
+    })
+
+
+# ---------------------------------------------------------------- daily controls (§12.8)
+
+
+@staff_login_required
+def daily_controls_today(request: HttpRequest) -> HttpResponse:
+    return redirect("manage:daily_controls", date=now_sast().date().isoformat())
+
+
+@staff_login_required
+def daily_controls(request: HttpRequest, date: str) -> HttpResponse:
+    """§12.8: open/close the day, override window/cut-off/daily cap,
+    per-slot capacity/close, per-dish available/`max_units`, internal
+    notes — real ceilings on the same day (§20's own acceptance line:
+    "sell out one dish and close one slot without editing the monthly
+    menu"). Slot capacity can never go below current occupancy (a hard
+    validation error, not a warning). Closing the day, or a slot that
+    still has occupying orders, needs typed confirmation (a checkbox
+    that only appears once there's something to confirm) and lists the
+    affected orders, each closing slot offering a "Move all to…" picker
+    (`static/js/daily_controls.js` -> `manage:api_move_all_orders`,
+    `core.transitions`' already-tested `change_slot`).
+    """
+    try:
+        target_date = dt.date.fromisoformat(date)
+    except ValueError:
+        raise Http404("Invalid date.") from None
+
+    settings = Settings.current()
+    trading_day = materialise_day(target_date, settings)
+    form = TradingDayForm(instance=trading_day)
+
+    slots = list(trading_day.slots.order_by("start_at"))
+    slot_occupancy = {
+        s.pk: Order.objects.filter(slot=s, status__in=OCCUPYING_STATUSES).count() for s in slots
+    }
+    dishes = active_dishes()
+    avail_by_dish = {a.dish_id: a for a in trading_day.dish_availability.all()}
+    used_units = dish_units_used(trading_day, [d.pk for d in dishes]) if dishes else {}
+
+    errors: list[str] = []
+    confirm_needed = False
+    closing_slots: list[Slot] = []
+    affected_orders: dict[int, Order] = {}
+
+    if request.method == "POST":
+        form = TradingDayForm(request.POST, instance=trading_day)
+        slot_updates = []
+        for s in slots:
+            try:
+                new_capacity = int(request.POST.get(f"slot_capacity_{s.pk}", ""))
+            except ValueError:
+                errors.append(f"Slot {s.start_at:%H:%M}: enter a valid capacity.")
+                continue
+            occupying = slot_occupancy[s.pk]
+            if new_capacity < occupying:
+                errors.append(
+                    f"Slot {s.start_at:%H:%M}: capacity can't go below {occupying}, "
+                    "its current occupancy.",
+                )
+                continue
+            closed = f"slot_closed_{s.pk}" in request.POST
+            slot_updates.append((s, new_capacity, closed))
+            if closed and not s.is_closed and occupying > 0:
+                confirm_needed = True
+                closing_slots.append(s)
+                for order in Order.objects.filter(slot=s, status__in=OCCUPYING_STATUSES):
+                    affected_orders[order.pk] = order
+
+        dish_updates = []
+        for d in dishes:
+            available = f"dish_available_{d.pk}" in request.POST
+            raw = request.POST.get(f"dish_max_units_{d.pk}", "").strip()
+            max_units = None
+            if raw:
+                try:
+                    max_units = int(raw)
+                    if max_units < 0:
+                        raise ValueError
+                except ValueError:
+                    errors.append(f"{d.name}: enter a whole number of units, or leave it blank.")
+                    continue
+            dish_updates.append((d, available, max_units))
+
+        day_will_be_open = "is_open" in request.POST
+        if trading_day.is_open and not day_will_be_open:
+            day_orders = Order.objects.filter(
+                trading_day=trading_day, status__in=OCCUPYING_STATUSES,
+            )
+            for order in day_orders:
+                affected_orders[order.pk] = order
+            if affected_orders:
+                confirm_needed = True
+
+        if not form.is_valid():
+            errors.extend(
+                f"{field}: {err}" for field, errs in form.errors.items() for err in errs
+            )
+
+        confirmed = request.POST.get("confirm_close") == "1"
+        if not errors and (not confirm_needed or confirmed):
+            with transaction.atomic():
+                form.save()
+                for s, new_capacity, closed in slot_updates:
+                    s.capacity = new_capacity
+                    s.is_closed = closed
+                    s.save(update_fields=["capacity", "is_closed"])
+                for d, available, max_units in dish_updates:
+                    DayDishAvailability.objects.update_or_create(
+                        trading_day=trading_day, dish=d,
+                        defaults={"is_available": available, "max_units": max_units},
+                    )
+            messages.success(request, "Daily controls saved.")
+            return redirect("manage:daily_controls", date=target_date.isoformat())
+        if not errors and confirm_needed and not confirmed:
+            messages.error(request, "Confirm the affected orders below, or move them first.")
+
+    slot_rows = [
+        {
+            "slot": s,
+            "occupying": slot_occupancy[s.pk],
+            "capacity": request.POST.get(f"slot_capacity_{s.pk}", s.capacity),
+            "closed": (
+                f"slot_closed_{s.pk}" in request.POST if request.method == "POST" else s.is_closed
+            ),
+        }
+        for s in slots
+    ]
+    dish_rows = [
+        {
+            "dish": d,
+            "used_units": used_units.get(d.pk, 0),
+            "available": (
+                f"dish_available_{d.pk}" in request.POST if request.method == "POST"
+                else avail_by_dish[d.pk].is_available if d.pk in avail_by_dish else True
+            ),
+            "max_units": (
+                request.POST.get(f"dish_max_units_{d.pk}", "") if request.method == "POST"
+                else (avail_by_dish[d.pk].max_units if d.pk in avail_by_dish else None)
+            ),
+        }
+        for d in dishes
+    ]
+
+    return render(request, "staff/daily_controls.html", {
+        "date": target_date,
+        "date_label": _date_label(target_date),
+        "trading_day": trading_day,
+        "form": form,
+        "slot_rows": slot_rows,
+        "dish_rows": dish_rows,
+        "errors": errors,
+        "confirm_needed": confirm_needed,
+        "closing_slots": closing_slots,
+        "affected_orders": list(affected_orders.values()),
+        "other_open_slots": [s for s in slots if not s.is_closed],
+        "prev_date": (target_date - dt.timedelta(days=1)).isoformat(),
+        "next_date": (target_date + dt.timedelta(days=1)).isoformat(),
     })

@@ -113,6 +113,7 @@ public:checkout, manage:kitchen), so the nav links below are real
     <a href="{% url 'manage:collection' %}" {% if request.resolver_match.url_name == 'collection' %}aria-current="page"{% endif %}>Collection</a>
     <a href="{% url 'manage:payments' %}" {% if request.resolver_match.url_name == 'payments' %}aria-current="page"{% endif %}>Payments</a>
     <a href="{% url 'manage:cash_requests' %}" {% if request.resolver_match.url_name == 'cash_requests' %}aria-current="page"{% endif %}>Cash</a>
+    <a href="{% url 'manage:daily_controls_today' %}" {% if request.resolver_match.url_name == 'daily_controls' %}aria-current="page"{% endif %}>Daily controls</a>
   </nav>
 
   <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>

@@ -26,7 +26,8 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 
-from core.models import ActorKind, Order, TradingDay
+from core.capacity import OCCUPYING_STATUSES
+from core.models import ActorKind, Order, Slot, TradingDay
 from core.transitions import Actor, TransitionError, apply
 from core.transitions import close_out_day as _close_out_day
 from core.tz import now_sast
@@ -132,3 +133,51 @@ def close_out_day(request: HttpRequest, date: str) -> JsonResponse:
     actor = Actor(kind=ActorKind.STAFF, user=request.staff_user)
     closed = _close_out_day(trading_day, actor)
     return JsonResponse({"closed": closed})
+
+
+@staff_login_required
+@require_POST
+@csrf_protect
+def move_all_orders(request: HttpRequest, date: str, slot_id: int) -> JsonResponse:
+    """§12.8's "Move all to…" helper — daily controls' answer to closing
+    a slot that still has occupying orders. Every occupying order on
+    `slot_id` gets its own `change_slot` `apply()` call (own transaction/
+    lock/audit row each, same reasoning as `close_out_day`'s per-order
+    loop) to `to_slot_id`; a mid-loop failure (the target fills up, a
+    stale_state race with some other staff action) doesn't roll back the
+    ones that already moved — the response reports how many actually
+    moved plus which ones didn't, rather than pretending it's all-or-
+    nothing.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    to_slot_id = data.get("to_slot_id") if isinstance(data, dict) else None
+    if not isinstance(to_slot_id, int):
+        return _error_response("validation_error", "to_slot_id is required.")
+
+    try:
+        trading_day = TradingDay.objects.get(pk=dt.date.fromisoformat(date))
+    except (TradingDay.DoesNotExist, ValueError):
+        return _error_response("not_found", "No such trading day.")
+    if not Slot.objects.filter(pk=slot_id, trading_day=trading_day).exists():
+        return _error_response("not_found", "No such slot.")
+
+    orders = list(
+        Order.objects.filter(slot_id=slot_id, status__in=OCCUPYING_STATUSES)
+    )
+    actor = Actor(kind=ActorKind.STAFF, user=request.staff_user)
+    moved = 0
+    failures: list[dict[str, object]] = []
+    for order in orders:
+        try:
+            apply(
+                order, "change_slot", actor, order.status,
+                payload={"new_slot_id": to_slot_id},
+            )
+            moved += 1
+        except TransitionError as exc:
+            failures.append({"order_number": order.order_number, "error": exc.code})
+
+    return JsonResponse({"moved": moved, "failures": failures})
