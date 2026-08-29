@@ -9,9 +9,16 @@ computed via `core.capacity.dish_units_used`). Milestone 3 status:
 checkout is real — "Place the order" (checkout.js) calls the real
 `POST /api/checkout` (`public/api.py`), which runs `core.capacity.reserve()`
 (§8.3's transaction) and creates a real `core.Order`; the customer is
-handed off to this module's `order_status` view afterwards. One
-concession still worth flagging, not what the eventual production build
-will do:
+handed off to this module's `order_status` view afterwards. Milestone 4
+status: the EFT page is real too — `order_status` renders bank details,
+a hold countdown and a working proof-upload control for
+`awaiting_eft`/`payment_review` EFT orders (§11.7); uploads go through
+`POST /api/orders/:token/proof` (`public/api.py`'s `upload_proof`,
+`core.eft.record_proof_upload`). Still just the customer half — the
+staff EFT queue that verifies/rejects a proof is milestone 5.
+
+One concession still worth flagging, not what the eventual production
+build will do:
 
 - The cart lives in the browser's `localStorage` (see `static/js/cart.js`),
   not a session or a draft `Order` row — it's only ever a client-side
@@ -21,9 +28,6 @@ will do:
   legitimate prototype options; nothing about the current design forces
   a move to the latter, but it remains open for a later pass (e.g. if
   cross-device cart recovery becomes a real requirement).
-
-`order_status` itself is still minimal — no EFT bank-details/proof-of-
-payment panel yet (§11.8, milestone 4).
 """
 from __future__ import annotations
 
@@ -35,8 +39,18 @@ from django.shortcuts import render
 from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
-from core.models import Order, OrderStatus, Settings, TradingDay
+from core.models import Order, OrderStatus, PaymentMethod, Settings, TradingDay
 from core.tz import coerce_time, now_sast, orderable_dates
+
+# §9.1's own note under the customer-copy table: "Collection address and
+# instructions render only on confirmed_prep, cash_due, in_kitchen,
+# ready." — reused by order_status below.
+_ADDRESS_BEARING_STATUSES = frozenset({
+    OrderStatus.CONFIRMED_PREP, OrderStatus.CASH_DUE, OrderStatus.IN_KITCHEN, OrderStatus.READY,
+})
+# §11.7: the EFT page (bank details, hold countdown, proof upload)
+# only makes sense while payment is still outstanding.
+_EFT_PAGE_STATUSES = frozenset({OrderStatus.AWAITING_EFT, OrderStatus.PAYMENT_REVIEW})
 
 # §11.7-9's plain-language status copy — not the internal state-machine
 # name (OrderStatus's own label is closer to a kitchen-desk word than
@@ -243,10 +257,12 @@ def order(request: HttpRequest) -> HttpResponse:
     dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
     categories = menu_queries.categories_ordered(dishes)
 
+    settings = Settings.current()
     return render(request, "public/order.html", {
         "categories": categories,
         "days": days,
         "slots": slots,
+        "eft_hold_minutes": settings.eft_hold_minutes,
     })
 
 
@@ -258,6 +274,7 @@ def checkout(request: HttpRequest) -> HttpResponse:
         # doesn't need the menu price map — only the day list, to turn the
         # day index the order screen stored back into a display label.
         "days": _orderable_day_list(today, settings),
+        "eft_hold_minutes": settings.eft_hold_minutes,
         # Sample-only (milestone 3/7, D-06/§8.2's cash ceiling) — the
         # remaining daily cash allowance is a live aggregate over today's
         # occupying cash orders, not a constant.
@@ -267,22 +284,36 @@ def checkout(request: HttpRequest) -> HttpResponse:
 
 def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
     """Spec §6.1 `/orders/:public_token` — order status view,
-    `noindex, nofollow`. Not one of the four handoff screens. This is the
-    minimal real version milestone 3's checkout flow needs somewhere to
-    land after `POST /api/checkout` succeeds: order number, status in
-    plain language, the order sheet, collection details. The EFT bank
-    details / proof-of-payment upload panel §11.8 asks for on this same
-    page is still milestone 4 — `awaiting_eft` orders show the generic
-    status copy for now, not payment instructions.
+    `noindex, nofollow`. Not one of the four handoff screens: order
+    number, status in plain language, the order sheet, collection
+    details, and — for an EFT order still `awaiting_eft`/`payment_review`
+    (§11.7) — bank details, a hold countdown and the proof-upload
+    control (`static/js/eft.js`). The staff side that verifies/rejects a
+    proof (the EFT queue) is milestone 5; a payment_review order here
+    just says "we're checking it" until then.
     """
     order = Order.objects.filter(public_token=public_token).select_related(
-        "trading_day", "slot"
+        "trading_day", "slot", "payment",
     ).prefetch_related("lines").first()
     if order is None:
         raise Http404("No such order.")
+
+    show_eft_panel = (
+        order.payment_method == PaymentMethod.EFT and order.status in _EFT_PAGE_STATUSES
+    )
 
     return render(request, "public/order_status.html", {
         "order": order,
         "lines": order.lines.all(),
         "status_copy": _STATUS_COPY.get(order.status, order.get_status_display()),
+        "show_address": order.status in _ADDRESS_BEARING_STATUSES,
+        "show_eft_panel": show_eft_panel,
+        # collection_address_line/instructions (show_address) and the
+        # bank fields (show_eft_panel) are disjoint statuses (§9.1's
+        # customer-copy note vs §11.7) but both come off the one
+        # Settings row — fetched once regardless of which panel needs it.
+        "settings": Settings.current(),
+        "proof_already_uploaded": (
+            bool(order.payment.proof_uploaded_at) if show_eft_panel else False
+        ),
     })

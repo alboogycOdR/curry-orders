@@ -166,5 +166,6 @@ component re-render.
 </div>
 
 {{ days|json_script:"days-data" }}
+{{ eft_hold_minutes|json_script:"eft-hold-minutes-data" }}
 <script src="{% static 'js/order.js' %}" defer></script>
 {% endblock %}

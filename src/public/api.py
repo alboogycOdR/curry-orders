@@ -1,16 +1,20 @@
-"""The one public JSON API endpoint this pass builds: `POST /api/checkout`
-(spec §11.6, §17.3). Everything else in §17.3's public API table
-(`/api/dates`, `/api/menu`, `/api/availability`, ...) is still served by
-the plain server-rendered pages (`public/views.py`) — this exists because
-checkout is the one action that needs a real transactional response
-(success/failure, an error code, a redirect target), not because the
-project is moving to a JSON-API-first architecture wholesale.
+"""The public JSON API endpoints this project builds outside the plain
+server-rendered pages (`public/views.py`): `POST /api/checkout` (spec
+§11.6, §17.3) and `POST /api/orders/:token/proof` (§17.3, milestone 4).
+Everything else in §17.3's public API table (`/api/dates`, `/api/menu`,
+`/api/availability`, ...) is still served by the server-rendered pages —
+both endpoints here exist because they need a real transactional
+response (success/failure, an error code), not because the project is
+moving to a JSON-API-first architecture wholesale.
 
 Field validation (this module, §11.6's table, 400 on failure) is
 deliberately separate from capacity validation (`core.capacity.reserve()`,
 422/403 — Appendix C) — different HTTP layers, same split the spec itself
 draws in §11.6's own two-step list ("1. Validate fields... 2. Run §8.3
-transaction").
+transaction"). `upload_proof` draws the same line: `storage.service`
+validates the *file* (type/size, 400 `upload_invalid`), `core.eft`
+validates the *transition* (409 `illegal_transition`) and the throttle
+(429 `throttled`).
 """
 from __future__ import annotations
 
@@ -24,11 +28,13 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 
+from core import eft
 from core.capacity import CapacityError, CheckoutLine, ReservationRequest, reserve
 from core.materialise import materialise_days
-from core.models import IdempotencyKey, OrderSource, PaymentMethod, Settings
+from core.models import ActorKind, IdempotencyKey, Order, OrderSource, PaymentMethod, Settings
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import now_sast
+from storage import service as storage_service
 
 
 class _CleanedPayload(TypedDict, total=False):
@@ -40,8 +46,11 @@ class _CleanedPayload(TypedDict, total=False):
     payment_method: str
     lines: list[CheckoutLine]
 
-# Appendix C's own table: which HTTP status each CapacityError code maps
-# to. Everything not listed here is a 422 (§8.2's ceilings, the default).
+# Appendix C's own table: which HTTP status each error code maps to.
+# Everything not listed here is a 422 (§8.2's capacity ceilings, the
+# default — CapacityError's whole vocabulary bar the four explicit
+# entries it shares with this map). `not_found` isn't an Appendix C code
+# (that table is domain/rule failures only) but needs a real status too.
 _ERROR_STATUS = {
     "after_cutoff_disabled": 403,
     "reason_required": 403,
@@ -52,6 +61,7 @@ _ERROR_STATUS = {
     "validation_error": 400,
     "throttled": 429,
     "upload_invalid": 400,
+    "not_found": 404,
 }
 
 
@@ -237,3 +247,53 @@ def checkout(request: HttpRequest) -> JsonResponse:
         },
         status=201,
     )
+
+
+@require_POST
+@csrf_protect
+def upload_proof(request: HttpRequest, public_token: str) -> JsonResponse:
+    """`POST /api/orders/:token/proof` (§17.3) — multipart, one `file`
+    field. Order: look the order up, check the throttle (before doing
+    any real work), validate the file (400 `upload_invalid` on a bad
+    type/size — doesn't spend throttle budget), *then* spend the
+    throttle budget and attempt the transition (409 `illegal_transition`
+    if the order has moved past `awaiting_eft`/`payment_review` since
+    the page loaded).
+    """
+    order = Order.objects.filter(public_token=public_token).select_related("payment").first()
+    if order is None:
+        return _error_response("not_found", "No such order.")
+
+    try:
+        eft.check_proof_upload_throttle(public_token)
+    except eft.EftError as exc:
+        return _error_response(exc.code, exc.message, **exc.extra)
+
+    upload = request.FILES.get("file")
+    if upload is None:
+        return _error_response(
+            "upload_invalid", "Choose a file to upload.", detail="missing",
+        )
+    data = upload.read()
+
+    try:
+        mime_type = storage_service.validate_proof(data)
+    except storage_service.InvalidUpload as exc:
+        return _error_response("upload_invalid", str(exc), detail=exc.reason)
+
+    storage_key = storage_service.store_proof_bytes(data, mime_type)
+    eft.record_proof_upload_attempt(public_token)
+
+    try:
+        eft.record_proof_upload(
+            order,
+            storage_key=storage_key,
+            mime_type=mime_type,
+            byte_size=len(data),
+            sha256=storage_service.sha256_digest(data),
+            actor_kind=ActorKind.CUSTOMER,
+        )
+    except eft.EftError as exc:
+        return _error_response(exc.code, exc.message, **exc.extra)
+
+    return JsonResponse({"status": "payment_review"})

@@ -5,13 +5,12 @@ startup behaviour), never the logic itself, so a test or a one-off
 `manage.py` invocation can call a task directly without spinning up
 APScheduler.
 
-Only the two jobs milestone 1 needs are implemented here —
-`materialise_days` and `heartbeat`. The rest of §17.1's table
-(`expire_holds`, `close_out_days`, `purge_proofs`,
-`purge_throttle_and_idempotency`, `disk_check`) depends on domain
-machinery (`core.capacity`/`core.transitions`, real `Order`/`Media` rows)
-that doesn't exist yet — later milestones add functions here, not a
-parallel module.
+Milestone 1 added `materialise_days` and `heartbeat`; milestone 4 adds
+`expire_holds` (`core.eft.expire_holds`). The rest of §17.1's table
+(`close_out_days`, `purge_proofs`, `purge_throttle_and_idempotency`,
+`disk_check`) depends on domain machinery (`core.transitions`, retention
+rules) that doesn't exist yet — later milestones add functions here, not
+a parallel module.
 """
 from __future__ import annotations
 
@@ -19,6 +18,7 @@ import logging
 
 from django.utils import timezone
 
+from core.eft import expire_holds as _expire_holds
 from core.materialise import materialise_days as _materialise_days
 from core.models import JobHeartbeat, Settings
 from core.tz import now_sast
@@ -46,6 +46,23 @@ def run_materialise_days() -> None:
     except Exception:
         logger.exception("materialise_days job failed")
         _record("materialise_days", ok=False, detail="see server logs")
+        raise
+
+
+def run_expire_holds() -> None:
+    """§17.1: "every 60 s". Releases every `awaiting_eft` order whose
+    EFT hold has lapsed (`core.eft.expire_holds`) — never touches
+    `payment_review`. `detail` records how many were actually expired
+    this run, mostly so a quiet night (0 every run) is visibly normal on
+    `/healthz`'s underlying heartbeat row, not indistinguishable from the
+    job silently not running.
+    """
+    try:
+        count = _expire_holds()
+        _record("expire_holds", ok=True, detail=f"{count} hold(s) expired")
+    except Exception:
+        logger.exception("expire_holds job failed")
+        _record("expire_holds", ok=False, detail="see server logs")
         raise
 
 

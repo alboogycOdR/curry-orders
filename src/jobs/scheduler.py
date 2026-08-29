@@ -4,7 +4,7 @@ per process — this project's "single deployable" (D-13) runs it as its
 own `scheduler` container/service (`docker-compose.yml`), separate from
 the `web` process, not inside a Django request/response cycle.
 
-Only wires the two jobs milestone 1 needs; see `jobs/tasks.py`'s module
+Wires the jobs milestones 1 and 4 need; see `jobs/tasks.py`'s module
 docstring for why the rest of §17.1's table isn't here yet.
 """
 from __future__ import annotations
@@ -76,6 +76,19 @@ def build_scheduler() -> BlockingScheduler:
         name="heartbeat",
         next_run_time=_now_sast_cron(),
         misfire_grace_time=60,
+    )
+
+    # §17.1: "every 60 s". On-startup too, same reasoning as
+    # materialise_days above — a hold that lapsed while the scheduler
+    # process was down shouldn't sit un-expired for up to 60s more after
+    # it comes back.
+    scheduler.add_job(
+        _logged(tasks.run_expire_holds, "expire_holds"),
+        trigger=IntervalTrigger(seconds=60),
+        id="expire_holds",
+        name="expire_holds",
+        next_run_time=_now_sast_cron(),
+        misfire_grace_time=120,
     )
 
     return scheduler

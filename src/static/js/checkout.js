@@ -240,11 +240,13 @@
           var order = result.body;
           refEl.textContent = order.order_number;
           confirmHeading.textContent = "We've got it. Order " + order.order_number + ".";
-          var slot = collectSlotEl.textContent;
+          // No SMS integration this pass (notifications/ is unbuilt) —
+          // bank details and the payment countdown live on the order
+          // page this redirects to next, not a text message.
           confirmCopy.textContent =
             payload.payment_method === "cash"
-              ? "Bring your payment in cash. We start cooking once the kitchen confirms — you'll get an SMS either way."
-              : "Bank details are on their way by SMS. Your slot is held for 45 minutes; cooking starts the moment the payment is verified.";
+              ? "Bring your payment in cash. We start cooking once the kitchen confirms."
+              : "Taking you to your order page for the bank details and payment countdown.";
           dayValueEl.textContent = day ? titleCase(day.long) : "—";
           totalValue2El.textContent = totalEl.textContent;
 

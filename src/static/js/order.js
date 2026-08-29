@@ -21,6 +21,7 @@
     // (server-rendered from real core.Dish rows) — no separate menu
     // price map needed here.
     var days = readJSONScript("days-data", []); // [{index, dow, dom, long, ...}]
+    var eftHoldMinutes = readJSONScript("eft-hold-minutes-data", 30); // core.models.Settings.eft_hold_minutes
 
     var menuEl = document.getElementById("op-menu");
     var dayChipsEl = document.getElementById("op-day-chips");
@@ -89,7 +90,7 @@
         btn.classList.toggle("is-selected", !btn.disabled && slotId === state.slotId);
       });
       slotNoteEl.textContent = state.slot
-        ? "Held for 45 minutes once you place the order."
+        ? "Held for " + eftHoldMinutes + " minutes once you place the order."
         : "Pick a collection window — some may already be full for today.";
     }
 
