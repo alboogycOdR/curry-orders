@@ -235,7 +235,12 @@ class Settings(models.Model):
     )
 
     updated_by = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.DO_NOTHING, related_name="+"
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.DO_NOTHING,
+        related_name="+",
+        db_column="updated_by",
     )
     updated_at = models.DateTimeField(auto_now=True)
 
