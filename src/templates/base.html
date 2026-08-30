@@ -59,7 +59,6 @@
       display: flex;
       align-items: center;
       gap: var(--space-4);
-      margin-right: auto;
     }
     .site-header .site-nav a {
       font-size: 14.5px;
@@ -73,12 +72,17 @@
       color: var(--color-text);
       border-bottom-color: var(--color-accent-2);
     }
+    .site-header .site-nav-staff {
+      padding-left: var(--space-4);
+      border-left: 1px solid var(--color-divider);
+    }
     .site-header .cart-summary {
       font-size: 13px;
       text-transform: uppercase;
       font-variant-numeric: tabular-nums;
       color: var(--color-neutral-700);
       white-space: nowrap;
+      margin-left: auto;
     }
     .site-footer {
       margin-top: 64px;
@@ -101,19 +105,26 @@
 {% comment %}
 Header / nav — Broadsheet header pattern, README "Front page" §1 Header:
 sticky, --color-bg background, 1px bottom divider, backdrop-filter:
-saturate(1.1). Wordmark links to "/". Nav covers the four screens; the
-active item takes --color-text with a 2px --color-accent-2 bottom border,
-inactive items --color-neutral-600 with a transparent border (kept in the
-markup so the layout doesn't shift on state change). Right-aligned cart
-summary at 13px uppercase tabular-nums, server-rendered from
-`cart_summary` (defaults to the empty-cart copy from the README) and then
-kept live by cart.js reading its localStorage cart on every page load —
-see that file's header for why the cart lives there and not in a session
-yet.
+saturate(1.1). Wordmark links to "/". The active item takes --color-text
+with a 2px --color-accent-2 bottom border, inactive items --color-neutral-600
+with a transparent border (kept in the markup so the layout doesn't shift
+on state change). Right-aligned cart summary at 13px uppercase
+tabular-nums, server-rendered from `cart_summary` (defaults to the
+empty-cart copy from the README) and then kept live by cart.js reading its
+localStorage cart on every page load — see that file's header for why the
+cart lives there and not in a session yet.
 
-`config/urls.py` now defines all four names (public:home, public:order,
-public:checkout, manage:kitchen), so the nav links below are real
-`{% templatetag openblock %} url {% templatetag closeblock %}` calls.
+Two separate <nav> blocks, not one: every `manage:*` view is already
+`@staff_login_required`/`@owner_required`-gated (staff/views.py) — an
+anonymous visitor following a staff link just bounces to the login page,
+so this was never an authorization hole. It was still a real problem: the
+public nav unconditionally listed the entire internal admin URL surface
+(Inbox, Calendar, Kitchen desk, Collection, Payments, Cash, Daily
+controls) to every customer, on every page. `request.staff_user` (set by
+`staff.middleware.StaffSessionMiddleware` on every request, not just
+`/manage/*` ones — see that module) gates the second nav so a logged-out
+customer sees only the three customer-facing links, while logged-in staff
+keep quick access to both sets from anywhere on the site.
 {% endcomment %}
 <header class="site-header">
   <a href="{% url 'public:home' %}" class="wordmark">Brandon's Kitchen</a>
@@ -122,6 +133,10 @@ public:checkout, manage:kitchen), so the nav links below are real
     <a href="{% url 'public:home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
     <a href="{% url 'public:order' %}" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
     <a href="{% url 'public:checkout' %}" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
+  </nav>
+
+  {% if request.staff_user %}
+  <nav class="site-nav site-nav-staff" aria-label="Staff">
     <a href="{% url 'manage:inbox' %}" {% if request.resolver_match.url_name == 'inbox' %}aria-current="page"{% endif %}>Inbox</a>
     <a href="{% url 'manage:calendar' %}" {% if request.resolver_match.url_name == 'calendar' %}aria-current="page"{% endif %}>Calendar</a>
     <a href="{% url 'manage:kitchen' %}" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
@@ -130,6 +145,7 @@ public:checkout, manage:kitchen), so the nav links below are real
     <a href="{% url 'manage:cash_requests' %}" {% if request.resolver_match.url_name == 'cash_requests' %}aria-current="page"{% endif %}>Cash</a>
     <a href="{% url 'manage:daily_controls_today' %}" {% if request.resolver_match.url_name == 'daily_controls' %}aria-current="page"{% endif %}>Daily controls</a>
   </nav>
+  {% endif %}
 
   <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>
 </header>

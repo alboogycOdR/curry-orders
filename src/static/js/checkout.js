@@ -95,6 +95,7 @@
     var dayValueEl = document.getElementById("ck-day-value");
     var totalValue2El = document.getElementById("ck-total-value-2");
     var startAnotherBtn = document.getElementById("ck-start-another");
+    var viewOrderLink = document.getElementById("ck-view-order-link");
     var formErrorEl = document.getElementById("ck-form-error");
     var fieldErrorEls = {
       name: document.getElementById("ck-name-error"),
@@ -273,6 +274,9 @@
               : "Taking you to your order page for the bank details and payment countdown.";
           dayValueEl.textContent = day ? titleCase(day.long) : "—";
           totalValue2El.textContent = totalEl.textContent;
+          viewOrderLink.href = window.BK_CHECKOUT_URLS.order_status.replace(
+            "TOKEN_PLACEHOLDER", order.public_token
+          );
 
           formState.hidden = true;
           confirmedState.hidden = false;

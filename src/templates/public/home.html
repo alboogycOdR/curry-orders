@@ -131,7 +131,19 @@ already) — no page-specific JS needed for them.
       <p class="fp-lead">Brandon's Kitchen serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
       <div class="fp-cta-row">
         <a href="{% url 'public:menu' %}" class="btn btn-primary">View the menu</a>
-        <a href="{% url 'manage:kitchen' %}" class="btn btn-secondary">See the kitchen desk</a>
+        {% comment %}
+        Was a "See the kitchen desk" button linking straight at
+        manage:kitchen — the staff-only board (order tickets, customer
+        names, @staff_login_required-gated). Harmless as a dead-end login
+        bounce for an anonymous visitor, but wrong on the merits: a
+        customer-facing homepage has no reason to surface a link to the
+        internal ops surface at all, staff-gated or not. Spec §11.2's own
+        line for this CTA row is "primary Order now -> /menu; three-step
+        how it works" — no second staff-facing button — so this now
+        scrolls to the "How collection works" section already on this
+        same page instead.
+        {% endcomment %}
+        <a href="#how-it-works" class="btn btn-secondary">How it works</a>
       </div>
       <div class="fp-stats-row">
         <div>
@@ -181,7 +193,7 @@ already) — no page-specific JS needed for them.
     </div>
   </div>
 
-  <div class="fp-how">
+  <div class="fp-how" id="how-it-works">
     <h3 class="fp-how-title">How collection works</h3>
     <div class="fp-how-steps">
       <div>

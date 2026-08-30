@@ -159,7 +159,17 @@ real `core.Order` — see that file's own header comment.
     </div>
     <div class="ck-confirm-actions">
       <button type="button" class="btn btn-secondary" id="ck-start-another">Start another order</button>
-      <a href="{% url 'manage:kitchen' %}" class="btn btn-ghost">See it on the kitchen desk</a>
+      {% comment %}
+      Was `{% templatetag openblock %} url 'manage:kitchen' {% templatetag closeblock %}`
+      — a link straight to the staff-only kitchen board (order tickets,
+      customer names, @staff_login_required-gated) shown to the customer
+      right after they place an order. checkout.js already auto-redirects
+      to this same customer's own order-status page 1.8s after this panel
+      appears; this is now a manual link to that same destination (set by
+      checkout.js once it knows the order's public_token) for anyone who
+      wants it sooner or whose auto-redirect doesn't fire.
+      {% endcomment %}
+      <a href="#" id="ck-view-order-link" class="btn btn-ghost">View my order</a>
     </div>
   </div>
 </div>

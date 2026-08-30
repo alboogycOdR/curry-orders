@@ -75,6 +75,36 @@ class TestRobotsTxt:
             assert f"Disallow: {path}" not in body
 
 
+class TestNavAudienceSplit:
+    """The shared base.html header used to list every staff-board link
+    (Inbox, Kitchen desk, Payments, ...) to every visitor, logged in or
+    not -- not an authorization hole (every manage:* view is already
+    @staff_login_required-gated) but a real information-disclosure/UX
+    problem: it exposed the whole internal admin URL surface on every
+    customer-facing page. request.staff_user now gates a second nav.
+    """
+
+    def test_anonymous_visitor_sees_no_staff_nav_links(self, client) -> None:
+        resp = client.get(reverse("public:home"))
+        content = resp.content.decode()
+        assert "Kitchen desk" not in content
+        assert "Daily controls" not in content
+        assert reverse("manage:kitchen") not in content
+        assert reverse("manage:payments") not in content
+
+    def test_anonymous_visitor_still_sees_the_customer_nav(self, client) -> None:
+        content = client.get(reverse("public:home")).content.decode()
+        assert reverse("public:order") in content
+        assert reverse("public:checkout") in content
+
+    def test_logged_in_staff_sees_the_staff_nav(self, client) -> None:
+        _make_staff()
+        _login(client)
+        content = client.get(reverse("manage:inbox")).content.decode()
+        assert "Kitchen desk" in content
+        assert reverse("manage:payments") in content
+
+
 class TestManageNoindexHeader:
     def test_manage_pages_carry_x_robots_tag_noindex(self, client) -> None:
         _make_staff()
