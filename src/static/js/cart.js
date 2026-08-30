@@ -111,21 +111,50 @@
   }
 
   function refreshHeader() {
-    var el = document.getElementById("cart-summary");
-    if (!el) return;
     var t = totals();
-    // Hidden rather than "No order started" on an empty cart -- a
-    // customer just browsing the menu doesn't need to be told they
-    // haven't ordered yet (they know), and it's noise on every page
-    // until they've actually added something. Flagged directly by the
-    // user. Shows up the moment there's a real item to summarise.
-    if (t.count === 0) {
-      el.hidden = true;
-      el.textContent = "";
-    } else {
-      el.hidden = false;
-      el.textContent =
-        t.count + (t.count === 1 ? " item · " : " items · ") + rands(t.total);
+
+    // #cart-summary doesn't exist at all on a staff page (base.html
+    // hides it there) -- independent null-check from the badge below,
+    // which DOES render for staff too (the Order/Checkout icon nav
+    // itself isn't staff-gated, only the text summary is).
+    var summaryEl = document.getElementById("cart-summary");
+    if (summaryEl) {
+      // Hidden rather than "No order started" on an empty cart -- a
+      // customer just browsing the menu doesn't need to be told they
+      // haven't ordered yet (they know), and it's noise on every page
+      // until they've actually added something. Flagged directly by
+      // the user. Shows up the moment there's a real item to summarise.
+      if (t.count === 0) {
+        summaryEl.hidden = true;
+        summaryEl.textContent = "";
+      } else {
+        summaryEl.hidden = false;
+        summaryEl.textContent =
+          t.count + (t.count === 1 ? " item · " : " items · ") + rands(t.total);
+      }
+    }
+
+    // The Checkout nav icon's badge — same hidden-until-non-empty
+    // pattern, driven by the same totals(). aria-label on the link
+    // itself carries the count too, not just the badge text, so a
+    // screen reader user gets "Checkout, 2 items" rather than just
+    // "Checkout" with a visually-only number.
+    var badgeEl = document.getElementById("nav-cart-badge");
+    var checkoutLink = document.getElementById("nav-checkout-link");
+    if (badgeEl) {
+      if (t.count === 0) {
+        badgeEl.hidden = true;
+        if (checkoutLink) checkoutLink.setAttribute("aria-label", "Checkout");
+      } else {
+        badgeEl.hidden = false;
+        badgeEl.textContent = t.count > 99 ? "99+" : String(t.count);
+        if (checkoutLink) {
+          checkoutLink.setAttribute(
+            "aria-label",
+            "Checkout, " + t.count + (t.count === 1 ? " item" : " items")
+          );
+        }
+      }
     }
   }
 

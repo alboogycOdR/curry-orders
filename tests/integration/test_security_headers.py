@@ -97,6 +97,22 @@ class TestNavAudienceSplit:
         assert reverse("public:order") in content
         assert reverse("public:checkout") in content
 
+    def test_front_page_nav_link_removed_wordmark_still_covers_it(self, client) -> None:
+        # Same destination as the wordmark just to its left -- one click
+        # target behind two links. Flagged directly by the user.
+        content = client.get(reverse("public:home")).content.decode()
+        assert "Front page" not in content
+        assert 'class="wordmark"' in content
+
+    def test_order_and_checkout_are_icon_links_with_accessible_names(self, client) -> None:
+        # Order/Checkout became icon-only (a plate, a bag) rather than
+        # text -- title/aria-label carry the accessible name an
+        # icon-only link needs.
+        content = client.get(reverse("public:home")).content.decode()
+        assert 'aria-label="Order"' in content
+        assert 'aria-label="Checkout"' in content
+        assert 'id="nav-cart-badge" hidden' in content
+
     def test_logged_in_staff_sees_the_staff_nav(self, client) -> None:
         _make_staff()
         _login(client)

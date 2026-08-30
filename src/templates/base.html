@@ -75,6 +75,32 @@
       color: var(--color-text);
       border-bottom-color: var(--color-accent-2);
     }
+    .site-header .nav-icon-link {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 2px 6px;
+    }
+    .site-header .nav-icon-link:hover {
+      color: var(--color-text);
+    }
+    .nav-badge {
+      position: absolute;
+      top: -2px;
+      right: -8px;
+      min-width: 15px;
+      height: 15px;
+      padding: 0 3px;
+      border-radius: 999px;
+      background: var(--color-accent-2);
+      color: var(--color-bg);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 15px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
     .staff-menu {
       position: relative;
       padding-left: var(--space-4);
@@ -187,6 +213,21 @@ empty-cart copy from the README) and then kept live by cart.js reading its
 localStorage cart on every page load — see that file's header for why the
 cart lives there and not in a session yet.
 
+No "Front page" nav item any more — it went to the exact same place as
+the wordmark just to its left, one destination behind two links.
+Flagged directly by the user. Order/Checkout are icons now, not words
+(same user request, polish pass): a plate for Order, a bag for
+Checkout, hand-drawn inline SVG rather than pulling in an icon library
+— nothing in this project loads from an external CDN (CSP's script-src
+is 'self' only, config/security_headers.py), and there was no exact
+icon asset in the design handoff to match (readme.md names Phosphor's
+duotone set as the intended style but never actually ships it — the
+real mockup's own header is text-only). `title`/`aria-label` on each
+link carry the accessible name an icon-only link needs. The Checkout
+icon's badge (#nav-cart-badge) mirrors #cart-summary's own hidden-until-
+non-empty pattern — cart.js's refreshHeader() drives both from the same
+totals() call.
+
 Staff links collapse into one "Staff" dropdown, not a flat row: with
 seven boards (soon nine, counting Menu editor and New assisted order)
 a horizontal list either wraps badly or runs off-screen on a phone —
@@ -221,9 +262,23 @@ screen readers.
   <a href="{% url 'public:home' %}" class="wordmark">Brandon's Kitchen</a>
 
   <nav class="site-nav" aria-label="Primary">
-    <a href="{% url 'public:home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
-    <a href="{% url 'public:order' %}" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
-    <a href="{% url 'public:checkout' %}" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
+    <a href="{% url 'public:order' %}" class="nav-icon-link" title="Order"
+       aria-label="Order" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+           stroke-width="1.6" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"></circle>
+        <circle cx="12" cy="12" r="4"></circle>
+      </svg>
+    </a>
+    <a href="{% url 'public:checkout' %}" class="nav-icon-link" id="nav-checkout-link" title="Checkout"
+       aria-label="Checkout" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="8" width="14" height="13" rx="2"></rect>
+        <path d="M8 8V6a4 4 0 0 1 8 0v2"></path>
+      </svg>
+      <span class="nav-badge" id="nav-cart-badge" hidden>0</span>
+    </a>
   </nav>
 
   {% if request.staff_user %}
