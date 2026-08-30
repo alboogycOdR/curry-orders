@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Account — Brandon's Kitchen{% endblock %}
+{% block extra_head %}
+<style>
+  .ac-wrap { max-width: 520px; margin: 0 auto; padding: 42px 24px 88px; }
+  .ac-heading { font-family: var(--font-heading); font-size: clamp(32px, 9vw, 48px); line-height: 1; margin: 0; }
+  .ac-intro { color: var(--color-neutral-700); margin: 12px 0 28px; }
+  .ac-card { border: 1px solid var(--color-divider); padding: 20px; margin-top: 14px; }
+  .ac-card h2 { font-family: var(--font-heading); font-size: 22px; margin: 0 0 6px; }
+  .ac-card p { color: var(--color-neutral-700); margin: 0 0 16px; }
+  .ac-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .ac-actions .btn { flex: 1 1 150px; min-height: 48px; }
+  .ac-link { display: inline-block; margin-top: 22px; font-size: 14px; }
+</style>
+{% endblock %}
+{% block content %}
+<main class="ac-wrap">
+  {% if request.customer_user %}
+    <h1 class="ac-heading">Hi, {{ request.customer_user.full_name|truncatewords:2 }}</h1>
+    <p class="ac-intro">Your account is ready for your next order.</p>
+    <section class="ac-card"><h2>Find an order</h2><p>Look up an order placed with your mobile number.</p><a class="btn btn-primary" href="{% url 'public:lookup' %}">Find my order</a></section>
+    <a class="ac-link" href="{% url 'public:customer_logout' %}">Log out</a>
+  {% else %}
+    <h1 class="ac-heading">Your account</h1>
+    <p class="ac-intro">Save your details and keep track of your orders.</p>
+    <section class="ac-card"><h2>Already have an account?</h2><p>Log in to order faster next time.</p><a class="btn btn-primary" href="{% url 'public:customer_login' %}">Log in</a></section>
+    <section class="ac-card"><h2>New here?</h2><p>Create an account with your mobile number.</p><a class="btn btn-secondary" href="{% url 'public:customer_signup' %}">Sign up</a></section>
+    <a class="ac-link" href="{% url 'public:lookup' %}">Find my order without logging in</a>
+  {% endif %}
+</main>
+{% endblock %}
