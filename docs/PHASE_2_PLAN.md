@@ -181,6 +181,38 @@ This is the milestone §22 ties directly to go-live readiness.
 
 ---
 
+## Backlog (deferred, not scheduled)
+
+Raised but deliberately not started — parked here so they aren't lost,
+not committed to any milestone yet.
+
+- [ ] **Owner operating manual for Brandon** — a plain-language,
+      business-user-facing guide for actually *running* the site day to
+      day once it's handed over: logging in, taking an assisted/phone
+      order, verifying an EFT payment, accepting/rejecting a cash
+      request, working the kitchen and collection boards, closing out a
+      day, editing the monthly menu, adjusting a day's cap/window/dish
+      availability, adding a staff account, changing settings (bank
+      details, cutoff time, etc.), and what to do when something looks
+      wrong. Distinct from `RUNBOOK.md` (technical/ops: deploy, rotate
+      secrets, restore from backup, restart the stack) — this one is for
+      Brandon himself, not a developer. Raised 2026-08-30; explicitly
+      not to be started until asked.
+- [ ] **Google OAuth staff login** — raised earlier, deferred by the
+      user in favour of shipping the existing password login first (see
+      commit history around the M10 security-headers work). Revisit
+      once there's real appetite for it; role model (owner/manager)
+      already fits Google-authenticated users without change, only the
+      auth mechanism itself would need building.
+- [ ] **Brand direction (Roti Connect vs. Brandon's Kitchen)** — a first
+      logo asset came through reading "Roti Connect — Experience the
+      taste, honour the legacy", which doesn't match "Brandon's
+      Kitchen" hardcoded as the site name across ~23 templates right
+      now. Not placed or wired up anywhere; holding until the owner
+      confirms whether this is a full rebrand or a separate asset.
+
+---
+
 ## Go-live checklist crosswalk (§21)
 
 | Item | Depends on |
