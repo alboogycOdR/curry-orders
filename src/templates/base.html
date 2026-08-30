@@ -256,15 +256,24 @@ screen readers.
   {% endif %}
 
   {% comment %}
-  Customer-only: a staff member's own browser cart state ("No order
-  started" / "2 items · R170.00") has no meaning to them at work and was
-  showing up right next to the Staff menu, confusing rather than useful
-  -- flagged directly by the user. cart.js's refreshHeader() already
-  null-checks #cart-summary before touching it, so simply not rendering
-  the element here is enough; no JS change needed.
+  Customer-only: a staff member's own browser cart state ("2 items ·
+  R170.00") has no meaning to them at work and was showing up right next
+  to the Staff menu, confusing rather than useful -- flagged directly by
+  the user. cart.js's refreshHeader() already null-checks #cart-summary
+  before touching it, so simply not rendering the element here is
+  enough; no JS change needed.
+
+  Starts `hidden` (not "No order started") even for customers -- someone
+  just browsing the menu doesn't need to be told they haven't ordered
+  yet, and no view ever actually sets `cart_summary` server-side (it was
+  always this template default). cart.js's refreshHeader() runs
+  immediately on every page load (deferred script — the DOM, including
+  this span, already exists by the time it executes) and un-hides the
+  span the moment there's a real item to summarise; it re-hides it if the
+  cart empties back out. Also flagged directly by the user.
   {% endcomment %}
   {% if not request.staff_user %}
-  <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>
+  <span class="cart-summary" id="cart-summary" hidden></span>
   {% endif %}
 </header>
 

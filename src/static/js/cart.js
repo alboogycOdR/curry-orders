@@ -114,9 +114,16 @@
     var el = document.getElementById("cart-summary");
     if (!el) return;
     var t = totals();
+    // Hidden rather than "No order started" on an empty cart -- a
+    // customer just browsing the menu doesn't need to be told they
+    // haven't ordered yet (they know), and it's noise on every page
+    // until they've actually added something. Flagged directly by the
+    // user. Shows up the moment there's a real item to summarise.
     if (t.count === 0) {
-      el.textContent = "No order started";
+      el.hidden = true;
+      el.textContent = "";
     } else {
+      el.hidden = false;
       el.textContent =
         t.count + (t.count === 1 ? " item · " : " items · ") + rands(t.total);
     }

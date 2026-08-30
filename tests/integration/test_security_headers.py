@@ -152,9 +152,18 @@ class TestNavAudienceSplit:
         content = client.get(reverse("manage:inbox")).content.decode()
         assert 'id="cart-summary"' not in content
 
-    def test_cart_summary_still_shown_to_customers(self, client) -> None:
+    def test_cart_summary_element_present_but_hidden_by_default(self, client) -> None:
+        # No view ever sets `cart_summary` server-side -- it was always
+        # this template's own "No order started" default, shown to a
+        # customer just browsing the menu who hasn't ordered anything
+        # yet. Flagged directly by the user as pointless noise. The
+        # element still renders (cart.js un-hides + fills it in the
+        # moment there's a real item -- can't be exercised from a
+        # server-rendered test, JS doesn't run here), just starts hidden
+        # rather than carrying default text.
         content = client.get(reverse("public:home")).content.decode()
-        assert 'id="cart-summary"' in content
+        assert '<span class="cart-summary" id="cart-summary" hidden>' in content
+        assert "No order started" not in content
 
     def test_every_staff_board_still_sets_the_csrf_cookie_for_its_own_ajax(
         self, client,
