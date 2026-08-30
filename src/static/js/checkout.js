@@ -87,6 +87,7 @@
     var collectDayEl = document.getElementById("ck-collect-day");
     var collectSlotEl = document.getElementById("ck-collect-slot");
     var placeBtn = document.getElementById("ck-place");
+    var placeBlockedReasonEl = document.getElementById("ck-place-blocked-reason");
     var formState = document.getElementById("ck-form-state");
     var confirmedState = document.getElementById("ck-confirmed-state");
     var confirmHeading = document.getElementById("ck-confirm-heading");
@@ -196,6 +197,18 @@
 
       var ready = t.count > 0 && !!slot && !!window.BKCart.getSlotId();
       placeBtn.disabled = !ready;
+
+      if (ready) {
+        placeBlockedReasonEl.hidden = true;
+      } else if (t.count === 0) {
+        placeBlockedReasonEl.textContent =
+          "Your order sheet is empty — add a dish from the menu first.";
+        placeBlockedReasonEl.hidden = false;
+      } else {
+        placeBlockedReasonEl.textContent =
+          "Choose a collection day and time window on the order page before placing your order.";
+        placeBlockedReasonEl.hidden = false;
+      }
     }
 
     payEft.addEventListener("change", function () {

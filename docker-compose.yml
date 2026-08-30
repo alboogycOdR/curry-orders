@@ -16,7 +16,18 @@ services:
     # + Slot rows (core.materialise) -- under concurrent first-touch load
     # that's slow enough to trip the default and crash-loop the worker.
     # Cheap insurance now that days are pre-materialised too.
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --timeout 60
+    #
+    # --worker-class gthread --threads 4, not the sync default: a sync
+    # worker blocks its entire OS process on ONE connection at a time,
+    # including an idle keep-alive connection a real mobile browser just
+    # leaves open (backgrounded tab, flaky cellular signal) -- with only
+    # a handful of sync workers, a couple of idle phones can starve every
+    # other visitor until --timeout kills that worker (observed live:
+    # "WORKER TIMEOUT" / SIGKILL, request line never even read). Threads
+    # share a worker process, so one idle connection only ties up one
+    # thread, not the whole worker.
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-3} --worker-class gthread --threads 4 --timeout 60
     env_file: .env
     ports:
       # WEB_BIND_HOST defaults to loopback-only (host Caddy reverse-proxies

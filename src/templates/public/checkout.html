@@ -133,6 +133,14 @@ real `core.Order` — see that file's own header comment.
           <div>Collect <strong id="ck-collect-day">&mdash;</strong></div>
           <div>Window <strong id="ck-collect-slot">&mdash;</strong></div>
         </div>
+        {% comment %}
+        Was previously invisible: the button just goes `disabled` when the
+        cart is empty or no collection slot has been picked, with nothing
+        explaining why -- clicking it then does nothing, by design, but
+        looks exactly like a broken button. This makes the reason visible
+        right next to it.
+        {% endcomment %}
+        <p class="ck-field-error" id="ck-place-blocked-reason" hidden style="margin-top: 4px;"></p>
         <button type="button" class="btn btn-primary btn-block ck-place" id="ck-place" disabled>Place the order</button>
         <a href="{% url 'public:order' %}" class="btn btn-ghost btn-block ck-back">Back to the menu</a>
       </div>
