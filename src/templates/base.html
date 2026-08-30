@@ -157,11 +157,23 @@ Footer — customer-facing Help/Policies links (§6.1/§11.12). Kept separate
 from .site-nav above, which already mixes customer nav with five
 staff-board links; policy links belong somewhere a customer will look,
 not buried in that list.
+
+"Staff login" only when logged out: the header's staff nav (above) is
+gated on request.staff_user so customers never see it — but that gate
+also removed the ONLY path to manage:login for a logged-OUT staff member
+(previously they'd land on it by accident, via one of the links that
+shouldn't have been customer-visible in the first place). A low-key
+footer link, not a prominent nav item, matches how staff/admin entry
+points are usually kept out of a customer-facing header without removing
+them entirely.
 {% endcomment %}
 <footer class="site-footer">
   <a href="{% url 'public:lookup' %}">Find my order</a>
   <a href="{% url 'public:help' %}">Help</a>
   <a href="{% url 'public:policies' %}">Policies</a>
+  {% if not request.staff_user %}
+  <a href="{% url 'manage:login' %}">Staff login</a>
+  {% endif %}
 </footer>
 
 </body>

@@ -104,6 +104,19 @@ class TestNavAudienceSplit:
         assert "Kitchen desk" in content
         assert reverse("manage:payments") in content
 
+    def test_anonymous_visitor_still_has_a_way_to_reach_staff_login(self, client) -> None:
+        # Regression: the first cut of this split removed every
+        # customer-visible staff link, including the only path a
+        # logged-out staff member had to manage:login itself.
+        content = client.get(reverse("public:home")).content.decode()
+        assert reverse("manage:login") in content
+
+    def test_logged_in_staff_does_not_see_the_login_link_again(self, client) -> None:
+        _make_staff()
+        _login(client)
+        content = client.get(reverse("public:home")).content.decode()
+        assert "Staff login" not in content
+
 
 class TestManageNoindexHeader:
     def test_manage_pages_carry_x_robots_tag_noindex(self, client) -> None:
