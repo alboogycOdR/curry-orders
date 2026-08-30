@@ -99,7 +99,16 @@ yet — a `payment_review` order here just says "we're checking it".
   {% if show_eft_panel %}
   <div class="os-eft-panel" id="os-eft-panel" data-order-token="{{ order.public_token }}"
        data-upload-url="{% url 'public:api_upload_proof' public_token=order.public_token %}"
-       data-hold-expires-at="{{ order.hold_expires_at|date:'c' }}">
+       {% comment %}
+       No data-hold-expires-at once proof is already uploaded: eft.js's
+       countdown otherwise keeps ticking down toward the order's original
+       30-minute hold deadline forever, including well past payment_review
+       -- misleading ("Pay within X:XX" on an order the customer already
+       paid and uploaded proof for), even though it's cosmetic only
+       (core.eft.expire_holds only ever touches awaiting_eft, never
+       payment_review, so nothing here was ever at risk of expiring).
+       {% endcomment %}
+       {% if not proof_already_uploaded %}data-hold-expires-at="{{ order.hold_expires_at|date:'c' }}"{% endif %}>
     <div class="os-eft-head">
       <h2 class="os-eft-title">Pay by EFT</h2>
       <span class="os-eft-countdown" id="os-eft-countdown"></span>

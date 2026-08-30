@@ -49,7 +49,11 @@
       countdownEl.textContent = "Pay within " + formatRemaining(remaining);
     }
     tickCountdown();
-    var countdownTimer = setInterval(tickCountdown, 1000);
+    // No data-hold-expires-at at all once proof is already uploaded
+    // (order_status.html) -- nothing to tick down to, so don't start an
+    // interval that would just call tickCountdown() every second to
+    // re-render the same empty string forever.
+    var countdownTimer = holdExpiresAtRaw ? setInterval(tickCountdown, 1000) : null;
 
     var fileInput = document.getElementById("os-upload-input");
     var submitBtn = document.getElementById("os-upload-submit");
