@@ -58,3 +58,21 @@ class TestEftHoldCountdown:
         # it into the countdown's data attribute, so eft.js has nothing
         # to tick down toward.
         assert "data-hold-expires-at=" not in content
+
+
+class TestCopyShareLink:
+    """Spec §13's "Order created" row: On-screen + token URL +
+    Copy/Share — the bookmarkable order-status page itself carries the
+    same button as checkout.html's confirmation panel (share-link.js),
+    so a customer returning to it later can still re-share it.
+    """
+
+    def test_share_button_present_on_the_order_status_page(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        order = _eft_order(dish, slot, biz_settings)
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        content = resp.content.decode()
+        assert 'id="os-share-link"' in content
+        assert 'id="os-share-fallback"' in content
+        assert 'id="os-share-input"' in content

@@ -59,6 +59,9 @@ real `core.Order` — see that file's own header comment.
   .ck-figure-value { font-family: var(--font-heading); font-size: 26px; font-weight: 600; margin-top: 8px; font-variant-numeric: tabular-nums; }
   .ck-confirm-actions { display: flex; gap: 14px; margin-top: 38px; flex-wrap: wrap; }
   .ck-confirm-actions .btn { min-height: 44px; }
+  .ck-share-fallback { margin-top: 16px; max-width: 480px; }
+  .ck-share-hint { display: block; font-size: 13px; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .ck-share-status { margin-top: 12px; font-size: 14px; color: var(--color-accent-700); }
 
   {% comment %} Placeholder responsive fallback — see order.html's identical note. {% endcomment %}
   @media (max-width: 820px) {
@@ -178,7 +181,26 @@ real `core.Order` — see that file's own header comment.
       wants it sooner or whose auto-redirect doesn't fire.
       {% endcomment %}
       <a href="#" id="ck-view-order-link" class="btn btn-ghost">View my order</a>
+      {% comment %}
+      Spec §13's "Order created" row: "On-screen + token URL + Copy/Share"
+      — the on-screen and token-URL halves already existed (View my
+      order, above); this is the missing third piece. navigator.share()
+      when available (the native share sheet — Android Chrome/iOS
+      Safari), navigator.clipboard.writeText() next, and a plain visible/
+      selectable input as the last resort. Both of the first two require
+      a secure context (HTTPS) in most browsers -- on the current interim
+      raw-IP:port HTTP deploy (pending a real domain/TLS) neither is
+      actually available, so the visible-input fallback is the one doing
+      real work today; it'll upgrade to the nicer paths for free once TLS
+      is on, no code change needed.
+      {% endcomment %}
+      <button type="button" class="btn btn-ghost" id="ck-share-link">Copy / share link</button>
     </div>
+    <div class="ck-share-fallback" id="ck-share-fallback" hidden>
+      <label for="ck-share-input" class="ck-share-hint">Tap the link, then copy it:</label>
+      <input type="text" id="ck-share-input" class="input" readonly>
+    </div>
+    <p class="ck-share-status" id="ck-share-status" hidden></p>
   </div>
 </div>
 
@@ -200,5 +222,6 @@ real `core.Order` — see that file's own header comment.
   // on render, using this.
   window.BK_CASH = { todayIso: "{{ today_iso }}", available: {{ cash_available|yesno:"true,false" }} };
 </script>
+<script src="{% static 'js/share-link.js' %}" defer></script>
 <script src="{% static 'js/checkout.js' %}" defer></script>
 {% endblock %}

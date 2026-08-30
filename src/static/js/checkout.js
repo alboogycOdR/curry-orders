@@ -97,6 +97,11 @@
     var totalValue2El = document.getElementById("ck-total-value-2");
     var startAnotherBtn = document.getElementById("ck-start-another");
     var viewOrderLink = document.getElementById("ck-view-order-link");
+    var shareBtn = document.getElementById("ck-share-link");
+    var shareFallback = document.getElementById("ck-share-fallback");
+    var shareInput = document.getElementById("ck-share-input");
+    var shareStatusEl = document.getElementById("ck-share-status");
+    var redirectTimer = null;
     var formErrorEl = document.getElementById("ck-form-error");
     var fieldErrorEls = {
       name: document.getElementById("ck-name-error"),
@@ -287,9 +292,28 @@
               : "Taking you to your order page for the bank details and payment countdown.";
           dayValueEl.textContent = day ? titleCase(day.long) : "—";
           totalValue2El.textContent = totalEl.textContent;
-          viewOrderLink.href = window.BK_CHECKOUT_URLS.order_status.replace(
+          var statusUrl = window.location.origin + window.BK_CHECKOUT_URLS.order_status.replace(
             "TOKEN_PLACEHOLDER", order.public_token
           );
+          viewOrderLink.href = statusUrl;
+
+          window.BKShareLink.wire({
+            button: shareBtn,
+            fallback: shareFallback,
+            input: shareInput,
+            status: shareStatusEl,
+            url: statusUrl,
+            title: "Brandon's Kitchen — order " + order.order_number,
+            onBeforeShare: function () {
+              // Whichever tier fires, the customer is actively engaging
+              // with this screen — don't yank them off it via the 1.8s
+              // auto-redirect mid-interaction.
+              if (redirectTimer) {
+                window.clearTimeout(redirectTimer);
+                redirectTimer = null;
+              }
+            },
+          });
 
           formState.hidden = true;
           confirmedState.hidden = false;
@@ -298,10 +322,11 @@
           // A moment for the customer to read the confirmation, then on
           // to the real order-status page (§6.1) — the URL worth
           // bookmarking/reloading, unlike this one-shot checkout screen.
-          window.setTimeout(function () {
-            window.location.href = window.BK_CHECKOUT_URLS.order_status.replace(
-              "TOKEN_PLACEHOLDER", order.public_token
-            );
+          // Cancelled if they interact with Copy/share instead (below) —
+          // 1.8s isn't enough time to actually use that button before
+          // being yanked off the page.
+          redirectTimer = window.setTimeout(function () {
+            window.location.href = statusUrl;
           }, 1800);
         })
         .catch(function () {
@@ -316,6 +341,10 @@
       window.BKCart.setSlotId(null);
       window.location.href = window.BK_CHECKOUT_URLS.order;
     });
+
+    // share-link.js — see that file's own header for the fallback chain.
+    // Wired once the real order/statusUrl are known (inside the
+    // successful-checkout .then() above), not here at page load.
 
     renderPay();
     renderSheetAndTotals();

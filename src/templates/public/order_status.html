@@ -21,6 +21,11 @@ yet — a `payment_review` order here just says "we're checking it".
   .os-heading { font-size: clamp(28px, 4vw, 46px); font-weight: 600; line-height: 1.05; margin: 14px 0 0; letter-spacing: -0.015em; }
   .os-status { font-size: 17px; color: var(--color-neutral-800); margin: 16px 0 0; max-width: 52ch; }
 
+  #os-share-link { margin-top: 18px; }
+  .os-share-fallback { margin-top: 14px; max-width: 480px; }
+  .os-share-hint { display: block; font-size: 13px; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .os-share-status { margin-top: 10px; font-size: 14px; color: var(--color-accent-700); }
+
   .os-figures { display: flex; gap: 48px; margin-top: 38px; padding-top: 22px; border-top: 1px solid var(--color-text); flex-wrap: wrap; }
   .os-figure-label { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-700); }
   .os-figure-value { font-family: var(--font-heading); font-size: 22px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
@@ -74,6 +79,21 @@ yet — a `payment_review` order here just says "we're checking it".
   <span class="os-eyebrow">Order status</span>
   <h1 class="os-heading">{{ order.order_number }}</h1>
   <p class="os-status" id="os-status-copy">{{ status_copy }}</p>
+
+  {% comment %}
+  Spec §13's "Order created" row: "On-screen + token URL + Copy/Share" —
+  this is the bookmarkable page itself, so re-sharing it (e.g. to
+  whoever's actually collecting) is exactly as useful returning to it
+  later as it was right after checkout (checkout.html has the same
+  button). See static/js/share-link.js's own header for the fallback
+  chain.
+  {% endcomment %}
+  <button type="button" class="btn btn-ghost" id="os-share-link">Copy / share this link</button>
+  <div class="os-share-fallback" id="os-share-fallback" hidden>
+    <label for="os-share-input" class="os-share-hint">Tap the link, then copy it:</label>
+    <input type="text" id="os-share-input" class="input" readonly>
+  </div>
+  <p class="os-share-status" id="os-share-status" hidden></p>
 
   {% if messages %}
   <ul class="os-messages">
@@ -182,4 +202,17 @@ yet — a `payment_review` order here just says "we're checking it".
 {% if show_eft_panel %}
 <script src="{% static 'js/eft.js' %}" defer></script>
 {% endif %}
+<script src="{% static 'js/share-link.js' %}" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    window.BKShareLink.wire({
+      button: document.getElementById("os-share-link"),
+      fallback: document.getElementById("os-share-fallback"),
+      input: document.getElementById("os-share-input"),
+      status: document.getElementById("os-share-status"),
+      url: window.location.href,
+      title: "Brandon's Kitchen — order {{ order.order_number|escapejs }}",
+    });
+  });
+</script>
 {% endblock %}

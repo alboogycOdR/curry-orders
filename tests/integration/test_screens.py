@@ -192,6 +192,16 @@ class TestCheckout:
         content = resp.content.decode()
         assert 'id="days-data"' in content
 
+    def test_copy_share_button_present(self, client) -> None:
+        # Spec §13's "Order created" row: On-screen + token URL +
+        # Copy/Share. Server-rendered (hidden with the rest of
+        # ck-confirmed-state until checkout.js reveals it post-order).
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-share-link"' in content
+        assert 'id="ck-share-fallback"' in content
+        assert 'id="ck-share-input"' in content
+
     def test_cash_row_hidden_when_disabled(self, client, biz_settings) -> None:
         biz_settings.cash_enabled = False
         biz_settings.save(update_fields=["cash_enabled"])
