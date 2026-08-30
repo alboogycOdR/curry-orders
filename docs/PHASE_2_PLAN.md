@@ -186,6 +186,15 @@ This is the milestone §22 ties directly to go-live readiness.
 Raised but deliberately not started — parked here so they aren't lost,
 not committed to any milestone yet.
 
+- [ ] **Monday sprint — customer-journey UX remediation** — a full
+      phased plan (real date/slot-desync bug fix, checkout
+      capacity-error recovery, mobile/accessibility pass, resilience +
+      funnel measurement), from an external UX review whose highest-
+      impact findings were independently re-verified against the running
+      code. Scheduled by the owner to start after 2026-08-31 14:00, not
+      before. See `docs/MONDAY_SPRINT.md` for the full, self-contained
+      plan — detailed enough to execute directly, doesn't depend on
+      remembering this conversation.
 - [ ] **Owner operating manual for Brandon** — a plain-language,
       business-user-facing guide for actually *running* the site day to
       day once it's handed over: logging in, taking an assisted/phone
