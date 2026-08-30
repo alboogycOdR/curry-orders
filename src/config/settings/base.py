@@ -74,6 +74,12 @@ STAFF_APP_NAME = "staff"  # documentation only, not read by Django
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoiseMiddleware is prod-only (settings/prod.py, inserted right
+    # after SecurityMiddleware per WhiteNoise's own requirement) — dev
+    # already serves static files directly from STATICFILES_DIRS via
+    # Django's own runserver static handler (DEBUG=True), and neither
+    # collects nor needs STATIC_ROOT to exist, which WhiteNoise warns
+    # about on every request if it's missing.
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -166,6 +172,14 @@ LANGUAGE_CODE = "en-za"
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = REPO_ROOT / "staticfiles"  # collectstatic target, not in src/
+# WhiteNoise (MIDDLEWARE, below) serves STATIC_ROOT directly from the
+# gunicorn process — no host Caddy in front yet for the raw IP:port
+# deploy (D-28's real reverse proxy is pending real hostnames). The
+# hashed-manifest storage backend that pairs with it
+# (whitenoise.storage.CompressedManifestStaticFilesStorage) is prod-only
+# (settings/prod.py) — it requires collectstatic to have already run to
+# generate its manifest file, which dev/test never do; using it here
+# would make every `{% static %}` tag raise in dev/test.
 
 # --- Object storage (self-hosted MinIO, D-28; Appendix D) ------------------
 # `storage.service` (milestone 4) uses these directly via boto3 when

@@ -15,6 +15,12 @@ dependencies = [
   "django-environ>=0.11",
   "sentry-sdk>=2.0",
   "pillow>=10.3",
+  # Serves STATIC_ROOT directly from gunicorn -- no host Caddy in front yet
+  # (raw IP:port deploy, D-28's Caddy reverse-proxy is still pending real
+  # hostnames, docs/GO_LIVE_PREP_SHEET.md). Harmless to keep once Caddy
+  # does take over static serving; WhiteNoise just goes unused for that
+  # path then, not conflicting with it.
+  "whitenoise>=6.6",
 ]
 
 [project.optional-dependencies]

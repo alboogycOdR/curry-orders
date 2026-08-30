@@ -14,7 +14,13 @@ services:
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3}
     env_file: .env
     ports:
-      - "127.0.0.1:${WEB_BIND_PORT:-8102}:8000"
+      # WEB_BIND_HOST defaults to loopback-only (host Caddy reverse-proxies
+      # in, per the file header above) -- set it to 0.0.0.0 in .env only
+      # for the interim raw-IP:port deploy (no Caddy site block yet,
+      # pending real hostnames -- docs/GO_LIVE_PREP_SHEET.md). Switching
+      # back to a Caddy-fronted domain later is a .env change, not a code
+      # change.
+      - "${WEB_BIND_HOST:-127.0.0.1}:${WEB_BIND_PORT:-8102}:8000"
     depends_on:
       - db
       - minio
