@@ -142,6 +142,20 @@ class TestNavAudienceSplit:
         content = client.get(reverse("manage:inbox")).content.decode()
         assert reverse("manage:settings") in content
 
+    def test_cart_summary_hidden_from_logged_in_staff(self, client) -> None:
+        # "No order started" is a customer-cart concept (cart.js reads
+        # localStorage) with no meaning to a staff member at work -- it
+        # was rendering right next to the Staff menu, flagged by the
+        # user as confusing/out of place.
+        _make_staff()
+        _login(client)
+        content = client.get(reverse("manage:inbox")).content.decode()
+        assert 'id="cart-summary"' not in content
+
+    def test_cart_summary_still_shown_to_customers(self, client) -> None:
+        content = client.get(reverse("public:home")).content.decode()
+        assert 'id="cart-summary"' in content
+
     def test_every_staff_board_still_sets_the_csrf_cookie_for_its_own_ajax(
         self, client,
     ) -> None:

@@ -255,7 +255,17 @@ screen readers.
   </div>
   {% endif %}
 
+  {% comment %}
+  Customer-only: a staff member's own browser cart state ("No order
+  started" / "2 items · R170.00") has no meaning to them at work and was
+  showing up right next to the Staff menu, confusing rather than useful
+  -- flagged directly by the user. cart.js's refreshHeader() already
+  null-checks #cart-summary before touching it, so simply not rendering
+  the element here is enough; no JS change needed.
+  {% endcomment %}
+  {% if not request.staff_user %}
   <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>
+  {% endif %}
 </header>
 
 {% block content %}{% endblock %}
