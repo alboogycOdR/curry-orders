@@ -1,0 +1,63 @@
+{% load dictutils %}
+{% comment %}
+One inbox section (§12.2) — included six times from inbox.html with a
+different `orders` list and section flags each time, rather than
+repeating this markup per section.
+{% endcomment %}
+<section class="ib-section">
+  <h2 class="ib-section-title">{{ title }} <span class="ib-count">{{ orders|length }}</span></h2>
+  {% if not orders %}
+  <p class="ib-empty">{{ empty_text }}</p>
+  {% else %}
+  <div class="ib-table-wrap">
+    <table class="table ib-table">
+      <thead>
+        <tr><th>Order</th><th>Customer</th><th>Slot</th><th>Status</th><th>Assigned</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr data-order-id="{{ order.pk }}" data-status="{{ order.status }}">
+          <td class="ref">
+            <a href="{% url 'public:order_status' public_token=order.public_token %}" target="_blank" rel="noopener">{{ order.order_number }}</a>
+          </td>
+          <td>
+            {{ order.customer_name_snapshot }}<br>
+            <a class="ib-wa" href="https://wa.me/{{ order.customer_mobile_snapshot|cut:'+' }}?text=Hi%20{{ order.customer_name_snapshot|urlencode }}%2C%20about%20order%20{{ order.order_number }}" target="_blank" rel="noopener">WhatsApp</a>
+          </td>
+          <td>{{ order.trading_day.date|date:"D j M" }} {{ order.slot.start_at|time:"H:i" }}</td>
+          <td>
+            {{ order.get_status_display }}
+            {% if order.note %}<br><span class="ib-note">&ldquo;{{ order.note }}&rdquo;</span>{% endif %}
+          </td>
+          <td>{% if order.assigned_user %}{{ order.assigned_user.name }}{% else %}&mdash;{% endif %}</td>
+          <td>
+            <div class="ib-actions">
+              <button type="button" data-action="assign">{% if order.assigned_user_id == request.staff_user.pk %}Unassign{% else %}Assign to me{% endif %}</button>
+              {% if show_cash_actions %}
+              <button type="button" data-action="accept_cash">Accept</button>
+              <button type="button" data-action="reject_cash">Reject</button>
+              {% endif %}
+              {% if show_reinstate %}
+              <button type="button" data-action="reinstate" data-needs-reason="1">Reinstate</button>
+              {% endif %}
+              {% with day_slots=slots_by_day|get_item:order.trading_day_id %}
+              {% if day_slots %}
+              <select name="new_slot_id">
+                <option value="">Move to&hellip;</option>
+                {% for s in day_slots %}
+                {% if s.pk != order.slot_id %}<option value="{{ s.pk }}">{{ s.start_at|time:"H:i" }}</option>{% endif %}
+                {% endfor %}
+              </select>
+              <button type="button" data-action="change_slot">Move</button>
+              {% endif %}
+              {% endwith %}
+            </div>
+            <p class="ib-row-error" hidden></p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>

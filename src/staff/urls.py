@@ -5,10 +5,14 @@ from . import api, views
 app_name = "manage"  # URL namespace stays "manage" (D-26) though the Python package is "staff"
 
 urlpatterns = [
+    # §12.2's staff landing page (M9) — "/manage/" root.
+    path("", views.inbox, name="inbox"),
     path("login/", views.login, name="login"),
     path("logout/", views.logout, name="logout"),
     path("change-password/", views.change_password, name="change_password"),
     path("settings/", views.settings_view, name="settings"),
+    path("calendar/", views.calendar, name="calendar"),
+    path("orders/new/", views.assisted_order_new, name="assisted_order_new"),
     path("kitchen/", views.kitchen, name="kitchen"),
     path("collection/", views.collection_board, name="collection"),
     path("payments/", views.payments_queue, name="payments"),
@@ -28,6 +32,7 @@ urlpatterns = [
     # public/urls.py's api_checkout uses (POST-only, so APPEND_SLASH's
     # GET/HEAD-only redirect would just 404 a slashed-vs-not mismatch).
     path("api/orders/<int:order_id>/transition", api.transition, name="api_transition"),
+    path("api/orders/<int:order_id>/assign", api.assign_order, name="api_assign_order"),
     path("api/days/<str:date>/lock-kitchen", api.lock_prep_list, name="api_lock_prep_list"),
     path("api/days/<str:date>/close-out", api.close_out_day, name="api_close_out_day"),
     path(

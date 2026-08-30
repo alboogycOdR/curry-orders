@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Preorder calendar — spec §12.6, M9. Eight-day grid (today + 7):
+open/closed, orders vs day cap, cash vs cash cap, per-slot heat, dish
+warnings at >=80% of max_units. Each card taps through to
+`manage:daily_controls` for that date.
+{% endcomment %}
+
+{% block title %}Calendar — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .cal-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px 60px; }
+  .cal-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .cal-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .cal-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .cal-account-bar a { color: var(--color-accent-700); }
+  .cal-account-bar form { margin: 0; display: inline; }
+  .cal-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin-top: 28px; }
+  .cal-card { display: block; border: 1px solid var(--color-text); padding: 16px; text-decoration: none; color: var(--color-text); }
+  .cal-card:hover { background: var(--color-neutral-100); }
+  .cal-card.is-closed { opacity: 0.55; }
+  .cal-card-date { font-family: var(--font-heading); font-size: 16px; font-weight: 600; }
+  .cal-card-badge { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; display: inline-block; }
+  .cal-card-badge.is-open { color: var(--color-accent-700); }
+  .cal-card-badge.is-closed { color: var(--color-neutral-600); }
+  .cal-card-meter { margin-top: 12px; font-size: 12.5px; color: var(--color-neutral-700); }
+  .cal-card-meter .num { font-variant-numeric: tabular-nums; color: var(--color-text); }
+  .cal-heat-row { display: flex; gap: 3px; margin-top: 10px; flex-wrap: wrap; }
+  .cal-heat-cell { width: 8px; height: 18px; background: var(--color-neutral-200); }
+  .cal-heat-cell.h-low { background: var(--color-accent-100, #d7ecd9); }
+  .cal-heat-cell.h-mid { background: #f4d35e; }
+  .cal-heat-cell.h-high { background: #e07a5f; }
+  .cal-warnings { margin-top: 10px; font-size: 11.5px; color: #b3261e; }
+  .cal-warnings li { margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cal-wrap">
+  <div class="cal-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    <a href="{% url 'manage:inbox' %}">Inbox</a>
+    <a href="{% url 'manage:assisted_order_new' %}">New assisted order</a>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="cal-dateline-thick"></div>
+  <div class="cal-dateline-row"><span>Preorder calendar</span></div>
+
+  <div class="cal-grid">
+    {% for day in days %}
+    <a class="cal-card {% if not day.trading_day.is_open %}is-closed{% endif %}" href="{% url 'manage:daily_controls' day.date|date:'Y-m-d' %}">
+      <div class="cal-card-date">{{ day.date_label }}</div>
+      <span class="cal-card-badge {% if day.trading_day.is_open %}is-open{% else %}is-closed{% endif %}">
+        {% if day.trading_day.is_open %}Open{% else %}Closed{% endif %}
+      </span>
+      <div class="cal-card-meter">Orders: <span class="num">{{ day.orders.value }}</span> / {{ day.orders.of }}</div>
+      <div class="cal-card-meter">Cash: <span class="num">{{ day.cash.value }}</span> / {{ day.cash.of }}</div>
+      <div class="cal-heat-row">
+        {% for slot in day.slot_heat %}
+        <span class="cal-heat-cell {% if slot.pct >= 90 %}h-high{% elif slot.pct >= 50 %}h-mid{% elif slot.pct > 0 %}h-low{% endif %}" title="{{ slot.slot.start_at|time:'H:i' }} — {{ slot.occupying }}/{{ slot.slot.capacity }} ({{ slot.pct }}%)"></span>
+        {% endfor %}
+      </div>
+      {% if day.dish_warnings %}
+      <ul class="cal-warnings">
+        {% for w in day.dish_warnings %}
+        <li>{{ w.dish.name }}: {{ w.used }}/{{ w.max_units }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

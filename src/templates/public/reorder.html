@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% comment %}
+Reorder — spec §11.11. Seeds a fresh cart (static/js/cart.js) from a
+collected order's own lines, at current prices, dropping any dish
+that's since been archived/deactivated (listed below). Date, slot and
+payment are chosen afresh on `/order/` → `/checkout/`.
+{% endcomment %}
+
+{% block title %}Order again — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  .ro-wrap { max-width: 560px; margin: 0 auto; padding: 48px 32px 80px; }
+  .ro-heading { font-family: var(--font-heading); font-size: clamp(26px, 4vw, 36px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
+  .ro-intro { font-size: 15px; color: var(--color-neutral-700); margin: 0 0 30px; }
+  .ro-dropped { margin: 0 0 30px; padding: 16px 18px; border: 1px solid var(--color-text); border-radius: var(--radius-md); background: var(--color-neutral-100); }
+  .ro-dropped-title { font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin: 0 0 8px; }
+  .ro-dropped ul { margin: 0; padding-left: 20px; }
+  .ro-line { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--color-divider); font-size: 15.5px; }
+  .ro-line .qty { color: var(--color-neutral-600); margin-right: 8px; }
+  .ro-actions { margin-top: 30px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ro-wrap">
+  <h1 class="ro-heading">Order these again</h1>
+  <p class="ro-intro">We've started a new cart from order {{ order.order_number }}, priced at today's prices.</p>
+
+  {% if dropped %}
+  <div class="ro-dropped">
+    <p class="ro-dropped-title">No longer available &mdash; dropped from this order</p>
+    <ul>
+      {% for name in dropped %}<li>{{ name }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% for line in order.lines.all %}
+  <div class="ro-line"><span><span class="qty">{{ line.quantity }}&times;</span>{{ line.dish_name_snapshot }}</span></div>
+  {% endfor %}
+
+  <div class="ro-actions">
+    <a href="{% url 'public:order' %}" id="ro-continue" class="btn btn-primary">Choose a date &amp; slot</a>
+  </div>
+</div>
+
+<script>
+  (function () {
+    try {
+      window.BKCart.setCart({{ cart_json|safe }});
+    } catch (e) { /* localStorage unavailable — /order/ still works, just starts empty */ }
+  })();
+</script>
+{% endblock %}

@@ -26,6 +26,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
@@ -40,10 +41,18 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
-from core.capacity import OCCUPYING_STATUSES, dish_units_used
-from core.materialise import materialise_day
-from core.menu import active_dishes
+from core.capacity import (
+    OCCUPYING_STATUSES,
+    CapacityError,
+    CheckoutLine,
+    ReservationRequest,
+    dish_units_used,
+    reserve,
+)
+from core.materialise import materialise_day, materialise_days
+from core.menu import active_dishes, dishes_for_date
 from core.models import (
+    ActorKind,
     DayDishAvailability,
     Dish,
     DishOption,
@@ -51,6 +60,7 @@ from core.models import (
     Media,
     MediaKind,
     Order,
+    OrderSource,
     OrderStatus,
     PaymentMethod,
     Settings,
@@ -59,6 +69,9 @@ from core.models import (
     TradingDay,
     User,
 )
+from core.phone import InvalidPhoneNumber, normalize_sa_mobile
+from core.transitions import Actor, TransitionError
+from core.transitions import apply as apply_transition
 from core.tz import SAST, coerce_time, now_sast
 from storage.service import (
     InvalidUpload,
@@ -79,6 +92,13 @@ from .forms import (
     TradingDayForm,
 )
 
+# Assisted orders (§12.9) are staff placing an order *on behalf of* a
+# customer who phoned, walked in, or messaged — never the customer's own
+# website checkout, which is always OrderSource.WEBSITE.
+ASSISTED_SOURCES = frozenset({
+    OrderSource.PHONE, OrderSource.IN_PERSON, OrderSource.WHATSAPP_ASSISTED,
+})
+
 _DAY_NAMES_FULL = [
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 ]
@@ -95,11 +115,10 @@ def _safe_next(request: HttpRequest, candidate: str | None) -> str:
     """Validated `?next=` redirect target, same defence Django's own
     `LoginView` uses (`url_has_allowed_host_and_scheme` — refuses an
     off-site or scheme-relative URL) so a crafted `?next=` can't turn the
-    login page into an open redirect. Falls back to the kitchen desk —
-    the only built staff screen right now; swap for `/manage/inbox` once
-    that's the real default landing (spec §6.2).
+    login page into an open redirect. Falls back to the inbox (§12.2's
+    "staff landing page"), now that it's a real screen (M9).
     """
-    default = reverse("manage:kitchen")
+    default = reverse("manage:inbox")
     if candidate and url_has_allowed_host_and_scheme(
         candidate, allowed_hosts={request.get_host()}, require_https=request.is_secure()
     ):
@@ -877,3 +896,332 @@ def dish_unarchive(request: HttpRequest, dish_id: int) -> HttpResponse:
     dish.save(update_fields=["archived_at"])
     messages.success(request, f"{dish.name} unarchived.")
     return redirect("manage:dish_edit", dish_id=dish.pk)
+
+
+# ---------------------------------------------------------------- assisted order entry (§12.9, M9)
+
+
+def _slot_rows_for_day(trading_day: TradingDay) -> list[dict]:
+    slots = list(trading_day.slots.order_by("start_at"))
+    rows = []
+    for s in slots:
+        occupying = Order.objects.filter(slot=s, status__in=OCCUPYING_STATUSES).count()
+        rows.append({
+            "slot": s, "occupying": occupying, "full": s.is_closed or occupying >= s.capacity,
+        })
+    return rows
+
+
+@staff_login_required
+def assisted_order_new(request: HttpRequest) -> HttpResponse:
+    """§12.9's assisted order entry: same field validation and the same
+    §8.3 transaction (`core.capacity.reserve()`) as the public checkout
+    API — this view is a staff-facing form over the exact same
+    `ReservationRequest`/`reserve()` call `public/api.py::checkout`
+    makes, so capacity parity with web checkout is structural, not just
+    tested-for. Staff pick quantities/options directly against every
+    active dish for the chosen day (no client-side cart — a raw-POST-key
+    row per dish, same pattern `daily_controls`/`dish_form` already use
+    for a variable number of rows) rather than the customer-facing
+    `/order/` + `/checkout/` pair.
+
+    EFT orders default to a plain hold (`awaiting_eft`, same as web
+    checkout); `eft_mode` escalates it in the same request — "payment_review"
+    (customer says they've paid, no proof needed yet — `mark_payment_review`)
+    or "confirmed_prep" (staff already saw the funds — `verify_eft`,
+    D-18's mandatory reason). Cash assisted orders land in `cash_request`
+    exactly like a web cash order (M7's cash queue picks it up from there
+    — no special-cased assisted acceleration).
+    """
+    settings = Settings.current()
+    today = now_sast().date()
+
+    date_param = (
+        request.POST.get("date") if request.method == "POST" else request.GET.get("date")
+    ) or today.isoformat()
+    try:
+        selected_date = dt.date.fromisoformat(date_param)
+    except ValueError:
+        selected_date = today
+    if not (today <= selected_date <= today + dt.timedelta(days=settings.preorder_days)):
+        selected_date = today
+    trading_day = materialise_days(selected_date, settings, count=1)[0]
+
+    menu_dishes = dishes_for_date(trading_day, with_options=True)
+    slot_rows = _slot_rows_for_day(trading_day)
+    is_today = selected_date == today
+
+    errors: list[str] = []
+    form_values: dict[str, str] = {}
+
+    if request.method == "POST" and request.POST.get("action") == "place_order":
+        form_values = {
+            "customer_name": request.POST.get("customer_name", ""),
+            "customer_mobile": request.POST.get("customer_mobile", ""),
+            "note": request.POST.get("note", ""),
+            "source": request.POST.get("source", ""),
+            "payment_method": request.POST.get("payment_method", ""),
+            "after_cutoff_reason": request.POST.get("after_cutoff_reason", ""),
+        }
+        customer_name = form_values["customer_name"].strip()
+        mobile_raw = form_values["customer_mobile"].strip()
+        note = form_values["note"].strip()
+        source = form_values["source"]
+        payment_method = form_values["payment_method"]
+        slot_id_raw = request.POST.get("slot_id", "")
+        after_cutoff_reason = form_values["after_cutoff_reason"].strip()
+        eft_mode = request.POST.get("eft_mode", "hold")
+        eft_confirm_reason = request.POST.get("eft_confirm_reason", "").strip()
+
+        if not (2 <= len(customer_name) <= 80):
+            errors.append("Customer name must be 2-80 characters.")
+
+        customer_mobile = ""
+        try:
+            customer_mobile = normalize_sa_mobile(mobile_raw)
+        except InvalidPhoneNumber:
+            errors.append("Enter a valid South African mobile number.")
+
+        if source not in ASSISTED_SOURCES:
+            errors.append("Choose an order source.")
+
+        if payment_method not in (PaymentMethod.EFT, PaymentMethod.CASH):
+            errors.append("Choose a payment method.")
+
+        if not slot_id_raw.isdigit():
+            errors.append("Choose a collection slot.")
+
+        lines: list[CheckoutLine] = []
+        for md in menu_dishes:
+            qty_raw = request.POST.get(f"qty_{md.id}", "").strip()
+            if not qty_raw:
+                continue
+            try:
+                qty = int(qty_raw)
+            except ValueError:
+                errors.append(f"{md.name}: enter a whole number.")
+                continue
+            if qty <= 0:
+                continue
+            option_value_ids: list[int] = []
+            for option in md.options:
+                if option.required:
+                    val = request.POST.get(f"opt_{md.id}_{option.id}")
+                    if val and val.isdigit():
+                        option_value_ids.append(int(val))
+                else:
+                    for value in option.values:
+                        if request.POST.get(f"opt_{md.id}_{option.id}_{value.id}"):
+                            option_value_ids.append(value.id)
+            lines.append(
+                CheckoutLine(dish_id=md.id, quantity=qty, option_value_ids=option_value_ids)
+            )
+
+        if not lines:
+            errors.append("Add at least one dish.")
+
+        if eft_mode == "confirmed_prep" and not eft_confirm_reason:
+            errors.append("A reason is required to confirm payment was already seen (D-18).")
+
+        if not errors:
+            req = ReservationRequest(
+                trading_day_date=selected_date,
+                slot_id=int(slot_id_raw),
+                payment_method=payment_method,
+                customer_name=customer_name,
+                customer_mobile_e164=customer_mobile,
+                lines=lines,
+                note=note,
+                source=source,
+                created_by_user=request.staff_user,
+                is_staff_assisted=True,
+                after_cutoff_reason=after_cutoff_reason or None,
+            )
+            try:
+                order = reserve(req, settings)
+            except CapacityError as exc:
+                errors.append(exc.message)
+            else:
+                if payment_method == PaymentMethod.EFT and eft_mode != "hold":
+                    actor = Actor(kind=ActorKind.STAFF, user=request.staff_user)
+                    try:
+                        if eft_mode == "payment_review":
+                            apply_transition(
+                                order, "mark_payment_review", actor, OrderStatus.AWAITING_EFT,
+                            )
+                        elif eft_mode == "confirmed_prep":
+                            apply_transition(
+                                order, "verify_eft", actor, OrderStatus.AWAITING_EFT,
+                                reason=eft_confirm_reason,
+                            )
+                    except TransitionError as exc:
+                        messages.warning(
+                            request,
+                            f"Order {order.order_number} was created but couldn't be "
+                            f"escalated: {exc.message}",
+                        )
+                        return redirect("manage:inbox")
+                messages.success(request, f"Order {order.order_number} created.")
+                return redirect("manage:inbox")
+
+    return render(request, "staff/assisted_order_form.html", {
+        "date": selected_date,
+        "date_label": _date_label(selected_date),
+        "prev_date": (selected_date - dt.timedelta(days=1)).isoformat(),
+        "next_date": (selected_date + dt.timedelta(days=1)).isoformat(),
+        "today_iso": today.isoformat(),
+        "min_date": today.isoformat(),
+        "max_date": (today + dt.timedelta(days=settings.preorder_days)).isoformat(),
+        "menu_dishes": menu_dishes,
+        "slot_rows": slot_rows,
+        "is_today": is_today,
+        "assisted_after_cutoff_enabled": settings.assisted_after_cutoff_enabled,
+        "cash_enabled": settings.cash_enabled,
+        "sources": [(v, lbl) for v, lbl in OrderSource.choices if v in ASSISTED_SOURCES],
+        "errors": errors,
+        "form_values": form_values,
+    })
+
+
+# ---------------------------------------------------------------- preorder calendar (§12.6, M9)
+
+
+DISH_WARNING_THRESHOLD = 0.8  # §12.6: "dish warnings (>=80% of max_units)"
+
+
+@staff_login_required
+def calendar(request: HttpRequest) -> HttpResponse:
+    """§12.6's 8-day grid (today + 7): open/closed, orders vs day cap,
+    cash count vs cash cap, per-slot heat (occupancy/capacity), dish
+    warnings at >=80% of `max_units`. Tap-through to
+    `manage:daily_controls`.
+    """
+    settings = Settings.current()
+    today = now_sast().date()
+    trading_days = materialise_days(today, settings, count=8)
+
+    days = []
+    for td in trading_days:
+        occupying = Order.objects.filter(trading_day=td, status__in=OCCUPYING_STATUSES).count()
+        cash_occupying = Order.objects.filter(
+            trading_day=td, payment_method=PaymentMethod.CASH, status__in=OCCUPYING_STATUSES,
+        ).count()
+
+        slots = list(td.slots.order_by("start_at"))
+        slot_heat = []
+        for s in slots:
+            s_occupying = Order.objects.filter(slot=s, status__in=OCCUPYING_STATUSES).count()
+            pct = round(100 * s_occupying / s.capacity) if s.capacity else 0
+            slot_heat.append({"slot": s, "occupying": s_occupying, "pct": pct})
+
+        avail_rows = list(
+            td.dish_availability.select_related("dish").filter(max_units__isnull=False)
+        )
+        dish_ids = [a.dish_id for a in avail_rows]
+        used = dish_units_used(td, dish_ids) if dish_ids else {}
+        dish_warnings = [
+            {"dish": a.dish, "used": used.get(a.dish_id, 0), "max_units": a.max_units}
+            for a in avail_rows
+            if a.max_units and used.get(a.dish_id, 0) / a.max_units >= DISH_WARNING_THRESHOLD
+        ]
+
+        days.append({
+            "date": td.date,
+            "date_label": _date_label(td.date),
+            "trading_day": td,
+            "orders": {"value": occupying, "of": td.daily_order_cap},
+            "cash": {"value": cash_occupying, "of": settings.cash_daily_cap},
+            "slot_heat": slot_heat,
+            "dish_warnings": dish_warnings,
+        })
+
+    return render(request, "staff/calendar.html", {"days": days})
+
+
+# ---------------------------------------------------------------- inbox (§12.2, M9)
+
+
+_RECENT_ASSISTED_LIMIT = 20
+_RECENTLY_EXPIRED_WINDOW = dt.timedelta(hours=48)
+
+
+@staff_login_required
+def inbox(request: HttpRequest) -> HttpResponse:
+    """§12.2's staff landing page — sections in order: Cash requests
+    (accept/reject inline, same `manage:api_transition` M7's own cash
+    queue already uses), Hold-lapsed / SLA-breached reviews, Orders with
+    notes, Recent assisted, Recently expired (with a reinstate action).
+    Row actions: open (the order's own status page — no dedicated staff
+    order-detail screen exists yet, and the public one already shows
+    everything a customer sees, token-gated the same way it always is),
+    assign (`manage:api_assign_order`), contact (`wa.me` link, rendered
+    directly — no JS needed for a plain link), change slot (the existing
+    `change_slot` transition via a per-row slot picker).
+    """
+    now = now_sast()
+    settings = Settings.current()
+
+    cash_orders = list(
+        Order.objects.filter(status=OrderStatus.CASH_REQUEST)
+        .select_related("slot", "trading_day")
+        .order_by("created_at")
+    )
+
+    hold_lapsed = list(
+        Order.objects.filter(status=OrderStatus.AWAITING_EFT, hold_expires_at__lt=now)
+        .select_related("slot", "trading_day")
+        .order_by("hold_expires_at")
+    )
+
+    sla_deadline = now - dt.timedelta(minutes=settings.payment_review_sla_minutes)
+    sla_breached = list(
+        Order.objects.filter(status=OrderStatus.PAYMENT_REVIEW)
+        .filter(
+            Q(payment__proof_uploaded_at__lt=sla_deadline)
+            | (Q(payment__proof_uploaded_at__isnull=True) & Q(created_at__lt=sla_deadline))
+        )
+        .select_related("slot", "trading_day", "payment")
+        .order_by("created_at")
+    )
+
+    notes = list(
+        Order.objects.filter(status__in=OCCUPYING_STATUSES)
+        .exclude(note__isnull=True).exclude(note="")
+        .select_related("slot", "trading_day")
+        .order_by("-created_at")[:30]
+    )
+
+    recent_assisted = list(
+        Order.objects.filter(source__in=ASSISTED_SOURCES)
+        .select_related("slot", "trading_day", "created_by_user")
+        .order_by("-created_at")[:_RECENT_ASSISTED_LIMIT]
+    )
+
+    recently_expired = list(
+        Order.objects.filter(
+            status=OrderStatus.PAYMENT_EXPIRED, updated_at__gte=now - _RECENTLY_EXPIRED_WINDOW,
+        )
+        .select_related("slot", "trading_day")
+        .order_by("-updated_at")
+    )
+
+    all_groups = (cash_orders, hold_lapsed, sla_breached, notes, recent_assisted, recently_expired)
+    trading_day_ids = {o.trading_day_id for group in all_groups for o in group}
+    slots_by_day: dict[int, list[Slot]] = {}
+    if trading_day_ids:
+        for s in Slot.objects.filter(
+            trading_day_id__in=trading_day_ids, is_closed=False,
+        ).order_by("start_at"):
+            slots_by_day.setdefault(s.trading_day_id, []).append(s)
+
+    return render(request, "staff/inbox.html", {
+        "cash_orders": cash_orders,
+        "hold_lapsed": hold_lapsed,
+        "sla_breached": sla_breached,
+        "notes": notes,
+        "recent_assisted": recent_assisted,
+        "recently_expired": recently_expired,
+        "slots_by_day": slots_by_day,
+        "now_label": now.strftime("%H:%M"),
+        "support_whatsapp_e164": settings.support_whatsapp_e164,
+    })

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Assisted order entry — spec §12.9, M9. Same field validation and the
+same §8.3 transaction (`core.capacity.reserve()`) as web checkout — see
+`staff/views.py::assisted_order_new`'s own docstring. No client-side
+cart: every active dish for the chosen day gets its own quantity/option
+row, parsed server-side from raw POST keys.
+{% endcomment %}
+
+{% block title %}New assisted order — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ao-wrap { max-width: 900px; margin: 0 auto; padding: 0 32px 60px; }
+  .ao-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .ao-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .ao-dateline-row a { color: var(--color-accent-700); }
+  .ao-dateline-row .push { margin-left: auto; display: flex; gap: 16px; }
+  .ao-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .ao-account-bar a { color: var(--color-accent-700); }
+  .ao-account-bar form { margin: 0; display: inline; }
+  .ao-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+  .ao-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 40px 0 14px; }
+  .ao-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
+  .ao-field label { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .ao-field-wide { grid-column: 1 / -1; }
+  .ao-radio-row { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+  .ao-radio-row label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: normal; }
+
+  .ao-table-wrap { overflow-x: auto; margin-top: 8px; }
+  .ao-table { width: 100%; }
+  .ao-table td.num { font-variant-numeric: tabular-nums; }
+  .ao-table input.qty { width: 60px; }
+  .ao-table .ao-options { font-size: 12.5px; color: var(--color-neutral-700); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .ao-table .ao-options label { display: inline-flex; align-items: center; gap: 4px; }
+  .ao-table tr.is-sold-out { opacity: 0.5; }
+
+  .ao-errors { border: 1px solid #b3261e; padding: 14px 18px; margin-top: 24px; }
+  .ao-errors p { color: #b3261e; font-size: 13.5px; margin: 4px 0; }
+  .ao-cutoff-note { font-size: 12.5px; color: var(--color-accent-2-700); margin-top: 8px; }
+  .ao-save { margin-top: 32px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ao-wrap">
+  <div class="ao-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    <a href="{% url 'manage:inbox' %}">Inbox</a>
+    <a href="{% url 'manage:calendar' %}">Calendar</a>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="ao-dateline-thick"></div>
+  <div class="ao-dateline-row">
+    <span>New assisted order</span>
+    <span>{{ date_label }}</span>
+    <span class="push">
+      <a href="?date={{ prev_date }}">&larr; Prev day</a>
+      <a href="?date={{ next_date }}">Next day &rarr;</a>
+    </span>
+  </div>
+
+  {% if errors %}
+  <div class="ao-errors">
+    {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="date" value="{{ date|date:'Y-m-d' }}">
+    <input type="hidden" name="action" value="place_order">
+
+    <h3 class="ao-section-title">Customer</h3>
+    <div class="ao-fields">
+      <div class="ao-field">
+        <label for="ao-customer-name">Full name</label>
+        <input class="input" type="text" id="ao-customer-name" name="customer_name" value="{{ form_values.customer_name }}" required>
+      </div>
+      <div class="ao-field">
+        <label for="ao-customer-mobile">Mobile number</label>
+        <input class="input" type="tel" id="ao-customer-mobile" name="customer_mobile" value="{{ form_values.customer_mobile }}" required>
+      </div>
+      <div class="ao-field">
+        <label>Order source</label>
+        <div class="ao-radio-row">
+          {% for value, label in sources %}
+          <label><input type="radio" name="source" value="{{ value }}" {% if form_values.source == value %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="ao-field ao-field-wide">
+        <label for="ao-note">Order note (optional)</label>
+        <input class="input" type="text" id="ao-note" name="note" maxlength="200" value="{{ form_values.note }}">
+      </div>
+    </div>
+
+    <h3 class="ao-section-title">Collection</h3>
+    <div class="ao-fields">
+      <div class="ao-field">
+        <label for="ao-slot">Slot</label>
+        <select class="input" id="ao-slot" name="slot_id" required>
+          <option value="">&mdash; choose a slot &mdash;</option>
+          {% for row in slot_rows %}
+          <option value="{{ row.slot.pk }}" {% if row.full %}disabled{% endif %}>
+            {{ row.slot.start_at|time:"H:i" }}&ndash;{{ row.slot.end_at|time:"H:i" }}
+            ({{ row.occupying }}/{{ row.slot.capacity }}{% if row.full %} &mdash; full{% endif %})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if is_today %}
+      <div class="ao-field">
+        <label for="ao-after-cutoff-reason">After-cut-off reason</label>
+        <input class="input" type="text" id="ao-after-cutoff-reason" name="after_cutoff_reason" value="{{ form_values.after_cutoff_reason }}"
+               placeholder="{% if assisted_after_cutoff_enabled %}required for a same-day assisted order{% else %}after-cut-off assisted orders are disabled in Settings{% endif %}">
+        {% if not assisted_after_cutoff_enabled %}
+        <p class="ao-cutoff-note">Assisted-after-cutoff is disabled in Settings — a same-day order will be refused until it's turned on.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <h3 class="ao-section-title">Payment</h3>
+    <div class="ao-fields">
+      <div class="ao-field">
+        <label>Method</label>
+        <div class="ao-radio-row">
+          <label><input type="radio" name="payment_method" value="eft" {% if form_values.payment_method == "eft" or not form_values.payment_method %}checked{% endif %}> EFT</label>
+          {% if cash_enabled %}
+          <label><input type="radio" name="payment_method" value="cash" {% if form_values.payment_method == "cash" %}checked{% endif %}> Cash</label>
+          {% endif %}
+        </div>
+      </div>
+      <div class="ao-field">
+        <label>EFT status</label>
+        <div class="ao-radio-row">
+          <label><input type="radio" name="eft_mode" value="hold" checked> Awaiting EFT (default)</label>
+          <label><input type="radio" name="eft_mode" value="payment_review"> Customer says paid</label>
+          <label><input type="radio" name="eft_mode" value="confirmed_prep"> Staff saw the funds</label>
+        </div>
+      </div>
+      <div class="ao-field ao-field-wide">
+        <label for="ao-eft-confirm-reason">Reason (required for "Staff saw the funds" — D-18)</label>
+        <input class="input" type="text" id="ao-eft-confirm-reason" name="eft_confirm_reason">
+      </div>
+    </div>
+
+    <h3 class="ao-section-title">Dishes</h3>
+    <div class="ao-table-wrap">
+      <table class="table ao-table">
+        <thead><tr><th>Dish</th><th>Price</th><th>Qty</th></tr></thead>
+        <tbody>
+          {% for dish in menu_dishes %}
+          <tr class="{% if dish.sold_out %}is-sold-out{% endif %}">
+            <td>
+              {{ dish.name }}
+              {% if dish.sold_out %}<span> &mdash; sold out today</span>{% endif %}
+              {% if dish.options %}
+              <div class="ao-options">
+                {% for option in dish.options %}
+                {% if option.required %}
+                  {% for value in option.values %}
+                  <label><input type="radio" name="opt_{{ dish.id }}_{{ option.id }}" value="{{ value.id }}" {% if not value.is_available %}disabled{% endif %}> {{ option.name }}: {{ value.name }}{% if value.price_delta_cents %} ({{ value.price_delta_cents|cents }}){% endif %}</label>
+                  {% endfor %}
+                {% else %}
+                  {% for value in option.values %}
+                  <label><input type="checkbox" name="opt_{{ dish.id }}_{{ option.id }}_{{ value.id }}" {% if not value.is_available %}disabled{% endif %}> {{ option.name }}: {{ value.name }}{% if value.price_delta_cents %} ({{ value.price_delta_cents|cents }}){% endif %}</label>
+                  {% endfor %}
+                {% endif %}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </td>
+            <td class="num">{{ dish.price_cents|cents }}</td>
+            <td><input class="input qty" type="number" min="0" max="20" name="qty_{{ dish.id }}" value="" {% if dish.sold_out %}disabled{% endif %}></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <button type="submit" class="btn btn-primary ao-save">Create order</button>
+  </form>
+</div>
+{% endblock %}

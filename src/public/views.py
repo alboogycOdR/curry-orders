@@ -32,14 +32,17 @@ build will do:
 from __future__ import annotations
 
 import datetime as dt
+import json
 
+from django.contrib import messages
 from django.http import Http404, HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
+from core import lookup as lookup_service
 from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
-from core.models import Order, OrderStatus, PaymentMethod, Settings, TradingDay
+from core.models import DishOptionValue, Order, OrderStatus, PaymentMethod, Settings, TradingDay
 from core.tz import coerce_time, now_sast, orderable_dates
 
 # §9.1's own note under the customer-copy table: "Collection address and
@@ -330,6 +333,133 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
         "proof_already_uploaded": (
             bool(order.payment.proof_uploaded_at) if show_eft_panel else False
         ),
+        # §11.11: "Order these again" only on a collected order's page.
+        "can_reorder": order.status == OrderStatus.COLLECTED,
+    })
+
+
+# ---------------------------------------------------------------- lookup (§11.10)
+
+
+_LOOKUP_GENERIC_ERROR = (
+    "We couldn't find a matching order. Check your order number and mobile number."
+)
+
+
+def lookup(request: HttpRequest) -> HttpResponse:
+    """§11.10: order number (`CT-…`, case-insensitive) + mobile (any
+    accepted format, matched on the last 9 digits of the stored E.164
+    number). Throttled 10/hour/IP and 10/hour/order number
+    (`core.lookup`, reusing M7's `throttle_events` table); every failure
+    — throttled, no such order, wrong mobile — renders the exact same
+    generic message, so this page can never be used to enumerate real
+    order numbers or confirm a guessed mobile number against one.
+    """
+    error = None
+    order_number_input = ""
+    if request.method == "POST":
+        order_number_input = str(request.POST.get("order_number", ""))
+        mobile_input = str(request.POST.get("mobile", ""))
+        ip = request.META.get("REMOTE_ADDR") or "unknown"
+
+        try:
+            lookup_service.check_lookup_throttle(ip, order_number_input)
+        except lookup_service.LookupError:
+            error = _LOOKUP_GENERIC_ERROR
+        else:
+            order = lookup_service.find_order(order_number_input, mobile_input)
+            lookup_service.record_lookup_attempt(ip, order_number_input)
+            if order is None:
+                error = _LOOKUP_GENERIC_ERROR
+            else:
+                response = redirect("public:order_status", public_token=order.public_token)
+                # §11.10: "set a 24h httpOnly cookie scoped to that token".
+                response.set_cookie(
+                    f"order_auth_{order.public_token}",
+                    "1",
+                    max_age=24 * 60 * 60,
+                    httponly=True,
+                    samesite="Lax",
+                    secure=request.is_secure(),
+                )
+                return response
+
+    return render(request, "public/lookup.html", {
+        "error": error,
+        "order_number": order_number_input,
+    })
+
+
+# ---------------------------------------------------------------- reorder (§11.11)
+
+
+def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
+    """§11.11: on a `collected` order's page, "Order these again" seeds a
+    fresh cart from the same lines, at *current* prices — never the
+    original order's snapshot — dropping any line whose dish has since
+    been archived or deactivated (listed in a notice on this page).
+    Option selections are best-effort re-matched by (option name, value
+    name) against the dish's *current* options; a selection that no
+    longer has a live match is simply dropped from that line rather than
+    blocking the whole line — the customer can re-pick it on `/order/`.
+    The new cart is seeded into the shared client-side cart
+    (`static/js/cart.js`) exactly like `dish.js` does; date/slot/payment
+    are then chosen afresh on `/order/` → `/checkout/`, same as any
+    other cart.
+    """
+    order = Order.objects.filter(public_token=public_token).prefetch_related(
+        "lines__dish__options__values",
+    ).first()
+    if order is None:
+        raise Http404("No such order.")
+    if order.status != OrderStatus.COLLECTED:
+        messages.error(request, "Only a collected order can be reordered.")
+        return redirect("public:order_status", public_token=public_token)
+
+    kept: dict[str, dict[str, object]] = {}
+    dropped: list[str] = []
+    for line in order.lines.all():
+        dish = line.dish
+        if dish is None or dish.archived_at is not None or not dish.is_active_on_menu:
+            dropped.append(line.dish_name_snapshot)
+            continue
+
+        matched_values = []
+        for selection in line.options_snapshot:
+            match = DishOptionValue.objects.filter(
+                option__dish=dish,
+                option__name=selection.get("option"),
+                name=selection.get("value"),
+                is_available=True,
+            ).first()
+            if match is not None:
+                matched_values.append(match)
+
+        option_ids = sorted({v.pk for v in matched_values})
+        composite_id = (
+            f"{dish.pk}:{','.join(str(i) for i in option_ids)}" if option_ids else str(dish.pk)
+        )
+        unit_price_cents = dish.price_cents + sum(v.price_delta_cents for v in matched_values)
+        name_suffix = (
+            " (" + ", ".join(v.name for v in matched_values) + ")" if matched_values else ""
+        )
+
+        entry = kept.setdefault(composite_id, {
+            "name": dish.name + name_suffix, "price": unit_price_cents, "qty": 0,
+        })
+        entry["qty"] = int(entry["qty"]) + line.quantity
+
+    if not kept:
+        messages.error(request, "None of this order's dishes are still available to reorder.")
+        return redirect("public:order_status", public_token=public_token)
+
+    return render(request, "public/reorder.html", {
+        "order": order,
+        "dropped": dropped,
+        # `</script>`-safe: a dish name is manager-entered, not
+        # untrusted, but there's no reason to trust it not to contain
+        # that literal substring either.
+        "cart_json": json.dumps(kept).replace("</", "<\\/"),
     })
 
 

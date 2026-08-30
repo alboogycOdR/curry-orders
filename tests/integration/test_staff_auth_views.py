@@ -64,11 +64,11 @@ class TestLogin:
         resp = _post_login(client)
         assert b"locked" in resp.content
 
-    def test_correct_password_logs_in_and_redirects_to_kitchen_by_default(self, client) -> None:
+    def test_correct_password_logs_in_and_redirects_to_inbox_by_default(self, client) -> None:
         _make_user()
         resp = _post_login(client)
         assert resp.status_code == 302
-        assert resp.url == reverse("manage:kitchen")
+        assert resp.url == reverse("manage:inbox")
 
     def test_next_param_is_honoured(self, client) -> None:
         _make_user()
@@ -85,7 +85,7 @@ class TestLogin:
             reverse("manage:login"),
             {"email": "owner@example.test", "password": PASSWORD, "next": "https://evil.example/"},
         )
-        assert resp.url == reverse("manage:kitchen")
+        assert resp.url == reverse("manage:inbox")
 
     def test_must_change_password_redirects_there_instead_of_next(self, client) -> None:
         _make_user(must_change_password=True)

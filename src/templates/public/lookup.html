@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% comment %}
+Order lookup — spec §11.10. Order number + mobile, throttled
+(`core.lookup`); every failure renders the exact same generic message
+(no account-enumeration leak) — see `public/views.py::lookup`'s
+docstring.
+{% endcomment %}
+
+{% block title %}Find your order — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  .lk-wrap { max-width: 480px; margin: 0 auto; padding: 48px 32px 80px; }
+  .lk-heading { font-family: var(--font-heading); font-size: clamp(26px, 4vw, 36px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
+  .lk-intro { font-size: 15px; color: var(--color-neutral-700); margin: 0 0 30px; }
+  .lk-field { margin-bottom: 18px; }
+  .lk-label { display: block; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .lk-error { font-size: 14px; color: #b3261e; margin: 0 0 20px; }
+  .lk-links { margin-top: 26px; font-size: 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lk-wrap">
+  <h1 class="lk-heading">Find your order</h1>
+  <p class="lk-intro">Enter your order number and the mobile number you ordered with.</p>
+
+  {% if error %}<p class="lk-error">{{ error }}</p>{% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="lk-field">
+      <label class="lk-label" for="lk-order-number">Order number</label>
+      <input class="input" type="text" id="lk-order-number" name="order_number" placeholder="CT-260901-0001" value="{{ order_number }}" required>
+    </div>
+    <div class="lk-field">
+      <label class="lk-label" for="lk-mobile">Mobile number</label>
+      <input class="input" type="tel" id="lk-mobile" name="mobile" placeholder="082 123 4567" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Find my order</button>
+  </form>
+
+  <p class="lk-links"><a href="{% url 'public:help' %}">Need help?</a></p>
+</div>
+{% endblock %}

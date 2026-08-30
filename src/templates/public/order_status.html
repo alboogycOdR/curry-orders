@@ -58,6 +58,12 @@ yet — a `payment_review` order here just says "we're checking it".
   .os-total-value { margin-left: auto; font-family: var(--font-heading); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
   .os-actions { margin-top: 40px; }
+  .os-messages { list-style: none; margin: 24px 0 0; padding: 0; }
+  .os-messages li {
+    background: var(--color-accent-100, #fde8e6); color: var(--color-accent-800, #7a1f16);
+    border-radius: var(--radius-md); padding: var(--space-3, 12px); font-size: 14px;
+    margin-bottom: var(--space-2, 8px);
+  }
 </style>
 {% endblock %}
 
@@ -68,6 +74,12 @@ yet — a `payment_review` order here just says "we're checking it".
   <span class="os-eyebrow">Order status</span>
   <h1 class="os-heading">{{ order.order_number }}</h1>
   <p class="os-status" id="os-status-copy">{{ status_copy }}</p>
+
+  {% if messages %}
+  <ul class="os-messages">
+    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% endif %}
 
   <div class="os-figures">
     <div>
@@ -151,6 +163,9 @@ yet — a `payment_review` order here just says "we're checking it".
   {% endif %}
 
   <div class="os-actions">
+    {% if can_reorder %}
+    <a href="{% url 'public:reorder' public_token=order.public_token %}" class="btn btn-primary">Order these again</a>
+    {% endif %}
     <a href="{% url 'public:order' %}" class="btn btn-secondary">Start another order</a>
   </div>
 </div>

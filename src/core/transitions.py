@@ -110,6 +110,7 @@ class AmendLine:
 # *is* every status that isn't `payment_expired`/`cancelled`/`collected`).
 _LEGAL_FROM: dict[str, frozenset[str]] = {
     "verify_eft": frozenset({OrderStatus.PAYMENT_REVIEW, OrderStatus.AWAITING_EFT}),
+    "mark_payment_review": frozenset({OrderStatus.AWAITING_EFT}),
     "reject_eft": frozenset({OrderStatus.PAYMENT_REVIEW}),
     "extend_hold": frozenset({OrderStatus.AWAITING_EFT, OrderStatus.PAYMENT_REVIEW}),
     "expire_hold_now": frozenset({OrderStatus.AWAITING_EFT}),
@@ -174,6 +175,24 @@ def _do_verify_eft(
     if reason:
         event_payload["reason"] = reason
     return event_payload
+
+
+def _do_mark_payment_review(
+    order: Order, actor: Actor, reason: str | None, now: dt.datetime, payload: dict[str, object],
+) -> dict[str, object]:
+    """§12.9's assisted-order "customer says they have paid" branch — no
+    proof required (staff may separately attach one via the normal
+    `core.eft.record_proof_upload` path if they have it). Unlike
+    `proof_uploaded`, this never touches `payments.status`/
+    `proof_uploaded_at` — there's no actual proof media yet, just the
+    order moving into the same review queue a real upload would land it
+    in (`staff/views.py::payments_queue` already shows both
+    `awaiting_eft` and `payment_review`).
+    """
+    _require_staff(actor)
+    order.status = OrderStatus.PAYMENT_REVIEW
+    order.save(update_fields=["status", "updated_at"])
+    return {}
 
 
 def _do_reject_eft(
@@ -620,6 +639,7 @@ _Handler = Callable[[Order, Actor, "str | None", dt.datetime, dict[str, object]]
 
 _HANDLERS: dict[str, _Handler] = {
     "verify_eft": _do_verify_eft,
+    "mark_payment_review": _do_mark_payment_review,
     "reject_eft": _do_reject_eft,
     "extend_hold": _do_extend_hold,
     "expire_hold_now": _do_expire_hold_now,

@@ -46,38 +46,47 @@ without them, but useless to actually run without them.
 
 ## M9 — Assisted create, calendar, lookup, reorder, inbox (§12.6, §12.9, §11.10, §11.11, §12.2)
 
-- [ ] **Assisted order entry** (§12.9, staff, `/manage/orders/new` or
-      similar): same validation and same §8.3 capacity transaction as web
-      checkout; `source` tagged (`phone`/`in_person`/`whatsapp_assisted`).
-      EFT assisted orders can go straight to `payment_review` (customer
-      says paid, proof attached if available) or `confirmed_prep` (staff
-      saw the funds — reason required, counts as `verify_eft` per D-18).
-      Cash assisted follows all cash rules (M7). After cut-off requires
-      `assisted_after_cutoff_enabled` (D-11) + mandatory reason.
-- [ ] **Preorder calendar** (§12.6, `/manage/calendar` or similar):
-      8-day grid (today + 7); per day — open/closed, orders vs cap, cash
-      count vs cap, per-slot heat (occupancy/capacity), dish warnings at
-      ≥80% of `max_units`. Tap-through to `/manage/days/:date` (M8) or a
-      kitchen preview.
-- [ ] **Lookup** (§11.10, public, already has a throttle model from M7's
-      `throttle_events` table — reuse it): order number (`CT-…`,
-      case-insensitive) + mobile (any accepted format, matched on last 9
-      digits of E.164). Match sets a 24h `httpOnly` cookie scoped to that
-      token and redirects to `/orders/:public_token`. Throttle 10/h/IP
-      and 10/h/order number; failures return a generic message (no
-      account-enumeration leak).
-- [ ] **Reorder** (§11.11): on a `collected` order's status page, "Order
-      these again" seeds a fresh cart from the same lines, dropping any
-      dish that's since been archived or deactivated (with a notice
-      listing what was dropped), priced at *current* prices, not the
-      original order's snapshot. Customer picks date/slot/payment fresh.
-- [ ] **Inbox** (§12.2, staff landing page — likely `/manage/` root):
-      sectioned list — Cash requests (M7 already has its own page; inbox
-      surfaces the same accept/reject inline), Hold-lapsed / SLA-breached
-      reviews, Orders with notes, Recent assisted, Recently expired
-      (reinstate if feasible). Row actions: open, assign, contact
-      (`wa.me` link), change slot.
-- [ ] Integration tests: assisted-order capacity parity with web checkout,
+- [x] **Assisted order entry** (§12.9, staff, `/manage/orders/new`):
+      same validation and same §8.3 capacity transaction (`core.capacity
+      .reserve()`) as web checkout; `source` tagged (`phone`/`in_person`/
+      `whatsapp_assisted`). EFT assisted orders can go straight to
+      `payment_review` (customer says paid, no proof required — the new
+      `mark_payment_review` transition) or `confirmed_prep` (staff saw
+      the funds — reason required, `verify_eft` per D-18). Cash assisted
+      lands in `cash_request`, following all cash rules (M7) exactly like
+      a web cash order. After cut-off requires `assisted_after_cutoff_enabled`
+      (D-11) + mandatory reason — enforced by `reserve()` itself, not
+      re-implemented in the view.
+- [x] **Preorder calendar** (§12.6, `/manage/calendar`): 8-day grid
+      (today + 7); per day — open/closed, orders vs cap, cash count vs
+      cap, per-slot heat (occupancy/capacity), dish warnings at ≥80% of
+      `max_units`. Tap-through to `/manage/days/:date` (M8).
+- [x] **Lookup** (§11.10, public, `/lookup/`, `core.lookup` reusing M7's
+      `throttle_events` table): order number (`CT-…`, case-insensitive) +
+      mobile (any accepted format, matched on last 9 digits of E.164).
+      Match sets a 24h `httpOnly` cookie scoped to that token and
+      redirects to `/orders/:public_token`. Throttle 10/h/IP and 10/h/
+      order number; every failure (throttled, no match, wrong mobile)
+      returns the exact same generic message (no account-enumeration
+      leak).
+- [x] **Reorder** (§11.11, `/orders/:token/reorder/`): on a `collected`
+      order's status page, "Order these again" seeds a fresh cart
+      (`static/js/cart.js`) from the same lines, dropping any dish
+      that's since been archived or deactivated (with a notice listing
+      what was dropped), priced at *current* prices, not the original
+      order's snapshot. Customer picks date/slot/payment fresh on
+      `/order/` → `/checkout/`.
+- [x] **Inbox** (§12.2, staff landing page, `/manage/` root — also the
+      post-login default now): sectioned list — Cash requests (same
+      `manage:api_transition` accept/reject M7's own cash queue uses),
+      Hold-lapsed / SLA-breached reviews (one combined section, matching
+      §12.2's own line), Orders with notes, Recent assisted, Recently
+      expired (with a working Reinstate action). Row actions: open (the
+      order's own public status page — no dedicated staff order-detail
+      screen exists yet), assign (`manage:api_assign_order`, a plain
+      toggle), contact (`wa.me` link), change slot (existing
+      `change_slot` transition via a per-row slot picker).
+- [x] Integration tests: assisted-order capacity parity with web checkout,
       after-cutoff gating + reason requirement, lookup throttle + cookie,
       reorder with an archived-dish drop notice, inbox section grouping
 

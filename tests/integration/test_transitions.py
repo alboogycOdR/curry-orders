@@ -125,6 +125,58 @@ class TestVerifyEft:
         assert exc_info.value.code == "illegal_transition"
 
 
+class TestMarkPaymentReview:
+    """§12.9's "customer says they have paid" assisted-order branch —
+    `mark_payment_review`, no proof/reason required (unlike
+    `verify_eft` from `awaiting_eft`)."""
+
+    def test_moves_awaiting_eft_to_payment_review_with_no_proof(
+        self, eft_order, staff_user,
+    ) -> None:
+        order = apply(
+            eft_order, "mark_payment_review", _staff(staff_user),
+            OrderStatus.AWAITING_EFT, now=NOW,
+        )
+        assert order.status == OrderStatus.PAYMENT_REVIEW
+        assert order.payment.status == PaymentStatus.PENDING  # no real proof media
+        assert order.payment.proof_uploaded_at is None
+
+    def test_illegal_from_payment_review(self, eft_order, staff_user) -> None:
+        apply(
+            eft_order, "mark_payment_review", _staff(staff_user),
+            OrderStatus.AWAITING_EFT, now=NOW,
+        )
+        eft_order.refresh_from_db()
+        with pytest.raises(TransitionError) as exc_info:
+            apply(
+                eft_order, "mark_payment_review", _staff(staff_user),
+                OrderStatus.PAYMENT_REVIEW, now=NOW,
+            )
+        assert exc_info.value.code == "illegal_transition"
+
+    def test_requires_a_staff_actor(self, eft_order) -> None:
+        with pytest.raises(TransitionError) as exc_info:
+            apply(
+                eft_order, "mark_payment_review", SYSTEM_ACTOR,
+                OrderStatus.AWAITING_EFT, now=NOW,
+            )
+        assert exc_info.value.code == "validation_error"
+
+    def test_can_still_be_verified_afterwards_without_a_reason(
+        self, eft_order, staff_user,
+    ) -> None:
+        # Once it's payment_review, verify_eft's own reason requirement
+        # only bites from awaiting_eft — same as a real proof upload.
+        order = apply(
+            eft_order, "mark_payment_review", _staff(staff_user),
+            OrderStatus.AWAITING_EFT, now=NOW,
+        )
+        order = apply(
+            order, "verify_eft", _staff(staff_user), OrderStatus.PAYMENT_REVIEW, now=NOW,
+        )
+        assert order.status == OrderStatus.CONFIRMED_PREP
+
+
 class TestStaleState:
     def test_wrong_expected_status_is_stale_state_not_illegal_transition(
         self, eft_order, staff_user,

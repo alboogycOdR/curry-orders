@@ -95,6 +95,31 @@ def transition(request: HttpRequest, order_id: int) -> JsonResponse:
 @staff_login_required
 @require_POST
 @csrf_protect
+def assign_order(request: HttpRequest, order_id: int) -> JsonResponse:
+    """§12.2's "assign" row action — a plain toggle, not a full
+    `core.transitions` action (assignment isn't a state-machine
+    transition per §9.1, just `orders.assigned_user`): posting again
+    while already assigned to yourself un-assigns it, so the same
+    inbox-row button works both ways without a second endpoint.
+    """
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None:
+        return _error_response("not_found", "No such order.")
+
+    if order.assigned_user_id == request.staff_user.pk:
+        order.assigned_user = None
+    else:
+        order.assigned_user = request.staff_user
+    order.save(update_fields=["assigned_user"])
+    return JsonResponse({
+        "assigned_user_id": order.assigned_user_id,
+        "assigned_user_name": order.assigned_user.name if order.assigned_user else None,
+    })
+
+
+@staff_login_required
+@require_POST
+@csrf_protect
 def lock_prep_list(request: HttpRequest, date: str) -> JsonResponse:
     """§12.4's "Lock prep list" — freezes `trading_day.kitchen_locked_at`
     so the kitchen board can flag anything verified/accepted afterwards

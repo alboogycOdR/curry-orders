@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Inbox — spec §12.2, the staff landing page (M9). Sections in order:
+Cash requests (accept/reject inline, same manage:api_transition M7's
+own cash queue uses), Hold-lapsed / SLA-breached reviews, Orders with
+notes, Recent assisted, Recently expired (reinstate). Row actions:
+open, assign, contact (wa.me), change slot — see
+`static/js/inbox.js`/`staff/views.py::inbox`.
+{% endcomment %}
+
+{% block title %}Inbox — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ib-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px 60px; }
+  .ib-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .ib-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .ib-dateline-row .push { margin-left: auto; }
+  .ib-account-bar {
+    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
+    font-size: 13px; color: var(--color-neutral-700);
+  }
+  .ib-account-bar a { color: var(--color-accent-700); }
+  .ib-account-bar form { margin: 0; }
+  .ib-account-bar button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--color-accent-700); font: inherit; text-decoration: underline;
+  }
+  .ib-section { margin-top: 40px; }
+  .ib-section-title { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-text); padding-bottom: 8px; }
+  .ib-count { color: var(--color-neutral-600); font-variant-numeric: tabular-nums; }
+  .ib-table-wrap { overflow-x: auto; margin-top: 14px; }
+  .ib-table { width: 100%; }
+  .ib-table td.ref a { color: var(--color-accent-700); }
+  .ib-wa { font-size: 12px; color: var(--color-accent-700); }
+  .ib-note { font-size: 12px; color: var(--color-neutral-600); }
+  .ib-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .ib-actions button {
+    font-family: var(--font-body); font-size: 12px; padding: 5px 9px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+  }
+  .ib-actions select { font-family: var(--font-body); font-size: 12px; padding: 4px; }
+  .ib-actions button:hover { background: var(--color-text); color: var(--color-bg); }
+  .ib-empty { font-size: 14.5px; color: var(--color-neutral-600); margin: 16px 0; }
+  .ib-row-error { font-size: 12px; color: #b3261e; margin-top: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ib-wrap" id="ib-root">
+  {% csrf_token %}
+  <div class="ib-account-bar">
+    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
+    <a href="{% url 'manage:assisted_order_new' %}">New assisted order</a>
+    <a href="{% url 'manage:calendar' %}">Calendar</a>
+    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
+    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
+  </div>
+  <div class="ib-dateline-thick"></div>
+  <div class="ib-dateline-row">
+    <span>Inbox</span>
+    <span class="push">{{ now_label }} SAST</span>
+  </div>
+
+  {% include "staff/_inbox_section.html" with title="Cash requests" orders=cash_orders show_cash_actions=True empty_text="No cash requests waiting." %}
+  {% include "staff/_inbox_section.html" with title="Hold lapsed / SLA breached" orders=hold_lapsed|add:sla_breached empty_text="Nothing waiting past its hold or review window." %}
+  {% include "staff/_inbox_section.html" with title="Orders with notes" orders=notes empty_text="No open orders carry a customer note." %}
+  {% include "staff/_inbox_section.html" with title="Recent assisted" orders=recent_assisted empty_text="No assisted orders yet." %}
+  {% include "staff/_inbox_section.html" with title="Recently expired" orders=recently_expired show_reinstate=True empty_text="Nothing expired in the last 48 hours." %}
+</div>
+
+<script src="{% static 'js/inbox.js' %}" defer></script>
+{% endblock %}

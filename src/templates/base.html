@@ -122,6 +122,8 @@ public:checkout, manage:kitchen), so the nav links below are real
     <a href="{% url 'public:home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Front page</a>
     <a href="{% url 'public:order' %}" {% if request.resolver_match.url_name == 'order' %}aria-current="page"{% endif %}>Order</a>
     <a href="{% url 'public:checkout' %}" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>Checkout</a>
+    <a href="{% url 'manage:inbox' %}" {% if request.resolver_match.url_name == 'inbox' %}aria-current="page"{% endif %}>Inbox</a>
+    <a href="{% url 'manage:calendar' %}" {% if request.resolver_match.url_name == 'calendar' %}aria-current="page"{% endif %}>Calendar</a>
     <a href="{% url 'manage:kitchen' %}" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
     <a href="{% url 'manage:collection' %}" {% if request.resolver_match.url_name == 'collection' %}aria-current="page"{% endif %}>Collection</a>
     <a href="{% url 'manage:payments' %}" {% if request.resolver_match.url_name == 'payments' %}aria-current="page"{% endif %}>Payments</a>
@@ -141,6 +143,7 @@ staff-board links; policy links belong somewhere a customer will look,
 not buried in that list.
 {% endcomment %}
 <footer class="site-footer">
+  <a href="{% url 'public:lookup' %}">Find my order</a>
   <a href="{% url 'public:help' %}">Help</a>
   <a href="{% url 'public:policies' %}">Policies</a>
 </footer>
