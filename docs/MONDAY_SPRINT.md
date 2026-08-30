@@ -135,10 +135,34 @@ already typed.
   `aria-label`; consider whether they need a visible text label too once
   real usage data exists — the review's suggestion, worth revisiting
   with Phase 4's funnel data rather than guessing now.
+- **Homepage hero: get the message + primary CTA above the fold on
+  mobile.** Raised separately by the owner's web-designer contact
+  ("heading is hard to read and very text-heavy... make the primary
+  action and primary message visible without scrolling — think of it as
+  an ad"). Checked against the actual template before adding this:
+  above "Today's picks" the hero currently stacks a dateline strip, the
+  large CMYK-effect headline (`clamp(52px, 11.2vw, 158px)`, 56px margin
+  below it), an eyebrow, a second headline, a lead paragraph, the CTA
+  row, *then* a three-stat row — six-plus text elements before the
+  picks section, and on a real phone (sticky header + that much
+  vertical stacking) it's plausible "View the menu" sits below the
+  fold before any scrolling. That part of the feedback holds up.
+  The CMYK-layered headline itself is a deliberate signature brand
+  device (documented throughout the codebase as the intentional
+  "distinctive, not a restaurant chain" choice, `print-plates.js`/
+  `home.html`'s own comments) — trading legibility for style is an
+  inherent property of that effect, not an oversight, so "hard to
+  read" is a real but expected trade-off, not a bug. **Tighten the
+  hero to lead with message + one clear CTA visible without scrolling
+  on a real phone viewport; keep the CMYK headline as a brand asset but
+  shrink its footprint or trim what sits above it — get the owner's
+  sign-off on the specific treatment before implementing, this is a
+  brand call, not a pure UX fix.**
 
 **Test at**: 320px, 375px, 768px widths. **Definition of done**: no
 forced backtracking to change something routine (time, quantity) mid-
-checkout.
+checkout; homepage message + primary CTA visible without scrolling at
+375px.
 
 ---
 
