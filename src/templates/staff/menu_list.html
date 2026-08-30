@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% comment %}
+Menu editor dish list — spec §12.7, milestone 8 remainder. All dishes,
+including archived ones (D-25: soft delete only), sorted the same way
+the public menu is (category, sort_order, name). Manager+ access (both
+staff roles qualify — nothing above manager exists per §4).
+{% endcomment %}
+
+{% block title %}Menu editor — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .menu-wrap { max-width: 1000px; margin: 0 auto; padding: 40px 32px 80px; }
+  .menu-wrap h1 { font-size: 28px; margin-bottom: var(--space-2); }
+  .menu-top-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-4); }
+  .menu-messages { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+  .menu-messages li {
+    background: var(--color-accent-100); color: var(--color-accent-800);
+    border-radius: var(--radius-md); padding: var(--space-3); font-size: 14px;
+    margin-bottom: var(--space-2);
+  }
+  .menu-table { width: 100%; }
+  .menu-table td, .menu-table th { padding: 8px 10px; }
+  .menu-table tr.archived { opacity: 0.55; }
+  .menu-table .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .menu-badge {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 2px 7px; border-radius: 3px; border: 1px solid var(--color-neutral-700);
+  }
+  .menu-badge.warn { border-color: var(--color-accent-2-700); color: var(--color-accent-2-700); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="menu-wrap">
+  <div class="menu-top-bar">
+    <h1>Menu editor</h1>
+    <a class="btn btn-primary" href="{% url 'manage:dish_create' %}">+ New dish</a>
+  </div>
+
+  {% if messages %}
+  <ul class="menu-messages">
+    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  <table class="table menu-table">
+    <thead>
+      <tr>
+        <th>Category</th><th>Sort</th><th>Name</th><th class="num">Price</th>
+        <th>Active</th><th>Status</th><th>Occupying orders</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="{% if row.dish.archived_at %}archived{% endif %}">
+        <td>{{ row.dish.category|default:"—" }}</td>
+        <td class="num">{{ row.dish.sort_order }}</td>
+        <td><a href="{% url 'manage:dish_edit' row.dish.pk %}">{{ row.dish.name }}</a></td>
+        <td class="num">R{{ row.price_rand }}</td>
+        <td>{% if row.dish.is_active_on_menu %}Yes{% else %}No{% endif %}</td>
+        <td>
+          {% if row.dish.archived_at %}
+            <span class="menu-badge warn">Archived</span>
+          {% else %}
+            <span class="menu-badge">Live</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ row.occupying_orders }}</td>
+        <td><a href="{% url 'manage:dish_edit' row.dish.pk %}">Edit</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8">No dishes yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

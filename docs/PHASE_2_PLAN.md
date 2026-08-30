@@ -17,26 +17,26 @@ Daily controls (toggle a dish off *today*, sell out, close a slot) shipped
 in Phase 1. This is the other half: actually managing the monthly
 catalogue that daily controls reads from.
 
-- [ ] Dish list view (staff, manager+): all dishes including archived,
+- [x] Dish list view (staff, manager+): all dishes including archived,
       sort order, active flag, category
-- [ ] Create/edit dish: name, slug (**set once**, immutable after), price,
+- [x] Create/edit dish: name, slug (**set once**, immutable after), price,
       portion label, short/long description, spice default, allergen
       text, dietary tags, category, sort order, `allow_notes`
-- [ ] Image upload (dish photo) — reuse the MinIO/proof-upload plumbing
+- [x] Image upload (dish photo) — reuse the MinIO/proof-upload plumbing
       from M4 (`core.storage`), validated the same way (magic bytes, size
       cap)
-- [ ] Dish options & option values: CRUD, price delta per value,
+- [x] Dish options & option values: CRUD, price delta per value,
       `is_available` per value, required/optional per option group
-- [ ] Archive (soft delete) — not hard delete per D-25; archiving a dish
+- [x] Archive (soft delete) — not hard delete per D-25; archiving a dish
       with occupying orders is allowed (order snapshots persist), editor
       **warns with the affected-order count** before confirming, same
       confirm-gate pattern as M8's slot/day closing
-- [ ] Price changes never touch existing orders — verify via a test that
+- [x] Price changes never touch existing orders — verify via a test that
       changing `price_cents` after checkout leaves `order_lines`
       snapshots untouched
-- [ ] Integration tests: CRUD, slug immutability, archive-with-orders
+- [x] Integration tests: CRUD, slug immutability, archive-with-orders
       warning + confirm gate, price-change isolation, image upload
-      validation
+      validation (20 tests, `tests/integration/test_menu_editor.py`)
 
 **Owner-input dependency:** the real dish list, prices, and photos
 (`docs/GO_LIVE_PREP_SHEET.md` item 1) — this milestone is buildable

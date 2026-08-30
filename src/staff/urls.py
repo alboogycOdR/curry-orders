@@ -18,6 +18,12 @@ urlpatterns = [
     # base.html's static {% url %} nav link can name "today".
     path("days/", views.daily_controls_today, name="daily_controls_today"),
     path("days/<str:date>/", views.daily_controls, name="daily_controls"),
+    # §12.7 menu editor (M8 remainder).
+    path("menu/", views.menu_list, name="menu_list"),
+    path("menu/new/", views.dish_create, name="dish_create"),
+    path("menu/<int:dish_id>/", views.dish_edit, name="dish_edit"),
+    path("menu/<int:dish_id>/archive/", views.dish_archive, name="dish_archive"),
+    path("menu/<int:dish_id>/unarchive/", views.dish_unarchive, name="dish_unarchive"),
     # §17.3's staff API contract — no trailing slash, same convention
     # public/urls.py's api_checkout uses (POST-only, so APPEND_SLASH's
     # GET/HEAD-only redirect would just 404 a slashed-vs-not mismatch).

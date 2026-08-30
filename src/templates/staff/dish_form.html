@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% comment %}
+Dish create/edit — spec §12.7. Slug is set once: the create form shows
+it, the edit form doesn't (dropped from `DishForm` entirely when
+`editing=True` — see `staff/forms.py`). Options/values are managed
+inline via small POST-only sub-forms (add/delete/toggle), the same raw
+per-row pattern `daily_controls.html` uses, since there's a variable
+number of them. Archive uses the same confirm-gate UX as
+`daily_controls`' slot/day close: a plain click when there's nothing
+occupying the dish, a typed/ticked confirmation once there is.
+{% endcomment %}
+
+{% block title %}{% if editing %}Edit {{ dish.name }}{% else %}New dish{% endif %} — Brandon's Kitchen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .df-wrap { max-width: 820px; margin: 0 auto; padding: 40px 32px 100px; }
+  .df-wrap h1 { font-size: 26px; margin-bottom: var(--space-2); }
+  .df-back { font-size: 13px; }
+  .df-messages { list-style: none; margin: var(--space-4) 0; padding: 0; }
+  .df-messages li {
+    background: var(--color-accent-100); color: var(--color-accent-800);
+    border-radius: var(--radius-md); padding: var(--space-3); font-size: 14px;
+    margin-bottom: var(--space-2);
+  }
+  .df-field { margin-bottom: var(--space-4); }
+  .df-field label { display: block; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .df-field .errorlist { list-style: none; margin: 6px 0 0; padding: 0; color: var(--color-accent-2-700); font-size: 13px; }
+  .df-field.checkbox-field { display: flex; align-items: center; gap: 10px; }
+  .df-field.checkbox-field label { margin-bottom: 0; text-transform: none; letter-spacing: normal; font-size: 14px; }
+  .df-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 44px 0 16px; }
+  .df-slug-note { font-size: 12.5px; color: var(--color-neutral-600); }
+  .df-image-current { max-width: 220px; display: block; margin-bottom: 10px; }
+  .df-options-table, .df-values-table { width: 100%; margin-bottom: 12px; }
+  .df-inline-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 10px 0 24px; }
+  .df-inline-form .field { display: flex; flex-direction: column; gap: 4px; }
+  .df-inline-form label { font-size: 11.5px; text-transform: uppercase; color: var(--color-neutral-700); }
+  .df-archive-box { border: 1px solid var(--color-accent-2-700); padding: 18px; margin-top: 40px; }
+  .df-archive-box h3 { font-family: var(--font-heading); font-size: 16px; margin: 0 0 10px; }
+  .df-archive-confirm { margin-top: 10px; display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .df-save { margin-top: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="df-wrap">
+  <p class="df-back"><a href="{% url 'manage:menu_list' %}">&larr; Back to menu editor</a></p>
+  <h1>{% if editing %}{{ dish.name }}{% else %}New dish{% endif %}</h1>
+
+  {% if messages %}
+  <ul class="df-messages">
+    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if editing and archived %}
+  <p class="df-slug-note">This dish is archived. It no longer appears on the public menu.
+    <form method="post" action="{% url 'manage:dish_unarchive' dish.pk %}" style="display:inline">
+      {% csrf_token %}<button type="submit" class="btn">Unarchive</button>
+    </form>
+  </p>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if editing %}<p class="df-slug-note">Slug: <strong>{{ dish.slug }}</strong> — set once, cannot be changed.</p>{% endif %}
+    {% for field in form %}
+      <div class="df-field {% if field.field.widget.input_type == 'checkbox' %}checkbox-field{% endif %}">
+        {{ field }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.name == "slug" %}<p class="df-slug-note">Cannot be changed after this dish is created.</p>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary df-save">{% if editing %}Save dish{% else %}Create dish{% endif %}</button>
+  </form>
+
+  {% if editing %}
+  <h3 class="df-section-title">Image</h3>
+  {% if dish.image_media %}
+    <p class="df-slug-note">Current image key: {{ dish.image_media.storage_key }}</p>
+  {% else %}
+    <p class="df-slug-note">No image uploaded yet.</p>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload_image">
+    <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+    <button type="submit" class="btn">Upload image</button>
+  </form>
+
+  <h3 class="df-section-title">Options &amp; values</h3>
+  {% for option in options %}
+    <div style="margin-bottom: 22px;">
+      <strong>{{ option.name }}</strong>
+      ({% if option.required %}required{% else %}optional{% endif %}, sort {{ option.sort_order }})
+      <form method="post" style="display:inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_option">
+        <input type="hidden" name="option_id" value="{{ option.pk }}">
+        <button type="submit" class="btn">Delete option</button>
+      </form>
+      <table class="table df-values-table">
+        <thead><tr><th>Value</th><th>Price delta</th><th>Sort</th><th>Available</th><th></th></tr></thead>
+        <tbody>
+          {% for value in option.values.all %}
+          <tr>
+            <td>{{ value.name }}</td>
+            <td>{{ value.price_delta_cents }}c</td>
+            <td>{{ value.sort_order }}</td>
+            <td>
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_value_available">
+                <input type="hidden" name="value_id" value="{{ value.pk }}">
+                <button type="submit" class="btn">{% if value.is_available %}Yes — mark unavailable{% else %}No — mark available{% endif %}</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_value">
+                <input type="hidden" name="value_id" value="{{ value.pk }}">
+                <button type="submit" class="btn">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <form method="post" class="df-inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_value">
+        <input type="hidden" name="option_id" value="{{ option.pk }}">
+        <div class="field"><label>Name</label><input class="input" type="text" name="name" maxlength="40" required></div>
+        <div class="field"><label>Price delta (cents)</label><input class="input" type="number" name="price_delta_cents" value="0"></div>
+        <div class="field"><label>Sort</label><input class="input" type="number" name="sort_order" value="0"></div>
+        <button type="submit" class="btn">Add value</button>
+      </form>
+    </div>
+  {% empty %}
+    <p class="df-slug-note">No options yet.</p>
+  {% endfor %}
+
+  <form method="post" class="df-inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_option">
+    <div class="field"><label>Option name</label><input class="input" type="text" name="name" maxlength="40" required></div>
+    <div class="field"><label>Required</label><input type="checkbox" name="required" checked></div>
+    <div class="field"><label>Sort</label><input class="input" type="number" name="sort_order" value="0"></div>
+    <button type="submit" class="btn">Add option</button>
+  </form>
+
+  {% if not archived %}
+  <div class="df-archive-box">
+    <h3>Archive this dish</h3>
+    {% if occupying_orders %}
+      <p>{{ occupying_orders }} occupying order(s) reference this dish. Their order lines keep their own name/price snapshot regardless — archiving is safe, but confirm you understand this dish will disappear from the live menu.</p>
+      <form method="post" action="{% url 'manage:dish_archive' dish.pk %}">
+        {% csrf_token %}
+        <label class="df-archive-confirm">
+          <input type="checkbox" name="confirm_archive" value="1" required>
+          I understand {{ occupying_orders }} order(s) reference this dish and want to archive it anyway.
+        </label>
+        <button type="submit" class="btn" style="margin-top:10px;">Archive dish</button>
+      </form>
+    {% else %}
+      <p>No occupying orders reference this dish.</p>
+      <form method="post" action="{% url 'manage:dish_archive' dish.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn">Archive dish</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

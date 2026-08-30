@@ -32,6 +32,13 @@ from django.conf import settings
 # application/pdf, max 8 MB, validated by magic bytes not extension."
 _MAX_PROOF_BYTES = 8 * 1024 * 1024
 
+# Dish images (§7.3/§12.7, milestone 8): same magic-byte sniffing, but
+# image-only (matches `Media`'s own `media_dish_image_mime_type` check
+# constraint — no PDF) and a smaller cap, since these are served publicly
+# and long-cached (§16 "Images" row), not staff-only proof attachments.
+_MAX_DISH_IMAGE_BYTES = 5 * 1024 * 1024
+_DISH_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
 
 def _is_jpeg(data: bytes) -> bool:
     return data[:3] == b"\xff\xd8\xff"
@@ -89,6 +96,39 @@ def validate_proof(data: bytes) -> str:
             "Only JPEG, PNG, WebP images or a PDF are accepted.", reason="type",
         )
     return mime_type
+
+
+def validate_dish_image(data: bytes) -> str:
+    """Raises `InvalidUpload` or returns the sniffed mime type. Same
+    magic-byte discipline as `validate_proof` (§7.13's requirement isn't
+    proof-specific — a dish photo shouldn't trust a client-supplied
+    Content-Type either), restricted to the three image types
+    `Media.media_dish_image_mime_type` allows.
+    """
+    if not data:
+        raise InvalidUpload("The uploaded file is empty.", reason="size")
+    if len(data) > _MAX_DISH_IMAGE_BYTES:
+        raise InvalidUpload("Images must be 5 MB or smaller.", reason="size")
+    mime_type = sniff_mime_type(data)
+    if mime_type is None or mime_type not in _DISH_IMAGE_MIME_TYPES:
+        raise InvalidUpload("Only JPEG, PNG or WebP images are accepted.", reason="type")
+    return mime_type
+
+
+def store_dish_image_bytes(data: bytes, mime_type: str) -> str:
+    """Same storage backend selection as `store_proof_bytes`, under a
+    separate `dish-images/` key prefix and the public media bucket
+    (§17: `curry-media`) rather than the private proofs bucket."""
+    storage_key = f"dish-images/{uuid.uuid4().hex}{_extension_for(mime_type)}"
+    if settings.S3_ENDPOINT:  # pragma: no cover - no MinIO in dev/test
+        _s3_client().put_object(
+            Bucket=settings.S3_BUCKET_PUBLIC, Key=storage_key, Body=data, ContentType=mime_type,
+        )
+    else:
+        path = settings.MEDIA_ROOT / storage_key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    return storage_key
 
 
 def _extension_for(mime_type: str) -> str:

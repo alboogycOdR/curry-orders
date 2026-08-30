@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from django import forms
 
-from core.models import Settings, TradingDay
+from core.models import Dish, DishOption, DishOptionValue, Settings, TradingDay
 
 # Not a spec-mandated policy (D-12 doesn't state a minimum) — a plain
 # sanity floor so "Place the order" — sorry, "Change password" — can't be
@@ -123,5 +123,69 @@ class TradingDayForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             if isinstance(field.widget, (forms.CheckboxInput, forms.Textarea)):
+                continue
+            field.widget.attrs.setdefault("class", "input")
+
+
+class DishForm(forms.ModelForm):
+    """§12.7's menu editor create/edit form. `slug` is set once (§7.3:
+    "slug is immutable/permalink-stable") — editable on create, but the
+    field is dropped from an *edit* form entirely (`__init__` below)
+    rather than merely disabled, so a crafted POST that adds the field
+    back can't slip a new slug past `is_valid()`; `staff/views.py`'s
+    view never copies `slug` out of the form data on an edit either,
+    belt-and-braces against the same thing.
+    """
+
+    class Meta:
+        model = Dish
+        fields = [
+            "slug", "name", "price_cents", "portion_label",
+            "short_description", "long_description", "spice_default",
+            "allergen_text", "dietary_tags", "category", "sort_order",
+            "is_active_on_menu", "allow_notes",
+        ]
+        widgets = {
+            "short_description": forms.Textarea(attrs={"rows": 2}),
+            "long_description": forms.Textarea(attrs={"rows": 4}),
+            "allergen_text": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, editing: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if editing:
+            # Slug is immutable after the first save — remove it from the
+            # form entirely rather than just disabling the widget.
+            del self.fields["slug"]
+        for name, field in self.fields.items():
+            if isinstance(field.widget, forms.CheckboxInput):
+                continue
+            if isinstance(field.widget, forms.Textarea) and name not in self.Meta.widgets:
+                field.widget = forms.TextInput()
+            field.widget.attrs.setdefault("class", "input")
+
+
+class DishOptionForm(forms.ModelForm):
+    class Meta:
+        model = DishOption
+        fields = ["name", "required", "sort_order"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                continue
+            field.widget.attrs.setdefault("class", "input")
+
+
+class DishOptionValueForm(forms.ModelForm):
+    class Meta:
+        model = DishOptionValue
+        fields = ["name", "price_delta_cents", "sort_order", "is_available"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
                 continue
             field.widget.attrs.setdefault("class", "input")

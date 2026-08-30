@@ -45,6 +45,11 @@ from core.materialise import materialise_day
 from core.menu import active_dishes
 from core.models import (
     DayDishAvailability,
+    Dish,
+    DishOption,
+    DishOptionValue,
+    Media,
+    MediaKind,
     Order,
     OrderStatus,
     PaymentMethod,
@@ -55,10 +60,24 @@ from core.models import (
     User,
 )
 from core.tz import SAST, coerce_time, now_sast
+from storage.service import (
+    InvalidUpload,
+    sha256_digest,
+    store_dish_image_bytes,
+    validate_dish_image,
+)
 
 from . import sessions
 from .decorators import owner_required, staff_login_required
-from .forms import ChangePasswordForm, LoginForm, SettingsForm, TradingDayForm
+from .forms import (
+    ChangePasswordForm,
+    DishForm,
+    DishOptionForm,
+    DishOptionValueForm,
+    LoginForm,
+    SettingsForm,
+    TradingDayForm,
+)
 
 _DAY_NAMES_FULL = [
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
@@ -618,3 +637,243 @@ def daily_controls(request: HttpRequest, date: str) -> HttpResponse:
         "prev_date": (target_date - dt.timedelta(days=1)).isoformat(),
         "next_date": (target_date + dt.timedelta(days=1)).isoformat(),
     })
+
+
+# ---------------------------------------------------------------- menu editor (§12.7, M8 remainder)
+
+
+def _dishes_with_occupying_orders(dish_ids: list[int]) -> dict[int, int]:
+    """`{dish_id: count of occupying orders referencing it}` — an
+    "occupying" order is one of `OCCUPYING_STATUSES` (not yet expired/
+    cancelled/collected). Archiving is allowed regardless (D-25: order
+    lines snapshot their own name/price independently of `Dish`), but the
+    editor must show this count before the confirm gate lets it through.
+    """
+    if not dish_ids:
+        return {}
+    # distinct order count per dish, not line count — a dish can appear on
+    # the same order twice (two option combinations).
+    counts: dict[int, int] = {}
+    for dish_id in dish_ids:
+        counts[dish_id] = (
+            Order.objects.filter(status__in=OCCUPYING_STATUSES, lines__dish_id=dish_id)
+            .distinct()
+            .count()
+        )
+    return counts
+
+
+@staff_login_required
+def menu_list(request: HttpRequest) -> HttpResponse:
+    """§12.7's dish list: every dish including archived ones, in the
+    same category/sort_order/name ordering the public menu uses (plus
+    archived ones trailing after, grouped by category) — manager+ access
+    (both roles the site has are manager+; nothing above manager exists
+    per §4's role table), same as daily controls.
+    """
+    dishes = list(Dish.objects.all().order_by("category", "sort_order", "name"))
+    dish_ids = [d.pk for d in dishes]
+    occupying = _dishes_with_occupying_orders(dish_ids)
+    rows = [
+        {
+            "dish": d,
+            "occupying_orders": occupying.get(d.pk, 0),
+            "price_rand": f"{d.price_cents / 100:.2f}",
+        }
+        for d in dishes
+    ]
+    return render(request, "staff/menu_list.html", {"rows": rows})
+
+
+@staff_login_required
+def dish_create(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        form = DishForm(request.POST)
+        if form.is_valid():
+            dish = form.save()
+            messages.success(request, f"{dish.name} created.")
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+    else:
+        form = DishForm()
+    return render(request, "staff/dish_form.html", {
+        "form": form, "dish": None, "editing": False,
+    })
+
+
+def _handle_image_upload(request: HttpRequest, dish: Dish) -> None:
+    upload = request.FILES.get("image")
+    if not upload:
+        return
+    data = upload.read()
+    try:
+        mime_type = validate_dish_image(data)
+    except InvalidUpload as exc:
+        messages.error(request, str(exc))
+        return
+    storage_key = store_dish_image_bytes(data, mime_type)
+    media = Media.objects.create(
+        kind=MediaKind.DISH_IMAGE,
+        storage_key=storage_key,
+        mime_type=mime_type,
+        byte_size=len(data),
+        sha256=sha256_digest(data),
+        dish=dish,
+        uploaded_by=request.staff_user,
+    )
+    dish.image_media = media
+    dish.save(update_fields=["image_media"])
+    messages.success(request, "Image uploaded.")
+
+
+@staff_login_required
+def dish_edit(request: HttpRequest, dish_id: int) -> HttpResponse:
+    """Edit an existing dish (slug immutable — `DishForm(editing=True)`
+    drops the field from the form entirely), handle the image upload,
+    and manage this dish's options/values inline via raw POST-key
+    parsing, the same pattern `daily_controls` uses for its per-slot/
+    per-dish rows (no formset — a variable number of options/values).
+    """
+    dish = Dish.objects.filter(pk=dish_id).first()
+    if dish is None:
+        raise Http404("Dish not found.")
+
+    if request.method == "POST":
+        action = request.POST.get("action", "save")
+
+        if action == "upload_image":
+            _handle_image_upload(request, dish)
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        if action == "add_option":
+            option_form = DishOptionForm(request.POST)
+            if option_form.is_valid():
+                option = option_form.save(commit=False)
+                option.dish = dish
+                option.save()
+                messages.success(request, f"Option '{option.name}' added.")
+            else:
+                messages.error(
+                    request,
+                    "; ".join(
+                        f"{f}: {e}" for f, errs in option_form.errors.items() for e in errs
+                    ),
+                )
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        if action == "delete_option":
+            option_id = request.POST.get("option_id")
+            DishOption.objects.filter(pk=option_id, dish=dish).delete()
+            messages.success(request, "Option removed.")
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        if action == "add_value":
+            option = DishOption.objects.filter(
+                pk=request.POST.get("option_id"), dish=dish,
+            ).first()
+            if option is None:
+                raise Http404("Option not found.")
+            value_form = DishOptionValueForm(request.POST)
+            if value_form.is_valid():
+                value = value_form.save(commit=False)
+                value.option = option
+                # The inline "add value" form (dish_form.html) has no
+                # availability checkbox — a plain unchecked BooleanField
+                # would otherwise silently override the model's own
+                # `is_available=True` default with False.
+                if "is_available" not in request.POST:
+                    value.is_available = True
+                value.save()
+                messages.success(request, f"Value '{value.name}' added.")
+            else:
+                messages.error(
+                    request,
+                    "; ".join(
+                        f"{f}: {e}" for f, errs in value_form.errors.items() for e in errs
+                    ),
+                )
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        if action == "delete_value":
+            value_id = request.POST.get("value_id")
+            DishOptionValue.objects.filter(pk=value_id, option__dish=dish).delete()
+            messages.success(request, "Value removed.")
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        if action == "toggle_value_available":
+            value = DishOptionValue.objects.filter(
+                pk=request.POST.get("value_id"), option__dish=dish,
+            ).first()
+            if value is not None:
+                value.is_available = not value.is_available
+                value.save(update_fields=["is_available"])
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+
+        # Plain dish-field save.
+        form = DishForm(request.POST, instance=dish, editing=True)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"{dish.name} saved.")
+            return redirect("manage:dish_edit", dish_id=dish.pk)
+    else:
+        form = DishForm(instance=dish, editing=True)
+
+    options = list(
+        dish.options.order_by("sort_order", "name").prefetch_related("values")
+    )
+    occupying_orders = _dishes_with_occupying_orders([dish.pk]).get(dish.pk, 0)
+
+    return render(request, "staff/dish_form.html", {
+        "form": form,
+        "dish": dish,
+        "editing": True,
+        "options": options,
+        "option_form": DishOptionForm(),
+        "value_form": DishOptionValueForm(),
+        "occupying_orders": occupying_orders,
+        "archived": dish.archived_at is not None,
+    })
+
+
+@staff_login_required
+def dish_archive(request: HttpRequest, dish_id: int) -> HttpResponse:
+    """§12.7/D-25: soft delete only. Archiving a dish that still has
+    occupying orders is allowed (their `order_lines` rows carry their
+    own name/price snapshot, independent of this `Dish` row), but — same
+    confirm-gate UX as `daily_controls` closing a slot/day with
+    occupying orders — the staff member must see the affected-order
+    count and type/tick a confirmation before it goes through.
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    dish = Dish.objects.filter(pk=dish_id).first()
+    if dish is None:
+        raise Http404("Dish not found.")
+
+    occupying_orders = _dishes_with_occupying_orders([dish.pk]).get(dish.pk, 0)
+    confirmed = request.POST.get("confirm_archive") == "1"
+    if occupying_orders and not confirmed:
+        messages.error(
+            request,
+            f"{dish.name} has {occupying_orders} occupying order(s). "
+            "Confirm to archive it anyway — those orders keep their own snapshot.",
+        )
+        return redirect("manage:dish_edit", dish_id=dish.pk)
+
+    dish.archived_at = now_sast()
+    dish.is_active_on_menu = False
+    dish.save(update_fields=["archived_at", "is_active_on_menu"])
+    messages.success(request, f"{dish.name} archived.")
+    return redirect("manage:menu_list")
+
+
+@staff_login_required
+def dish_unarchive(request: HttpRequest, dish_id: int) -> HttpResponse:
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    dish = Dish.objects.filter(pk=dish_id).first()
+    if dish is None:
+        raise Http404("Dish not found.")
+    dish.archived_at = None
+    dish.save(update_fields=["archived_at"])
+    messages.success(request, f"{dish.name} unarchived.")
+    return redirect("manage:dish_edit", dish_id=dish.pk)
