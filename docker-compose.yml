@@ -11,7 +11,12 @@
 services:
   web:
     build: .
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3}
+    # --timeout 60, not gunicorn's 30s default: the first-ever request to
+    # an empty trading calendar lazily materialises 11 days of TradingDay
+    # + Slot rows (core.materialise) -- under concurrent first-touch load
+    # that's slow enough to trip the default and crash-loop the worker.
+    # Cheap insurance now that days are pre-materialised too.
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --timeout 60
     env_file: .env
     ports:
       # WEB_BIND_HOST defaults to loopback-only (host Caddy reverse-proxies
