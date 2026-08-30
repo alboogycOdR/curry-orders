@@ -24,4 +24,13 @@ class StaffSessionMiddleware:
 
     def __call__(self, request):
         request.staff_user = sessions.get_authenticated_staff(request, timezone.now())
-        return self.get_response(request)
+        response = self.get_response(request)
+        if request.path.startswith("/manage/"):
+            # §21 go-live item 7 ("robots.txt and noindex verified with a
+            # crawler check") — everything staff-only, header-level rather
+            # than per-template meta tags, so a new /manage/ page can't
+            # forget it. robots.txt (public/views.py::robots_txt) already
+            # disallows the whole prefix; this is the belt to that braces
+            # for a crawler that ignores robots.txt outright.
+            response.setdefault("X-Robots-Tag", "noindex, nofollow")
+        return response

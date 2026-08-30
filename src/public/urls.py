@@ -34,4 +34,6 @@ urlpatterns = [
     # docs/DECISIONS.md).
     path("help/", views.help_page, name="help"),
     path("policies/", views.policies_page, name="policies"),
+    # §6.1, §21 go-live item 7.
+    path("robots.txt", views.robots_txt, name="robots_txt"),
 ]

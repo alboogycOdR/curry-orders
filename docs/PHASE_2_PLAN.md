@@ -130,11 +130,31 @@ This is the milestone §22 ties directly to go-live readiness.
       staff user, force-expire a hold, what to do if the scheduler
       heartbeat is stale, restart the stack without disturbing Clawsrv's
       other tenants
-- [ ] Security headers: CSP (self + CDN image host), `X-Content-Type-Options`,
+- [x] Security headers: CSP (self + CDN image host), `X-Content-Type-Options`,
       `Referrer-Policy: strict-origin-when-cross-origin`, minimal
-      `Permissions-Policy`
-- [ ] `robots.txt` + `noindex` on every `/orders/:token`, cash-request and
-      EFT page — verified with an actual crawler check (§21 item 7)
+      `Permissions-Policy`. `X-Content-Type-Options`/`Referrer-Policy`
+      already existed (`settings/prod.py`, Django's own SecurityMiddleware);
+      added CSP + Permissions-Policy (`config/security_headers.py`) —
+      `script-src`/`style-src` keep `'unsafe-inline'` deliberately (the
+      Broadsheet templates lean on inline `<style>` throughout and 3
+      templates have inline `<script>`/`onclick`; tightening to
+      nonce/hash-based CSP is a reasonable follow-up, not a blocker: see
+      the module docstring for the actual attack surface this still
+      closes). 7 new tests, `tests/integration/test_security_headers.py`.
+- [x] `robots.txt` + `noindex` on every `/orders/:token`, cash-request and
+      EFT page — verified with an actual crawler check (§21 item 7).
+      `/orders/:token`'s `<meta name="robots">` already existed (M9); added
+      `/robots.txt` (`public/views.py::robots_txt`, disallows
+      `/order/ /checkout/ /orders/ /lookup/ /manage/ /admin/`) and an
+      `X-Robots-Tag: noindex, nofollow` header on every `/manage/` response
+      (`staff/middleware.py`) as defense-in-depth beyond robots.txt/meta
+      tags alone. "Cash-request and EFT page" in this checklist item turn
+      out to be states of the one `/orders/:token` template (confirmed
+      against spec §11.1's "cash-request and EFT pages" line, which is
+      about NOT showing the address on that page, not a separate route) —
+      already covered by its existing noindex meta tag.
+      Real crawler check (§21 item 7 itself) still needs a public deploy
+      to run against — tracked, not done here.
 - [ ] 4GB swap on Clawsrv, `mem_limit`s per service, host Caddy site
       blocks added + reloaded without disturbing `admin.rwc.org.za` or
       any existing tenant (§17.5)

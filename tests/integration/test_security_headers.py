@@ -1,0 +1,87 @@
+"""Integration tests for the M10 "security headers" checklist item
+(spec §16, §20.5, docs/PHASE_2_PLAN.md) — CSP + Permissions-Policy
+(`config/security_headers.py`) and `robots.txt` + `X-Robots-Tag`
+(`public/views.py::robots_txt`, `staff/middleware.py`).
+
+`X-Content-Type-Options` and `Referrer-Policy` are Django's own
+SecurityMiddleware, configured in `settings/prod.py` only (HSTS/SSL
+redirect live there too, and don't make sense under the test settings'
+plain-HTTP client) — not re-tested here.
+"""
+from __future__ import annotations
+
+import pytest
+from django.urls import reverse
+
+from core.auth import hash_password
+from core.models import User, UserRole
+
+pytestmark = pytest.mark.django_db
+
+PASSWORD = "correct horse battery staple"
+
+
+def _make_staff(**overrides) -> User:
+    defaults = dict(
+        email="manager@example.test", name="Manager", role=UserRole.MANAGER,
+        password_hash=hash_password(PASSWORD), must_change_password=False,
+    )
+    defaults.update(overrides)
+    return User.objects.create(**defaults)
+
+
+def _login(client, email: str = "manager@example.test") -> None:
+    resp = client.post(reverse("manage:login"), {"email": email, "password": PASSWORD})
+    assert resp.status_code == 302
+
+
+class TestSecurityHeaders:
+    def test_csp_present_on_a_public_page(self, client) -> None:
+        resp = client.get(reverse("public:home"))
+        csp = resp.headers["Content-Security-Policy"]
+        assert "default-src 'self'" in csp
+        assert "frame-ancestors 'none'" in csp
+        assert "object-src 'none'" in csp
+
+    def test_permissions_policy_present(self, client) -> None:
+        resp = client.get(reverse("public:home"))
+        pp = resp.headers["Permissions-Policy"]
+        assert "camera=()" in pp
+        assert "geolocation=()" in pp
+
+    def test_headers_present_on_a_staff_page_too(self, client) -> None:
+        _make_staff()
+        _login(client)
+        resp = client.get(reverse("manage:inbox"))
+        assert "Content-Security-Policy" in resp.headers
+        assert "Permissions-Policy" in resp.headers
+
+
+class TestRobotsTxt:
+    def test_robots_txt_disallows_transactional_and_staff_paths(self, client) -> None:
+        resp = client.get("/robots.txt")
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "text/plain"
+        body = resp.content.decode()
+        for path in ("/order/", "/checkout/", "/orders/", "/lookup/", "/manage/", "/admin/"):
+            assert f"Disallow: {path}" in body
+
+    def test_public_marketing_pages_are_not_disallowed(self, client) -> None:
+        body = client.get("/robots.txt").content.decode()
+        # Spec §6.1's own sitemap line: /, /menu, /dishes/*, /help,
+        # /policies are meant to stay crawlable — none of their prefixes
+        # should appear on a Disallow line.
+        for path in ("/menu/", "/dishes/", "/help/", "/policies/"):
+            assert f"Disallow: {path}" not in body
+
+
+class TestManageNoindexHeader:
+    def test_manage_pages_carry_x_robots_tag_noindex(self, client) -> None:
+        _make_staff()
+        _login(client)
+        resp = client.get(reverse("manage:inbox"))
+        assert resp["X-Robots-Tag"] == "noindex, nofollow"
+
+    def test_public_pages_do_not_carry_the_manage_header(self, client) -> None:
+        resp = client.get(reverse("public:home"))
+        assert "X-Robots-Tag" not in resp.headers

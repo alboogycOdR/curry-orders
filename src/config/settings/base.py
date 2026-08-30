@@ -87,6 +87,12 @@ MIDDLEWARE = [
     "staff.middleware.StaffSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # CSP + Permissions-Policy (config/security_headers.py) — the two
+    # security headers with no built-in Django setting. Everything else in
+    # spec §20.5's "headers" line (X-Content-Type-Options, Referrer-Policy,
+    # HSTS, X-Frame-Options) is Django's own SecurityMiddleware, configured
+    # in settings/prod.py.
+    "config.security_headers.SecurityHeadersMiddleware",
 ]
 
 # D-12: "Session absolute lifetime 12 hours, sliding idle timeout 2

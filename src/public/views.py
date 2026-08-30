@@ -505,3 +505,30 @@ def policies_page(request: HttpRequest) -> HttpResponse:
         "order_retention_months": settings.order_retention_months,
         "support_whatsapp_e164": settings.support_whatsapp_e164,
     })
+
+
+def robots_txt(request: HttpRequest) -> HttpResponse:
+    """§6.1's `/robots.txt`, §21 go-live item 7 ("robots.txt and noindex
+    verified with a crawler check"). Belt-and-braces alongside the
+    per-page `<meta name="robots">` tags (`/orders/*`, `/lookup/`) and the
+    `X-Robots-Tag` header (`staff/middleware.py`, everything under
+    `/manage/`) — a compliant crawler honours whichever of the three it
+    sees first, and this is the one checked before the crawler has
+    fetched a single page.
+
+    Only the pages spec §6.1's own sitemap line names (`/`, `/menu`,
+    `/dishes/*`, `/help`, `/policies`) are crawlable; everything
+    transactional or staff-only is disallowed explicitly rather than
+    relying on `noindex` alone to keep it out of search results.
+    """
+    lines = [
+        "User-agent: *",
+        "Disallow: /order/",
+        "Disallow: /checkout/",
+        "Disallow: /orders/",
+        "Disallow: /lookup/",
+        "Disallow: /manage/",
+        "Disallow: /admin/",
+        "Disallow: /healthz",
+    ]
+    return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
