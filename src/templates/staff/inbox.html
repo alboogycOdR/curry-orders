@@ -23,16 +23,6 @@ open, assign, contact (wa.me), change slot — see
     border-bottom: 1px solid var(--color-text);
   }
   .ib-dateline-row .push { margin-left: auto; }
-  .ib-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .ib-account-bar a { color: var(--color-accent-700); }
-  .ib-account-bar form { margin: 0; }
-  .ib-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
   .ib-section { margin-top: 40px; }
   .ib-section-title { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-neutral-800); border-bottom: 1px solid var(--color-text); padding-bottom: 8px; }
   .ib-count { color: var(--color-neutral-600); font-variant-numeric: tabular-nums; }
@@ -55,14 +45,6 @@ open, assign, contact (wa.me), change slot — see
 
 {% block content %}
 <div class="ib-wrap" id="ib-root">
-  {% csrf_token %}
-  <div class="ib-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    <a href="{% url 'manage:assisted_order_new' %}">New assisted order</a>
-    <a href="{% url 'manage:calendar' %}">Calendar</a>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="ib-dateline-thick"></div>
   <div class="ib-dateline-row">
     <span>Inbox</span>

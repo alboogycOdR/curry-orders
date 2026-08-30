@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
   <script src="{% static 'js/print-plates.js' %}" defer></script>
   <script src="{% static 'js/cart.js' %}" defer></script>
+  {% if request.staff_user %}
+  <script src="{% static 'js/staff-menu.js' %}" defer></script>
+  {% endif %}
 
   {% comment %}
   Header — Broadsheet's own .nav/.nav-brand classes (styles.css) are
@@ -72,9 +75,79 @@
       color: var(--color-text);
       border-bottom-color: var(--color-accent-2);
     }
-    .site-header .site-nav-staff {
+    .staff-menu {
+      position: relative;
       padding-left: var(--space-4);
       border-left: 1px solid var(--color-divider);
+    }
+    .staff-menu-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font: inherit;
+      font-size: 14.5px;
+      color: var(--color-neutral-600);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .staff-menu-toggle:hover,
+    .staff-menu[data-open="true"] .staff-menu-toggle {
+      color: var(--color-text);
+    }
+    .staff-menu-toggle .caret {
+      font-size: 10px;
+      transition: transform 150ms ease;
+    }
+    .staff-menu[data-open="true"] .staff-menu-toggle .caret {
+      transform: rotate(180deg);
+    }
+    .staff-menu-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      min-width: 220px;
+      background: var(--color-bg);
+      border: 1px solid var(--color-text);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      padding: var(--space-2) 0;
+      z-index: 20;
+    }
+    .staff-menu-panel a,
+    .staff-menu-panel button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      font-size: 14.5px;
+      color: var(--color-text);
+      text-decoration: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 9px var(--space-4);
+    }
+    .staff-menu-panel a:hover,
+    .staff-menu-panel button:hover {
+      background: var(--color-neutral-100, #f2f2f2);
+    }
+    .staff-menu-panel a[aria-current="page"] {
+      color: var(--color-accent-2-700);
+      font-weight: 600;
+    }
+    .staff-menu-panel .staff-menu-account {
+      padding: 6px var(--space-4) 10px;
+      font-size: 12.5px;
+      color: var(--color-neutral-600);
+      border-bottom: 1px solid var(--color-divider);
+      margin-bottom: 6px;
+    }
+    .staff-menu-panel .staff-menu-divider {
+      border: none;
+      border-top: 1px solid var(--color-divider);
+      margin: 6px 0;
     }
     .site-header .cart-summary {
       font-size: 13px;
@@ -114,17 +187,35 @@ empty-cart copy from the README) and then kept live by cart.js reading its
 localStorage cart on every page load — see that file's header for why the
 cart lives there and not in a session yet.
 
-Two separate <nav> blocks, not one: every `manage:*` view is already
-`@staff_login_required`/`@owner_required`-gated (staff/views.py) — an
-anonymous visitor following a staff link just bounces to the login page,
-so this was never an authorization hole. It was still a real problem: the
-public nav unconditionally listed the entire internal admin URL surface
-(Inbox, Calendar, Kitchen desk, Collection, Payments, Cash, Daily
-controls) to every customer, on every page. `request.staff_user` (set by
+Staff links collapse into one "Staff" dropdown, not a flat row: with
+seven boards (soon nine, counting Menu editor and New assisted order)
+a horizontal list either wraps badly or runs off-screen on a phone —
+flagged directly by the user browsing on mobile. Every `manage:*` view
+is already `@staff_login_required`/`@owner_required`-gated
+(staff/views.py) — an anonymous visitor following a staff link just
+bounces to the login page, so listing them was never an authorization
+hole, just noise for a customer and, once there were enough of them,
+a layout problem for staff too. `request.staff_user` (set by
 `staff.middleware.StaffSessionMiddleware` on every request, not just
-`/manage/*` ones — see that module) gates the second nav so a logged-out
-customer sees only the three customer-facing links, while logged-in staff
-keep quick access to both sets from anywhere on the site.
+`/manage/*` ones — see that module) gates the whole dropdown so a
+logged-out customer sees only the three customer-facing links.
+
+This dropdown also absorbs what used to be a hand-rolled ".xx-account-bar"
+div duplicated near-verbatim (markup and CSS both) across all seven
+staff page templates (New assisted order / Calendar / Settings / Log
+out) — one copy here instead of seven, and Menu editor (previously
+reachable only by typing /manage/menu/ directly — no link to it
+anywhere) finally has a real entry point. Each page's own
+`{% templatetag openblock %} csrf_token {% templatetag closeblock %}`
+that lived in that div is gone too; the one inside this dropdown's
+logout form has the same page-wide side effect (Django sets the
+`csrftoken` cookie the moment any `csrf_token` tag renders), which is
+what every board's own JS (inbox.js, kitchen.js, ...) actually reads
+for its fetch() calls — never the hidden input itself.
+
+Plain JS toggle (staff-menu.js), no framework: click the button to
+open, click outside or Escape to close, aria-expanded kept in sync for
+screen readers.
 {% endcomment %}
 <header class="site-header">
   <a href="{% url 'public:home' %}" class="wordmark">Brandon's Kitchen</a>
@@ -136,15 +227,32 @@ keep quick access to both sets from anywhere on the site.
   </nav>
 
   {% if request.staff_user %}
-  <nav class="site-nav site-nav-staff" aria-label="Staff">
-    <a href="{% url 'manage:inbox' %}" {% if request.resolver_match.url_name == 'inbox' %}aria-current="page"{% endif %}>Inbox</a>
-    <a href="{% url 'manage:calendar' %}" {% if request.resolver_match.url_name == 'calendar' %}aria-current="page"{% endif %}>Calendar</a>
-    <a href="{% url 'manage:kitchen' %}" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
-    <a href="{% url 'manage:collection' %}" {% if request.resolver_match.url_name == 'collection' %}aria-current="page"{% endif %}>Collection</a>
-    <a href="{% url 'manage:payments' %}" {% if request.resolver_match.url_name == 'payments' %}aria-current="page"{% endif %}>Payments</a>
-    <a href="{% url 'manage:cash_requests' %}" {% if request.resolver_match.url_name == 'cash_requests' %}aria-current="page"{% endif %}>Cash</a>
-    <a href="{% url 'manage:daily_controls_today' %}" {% if request.resolver_match.url_name == 'daily_controls' %}aria-current="page"{% endif %}>Daily controls</a>
-  </nav>
+  <div class="staff-menu" id="staff-menu">
+    <button type="button" class="staff-menu-toggle" id="staff-menu-toggle"
+            aria-haspopup="true" aria-expanded="false" aria-controls="staff-menu-panel">
+      Staff <span class="caret" aria-hidden="true">&#9662;</span>
+    </button>
+    <div class="staff-menu-panel" id="staff-menu-panel" role="menu" hidden>
+      <div class="staff-menu-account">
+        {{ request.staff_user.name }} &middot; {{ request.staff_user.get_role_display }}
+      </div>
+      <a role="menuitem" href="{% url 'manage:inbox' %}" {% if request.resolver_match.url_name == 'inbox' %}aria-current="page"{% endif %}>Inbox</a>
+      <a role="menuitem" href="{% url 'manage:calendar' %}" {% if request.resolver_match.url_name == 'calendar' %}aria-current="page"{% endif %}>Calendar</a>
+      <a role="menuitem" href="{% url 'manage:kitchen' %}" {% if request.resolver_match.url_name == 'kitchen' %}aria-current="page"{% endif %}>Kitchen desk</a>
+      <a role="menuitem" href="{% url 'manage:collection' %}" {% if request.resolver_match.url_name == 'collection' %}aria-current="page"{% endif %}>Collection</a>
+      <a role="menuitem" href="{% url 'manage:payments' %}" {% if request.resolver_match.url_name == 'payments' %}aria-current="page"{% endif %}>Payments</a>
+      <a role="menuitem" href="{% url 'manage:cash_requests' %}" {% if request.resolver_match.url_name == 'cash_requests' %}aria-current="page"{% endif %}>Cash</a>
+      <a role="menuitem" href="{% url 'manage:daily_controls_today' %}" {% if request.resolver_match.url_name == 'daily_controls' %}aria-current="page"{% endif %}>Daily controls</a>
+      <a role="menuitem" href="{% url 'manage:menu_list' %}" {% if request.resolver_match.url_name == 'menu_list' or request.resolver_match.url_name == 'dish_create' or request.resolver_match.url_name == 'dish_edit' %}aria-current="page"{% endif %}>Menu editor</a>
+      <hr class="staff-menu-divider">
+      <a role="menuitem" href="{% url 'manage:assisted_order_new' %}" {% if request.resolver_match.url_name == 'assisted_order_new' %}aria-current="page"{% endif %}>New assisted order</a>
+      {% if request.staff_user.role == "owner" %}
+      <a role="menuitem" href="{% url 'manage:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+      {% endif %}
+      <hr class="staff-menu-divider">
+      <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit" role="menuitem">Log out</button></form>
+    </div>
+  </div>
   {% endif %}
 
   <span class="cart-summary" id="cart-summary">{{ cart_summary|default:"No order started" }}</span>

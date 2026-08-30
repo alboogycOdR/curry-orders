@@ -26,16 +26,6 @@ exists and is tested.
     border-bottom: 1px solid var(--color-text);
   }
   .pq-dateline-row .push { margin-left: auto; }
-  .pq-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .pq-account-bar a { color: var(--color-accent-700); }
-  .pq-account-bar form { margin: 0; }
-  .pq-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
 
   .pq-table-wrap { overflow-x: auto; margin-top: 28px; }
   .pq-table { width: 100%; }
@@ -59,12 +49,6 @@ exists and is tested.
 
 {% block content %}
 <div class="pq-wrap">
-  {% csrf_token %}
-  <div class="pq-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="pq-dateline-thick"></div>
   <div class="pq-dateline-row">
     <span>EFT payment queue</span>

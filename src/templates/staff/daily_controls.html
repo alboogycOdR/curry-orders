@@ -26,16 +26,6 @@ a "Move all to…" picker per closing slot.
   }
   .dc-dateline-row a { color: var(--color-accent-700); }
   .dc-dateline-row .push { margin-left: auto; display: flex; gap: 16px; align-items: baseline; }
-  .dc-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .dc-account-bar a { color: var(--color-accent-700); }
-  .dc-account-bar form { margin: 0; display: inline; }
-  .dc-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
 
   .dc-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 44px 0 16px; }
   .dc-day-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 20px; }
@@ -67,11 +57,6 @@ a "Move all to…" picker per closing slot.
 
 {% block content %}
 <div class="dc-wrap">
-  <div class="dc-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="dc-dateline-thick"></div>
   <div class="dc-dateline-row">
     <span>Daily controls</span>

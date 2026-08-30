@@ -20,16 +20,6 @@ warnings at >=80% of max_units. Each card taps through to
     text-transform: uppercase; color: var(--color-neutral-700);
     border-bottom: 1px solid var(--color-text);
   }
-  .cal-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .cal-account-bar a { color: var(--color-accent-700); }
-  .cal-account-bar form { margin: 0; display: inline; }
-  .cal-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
   .cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin-top: 28px; }
   .cal-card { display: block; border: 1px solid var(--color-text); padding: 16px; text-decoration: none; color: var(--color-text); }
   .cal-card:hover { background: var(--color-neutral-100); }
@@ -52,13 +42,6 @@ warnings at >=80% of max_units. Each card taps through to
 
 {% block content %}
 <div class="cal-wrap">
-  <div class="cal-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    <a href="{% url 'manage:inbox' %}">Inbox</a>
-    <a href="{% url 'manage:assisted_order_new' %}">New assisted order</a>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="cal-dateline-thick"></div>
   <div class="cal-dateline-row"><span>Preorder calendar</span></div>
 

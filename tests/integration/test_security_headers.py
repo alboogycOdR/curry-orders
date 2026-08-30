@@ -117,6 +117,44 @@ class TestNavAudienceSplit:
         content = client.get(reverse("public:home")).content.decode()
         assert "Staff login" not in content
 
+    def test_staff_dropdown_carries_every_board_including_menu_editor(self, client) -> None:
+        # Menu editor previously had no nav link anywhere -- only reachable
+        # by typing /manage/menu/ directly.
+        _make_staff()
+        _login(client)
+        content = client.get(reverse("manage:inbox")).content.decode()
+        for name in (
+            "manage:inbox", "manage:calendar", "manage:kitchen", "manage:collection",
+            "manage:payments", "manage:cash_requests", "manage:daily_controls_today",
+            "manage:menu_list", "manage:assisted_order_new", "manage:logout",
+        ):
+            assert reverse(name) in content, f"{name} missing from the staff dropdown"
+
+    def test_settings_link_only_shown_to_owners(self, client) -> None:
+        _make_staff(role=UserRole.MANAGER)
+        _login(client)
+        content = client.get(reverse("manage:inbox")).content.decode()
+        assert reverse("manage:settings") not in content
+
+    def test_settings_link_shown_to_owners(self, client) -> None:
+        _make_staff(role=UserRole.OWNER)
+        _login(client)
+        content = client.get(reverse("manage:inbox")).content.decode()
+        assert reverse("manage:settings") in content
+
+    def test_every_staff_board_still_sets_the_csrf_cookie_for_its_own_ajax(
+        self, client,
+    ) -> None:
+        # The old per-page account-bar's own {% csrf_token %} was what
+        # made Django set the csrftoken cookie each board's JS reads for
+        # its fetch() calls (inbox.js, kitchen.js, ...) -- now it's the
+        # header dropdown's logout form doing that job instead. Confirm
+        # the cookie still lands on a page that isn't the inbox itself.
+        _make_staff()
+        _login(client)
+        resp = client.get(reverse("manage:kitchen"))
+        assert "csrftoken" in resp.cookies
+
 
 class TestManageNoindexHeader:
     def test_manage_pages_carry_x_robots_tag_noindex(self, client) -> None:

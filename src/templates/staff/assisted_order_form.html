@@ -23,16 +23,6 @@ row, parsed server-side from raw POST keys.
   }
   .ao-dateline-row a { color: var(--color-accent-700); }
   .ao-dateline-row .push { margin-left: auto; display: flex; gap: 16px; }
-  .ao-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .ao-account-bar a { color: var(--color-accent-700); }
-  .ao-account-bar form { margin: 0; display: inline; }
-  .ao-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
   .ao-section-title { font-family: var(--font-heading); font-size: 15px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 40px 0 14px; }
   .ao-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
   .ao-field label { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
@@ -57,13 +47,6 @@ row, parsed server-side from raw POST keys.
 
 {% block content %}
 <div class="ao-wrap">
-  <div class="ao-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    <a href="{% url 'manage:inbox' %}">Inbox</a>
-    <a href="{% url 'manage:calendar' %}">Calendar</a>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="ao-dateline-thick"></div>
   <div class="ao-dateline-row">
     <span>New assisted order</span>

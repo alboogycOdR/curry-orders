@@ -22,16 +22,6 @@ Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
     border-bottom: 1px solid var(--color-text);
   }
   .cr-dateline-row .push { margin-left: auto; }
-  .cr-account-bar {
-    display: flex; align-items: center; gap: var(--space-3); margin-top: 20px;
-    font-size: 13px; color: var(--color-neutral-700);
-  }
-  .cr-account-bar a { color: var(--color-accent-700); }
-  .cr-account-bar form { margin: 0; }
-  .cr-account-bar button {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--color-accent-700); font: inherit; text-decoration: underline;
-  }
 
   .cr-table-wrap { overflow-x: auto; margin-top: 28px; }
   .cr-table { width: 100%; }
@@ -51,12 +41,6 @@ Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
 
 {% block content %}
 <div class="cr-wrap">
-  {% csrf_token %}
-  <div class="cr-account-bar">
-    <span>Logged in as {{ request.staff_user.name }} ({{ request.staff_user.get_role_display }})</span>
-    {% if request.staff_user.role == "owner" %}<a href="{% url 'manage:settings' %}">Settings</a>{% endif %}
-    <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit">Log out</button></form>
-  </div>
   <div class="cr-dateline-thick"></div>
   <div class="cr-dateline-row">
     <span>Cash requests</span>
