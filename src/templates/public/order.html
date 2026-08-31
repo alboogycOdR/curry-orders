@@ -99,7 +99,11 @@ Any basket lines unavailable on the new day are removed with a notice.
     width: 72px; height: 72px; object-fit: cover;
     border-radius: 12px; background: var(--color-surface);
   }
-  .op-dish-row.is-placeholder .op-dish-photo { background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); }
+  .op-dish-row.is-placeholder .op-dish-photo {
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface))
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%23c8a0b0' stroke-width='2.5'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Cpath d='M23 29 Q32 22 41 29' fill='none' stroke='%23c8a0b0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+      center / 36px no-repeat;
+  }
   .op-dish-row.is-sold-out .op-dish-photo { opacity: 0.4; }
   .op-context { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 0; }
   .op-total-row.is-empty { display: none; }

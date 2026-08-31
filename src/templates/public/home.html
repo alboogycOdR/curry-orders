@@ -57,11 +57,15 @@ Collection chip never includes a street address (D-23).
     display: block;
     width: 100%;
     aspect-ratio: 4 / 3;
-    object-fit: cover;
-    background: var(--color-surface);
+    object-fit: contain;
+    object-position: center;
+    background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
   }
   .rc-hero.is-placeholder .rc-hero-photo {
-    background: var(--color-surface);
+    /* no real photo — show a subtle plate icon via inline SVG */
+    background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface))
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23c8a0b0' stroke-width='1.5'/%3E%3Cpath d='M22 28 Q32 20 42 28' fill='none' stroke='%23c8a0b0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+      center / 64px no-repeat;
     min-height: 180px;
   }
   .rc-hero-body { padding: 16px; }
@@ -136,7 +140,9 @@ Collection chip never includes a street address (D-23).
   }
   .rc-tile.is-placeholder .rc-tile-photo {
     min-height: 88px;
-    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23c8a0b0' stroke-width='1.5'/%3E%3Cpath d='M22 28 Q32 20 42 28' fill='none' stroke='%23c8a0b0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+      center / 40px no-repeat;
   }
   .rc-tile-body { padding: 10px 12px 14px; }
   .rc-tile-name { font-weight: 700; font-size: 16px; }
@@ -172,9 +178,9 @@ Collection chip never includes a street address (D-23).
       margin-top: 6px;
       margin-bottom: 8px;
     }
-    /* Hero photo — shorten from 4:3 so body/CTA come into view sooner */
+    /* Hero photo — keep 4:3; contain already shows the full dish without cropping */
     .rc-hero-photo {
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 4 / 3;
     }
     /* Hero body — tighten internal padding */
     .rc-hero-body {
