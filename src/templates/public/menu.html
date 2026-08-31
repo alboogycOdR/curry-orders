@@ -36,7 +36,7 @@ handoff's interactive screen, once the customer is ready to build a cart.
   .mn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-top: 22px; }
   .mn-card { display: block; text-decoration: none; color: inherit; padding: 18px 0; border-top: 1px solid var(--color-divider); }
   .mn-card.is-sold-out { opacity: 0.55; }
-  .mn-card-name { font-family: var(--font-heading); font-size: 18px; font-weight: 600; }
+  .mn-card-name { font-family: var(--font-heading); font-size: 18px; font-weight: 600; margin: 0; }
   .mn-card.is-sold-out .mn-card-name { text-decoration: line-through; }
   .mn-card-desc { font-size: 14.5px; color: var(--color-neutral-700); margin-top: 6px; max-width: 40ch; }
   .mn-card-foot { display: flex; align-items: baseline; gap: 10px; margin-top: 12px; }
@@ -70,7 +70,7 @@ handoff's interactive screen, once the customer is ready to build a cart.
       <div class="mn-cards">
         {% for dish in dishes %}
         <a class="mn-card {% if dish.sold_out %}is-sold-out{% endif %}" href="{% url 'public:dish_detail' dish.slug %}?date={{ selected_iso }}">
-          <div class="mn-card-name">{{ dish.name }}</div>
+          <h4 class="mn-card-name">{{ dish.name }}</h4>
           {% if dish.short_description %}<div class="mn-card-desc">{{ dish.short_description }}</div>{% endif %}
           <div class="mn-card-foot">
             <span class="mn-card-price">{{ dish.price_cents|cents }}</span>

@@ -294,7 +294,9 @@
           state.dayIso = storedIso;
           dayBarEl.querySelectorAll(".op-day-chip").forEach(function (btn) {
             var idx = parseInt(btn.getAttribute("data-day-index"), 10);
-            btn.classList.toggle("is-selected", idx === state.dayIndex);
+            var selected = idx === state.dayIndex;
+            btn.classList.toggle("is-selected", selected);
+            btn.setAttribute("aria-pressed", selected ? "true" : "false");
           });
           // Load the stored day's dishes (the page rendered day 0's menu)
           loadDay(state.dayIndex);
@@ -310,7 +312,9 @@
         state.dayIso = days[newIndex] ? days[newIndex].iso : null;
         dayBarEl.querySelectorAll(".op-day-chip").forEach(function (chip) {
           var idx = parseInt(chip.getAttribute("data-day-index"), 10);
-          chip.classList.toggle("is-selected", idx === state.dayIndex);
+          var selected = idx === state.dayIndex;
+          chip.classList.toggle("is-selected", selected);
+          chip.setAttribute("aria-pressed", selected ? "true" : "false");
         });
         loadDay(state.dayIndex);
       });

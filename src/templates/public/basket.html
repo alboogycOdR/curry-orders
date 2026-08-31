@@ -110,7 +110,7 @@ brief message and a "Browse the menu" link; no Total R0.00, no Place order.
   <div class="bk-grid" id="bk-content">
     <div>
       <div class="bk-lines-head">Order sheet</div>
-      <p class="bk-date-notice" id="bk-date-notice" hidden></p>
+      <p class="bk-date-notice" id="bk-date-notice" hidden role="status" aria-live="polite"></p>
       <div id="bk-lines"></div>
       <div class="bk-total-row" id="bk-total-row">
         <span class="bk-total-label">Total</span>
@@ -126,7 +126,7 @@ brief message and a "Browse the menu" link; no Total R0.00, no Place order.
         <div class="bk-section-label">Day</div>
         <div class="bk-day-chips" id="bk-day-chips">
           {% for d in days %}
-          <button type="button" class="bk-chip"
+          <button type="button" class="bk-chip" aria-pressed="false"
                   data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}">
             <span class="bk-chip-top">{{ d.dow }}</span>
             <span class="bk-chip-bottom">{{ d.dom }}</span>
@@ -145,6 +145,7 @@ brief message and a "Browse the menu" link; no Total R0.00, no Place order.
           <button type="button"
                   class="bk-chip bk-slot-chip {% if s.full %}is-full{% endif %}"
                   data-slot-id="{{ s.id }}" data-slot="{{ s.label }}"
+                  aria-pressed="false"
                   {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
           {% endfor %}
         </div>
