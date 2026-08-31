@@ -56,6 +56,9 @@ real `core.Order` — see that file's own header comment.
   .ck-capacity-recovery button { font-family: var(--font-body); font-size: 13px; padding: 7px 12px; border: 1px solid var(--color-text); background: none; cursor: pointer; }
   .ck-capacity-recovery button:hover { background: var(--color-text); color: var(--color-bg); }
 
+  {% comment %} Phase 1b: error highlight on the specific sheet line identified by line_index. {% endcomment %}
+  .ck-sheet-line--error { outline: 2px solid var(--color-error, #b3261e); outline-offset: 2px; border-radius: 2px; }
+
   #ck-confirmed-state { margin-top: 56px; animation: ckRiseIn 520ms ease-out both; }
   .ck-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); }
   #ck-confirm-heading { font-size: clamp(32px, 4.6vw, 60px); font-weight: 600; line-height: 1.02; margin: 16px 0 0; letter-spacing: -0.015em; }
