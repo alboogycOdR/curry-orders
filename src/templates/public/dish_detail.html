@@ -23,8 +23,8 @@ key, not just the dish id.
   .dd-desc { font-size: 16px; color: var(--color-neutral-800); margin-top: 18px; max-width: 56ch; }
   .dd-sold-out { margin-top: 18px; }
 
-  .dd-section { margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--color-divider); }
-  .dd-section-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+  .dd-section { margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--color-divider); border-left: none; border-right: none; border-bottom: none; padding-left: 0; padding-right: 0; margin-left: 0; margin-right: 0; min-width: 0; }
+  .dd-section-label { font-family: var(--font-heading); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; padding: 0; float: none; }
   .dd-option-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 15px; }
   .dd-option-row .delta { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--color-neutral-700); font-size: 14px; }
 
@@ -51,8 +51,8 @@ key, not just the dish id.
   {% else %}
     <div id="dd-form" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-base-price="{{ dish.price_cents }}">
       {% for option in options %}
-      <div class="dd-section">
-        <div class="dd-section-label">{{ option.name }}{% if not option.required %} (optional){% endif %}</div>
+      <fieldset class="dd-section">
+        <legend class="dd-section-label">{{ option.name }}{% if not option.required %} (optional){% endif %}</legend>
         {% for value in option.values %}
         <label class="dd-option-row">
           {% if option.required %}
@@ -64,7 +64,7 @@ key, not just the dish id.
           {% if value.price_delta_cents %}<span class="delta">+{{ value.price_delta_cents|cents }}</span>{% endif %}
         </label>
         {% endfor %}
-      </div>
+      </fieldset>
       {% endfor %}
 
       <div class="dd-qty-row">
