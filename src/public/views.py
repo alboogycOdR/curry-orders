@@ -36,8 +36,9 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password, make_password
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_GET
 
 from core import lookup as lookup_service
 from core import menu as menu_queries
@@ -423,6 +424,90 @@ def _menu_catalog_payload(dishes: list) -> list[dict]:
     return result
 
 
+@require_GET
+def api_day_availability(request: HttpRequest, date_str: str) -> JsonResponse:
+    """GET /api/order/day/<date_str>/ — returns dishes + slots for a given date.
+
+    Monday-sprint Phase 1a: order.js uses this to refresh the dish list and
+    clear slot state when the customer switches collection days on the order
+    screen. Returns a flat `dishes` list (with all fields needed to re-render
+    dish cards client-side) plus `slots` and server-precomputed `sections`
+    (the same chip-section groupings `order()` renders server-side, so JS
+    can rebuild the full chip-section DOM without reimplementing the category
+    logic).
+
+    Date clamping mirrors `dish_detail()`: an arbitrary date must never be
+    able to force `materialise_days` to insert TradingDay rows without bound.
+    """
+    try:
+        selected_date = dt.date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({"error": "invalid date"}, status=400)
+
+    settings = Settings.current()
+    today = now_sast().date()
+    if not (today <= selected_date <= today + dt.timedelta(days=settings.preorder_days)):
+        return JsonResponse({"error": "invalid date"}, status=400)
+
+    trading_day = materialise_days(selected_date, settings, count=1)[0]
+    dishes = menu_queries.dishes_for_date(trading_day, with_options=True)
+
+    # Flat dish list — all fields needed for client-side card rendering.
+    dishes_payload = []
+    for d in dishes:
+        options = []
+        for opt in (d.options or []):
+            options.append({
+                "id": opt.id,
+                "name": opt.name,
+                "required": opt.required,
+                "values": [
+                    {"id": v.id, "name": v.name, "price_delta_cents": v.price_delta_cents}
+                    for v in (opt.values or [])
+                    if v.is_available
+                ],
+            })
+        dishes_payload.append({
+            "id": d.id,
+            "slug": d.slug,
+            "name": d.name,
+            "short_description": d.short_description,
+            "price_cents": d.price_cents,
+            "portion_label": d.portion_label,
+            "photo_url": d.photo_url,
+            "category": d.category or "",
+            "sold_out": d.sold_out,
+            "available": not d.sold_out,
+            "options": options,
+        })
+
+    # Slot list — `available` mirrors basket.js's `!s.full` convention.
+    slots_payload = []
+    for s in _slot_list_for_day(trading_day):
+        slots_payload.append({
+            "id": s["id"],
+            "label": s["label"],
+            "available": not s["full"],
+        })
+
+    # Precomputed chip sections — mirrors Python's `_menu_chip_sections()` so
+    # order.js can rebuild the full section DOM without reimplementing the
+    # category/slug-grouping logic in JS.
+    sections_payload = []
+    for section in _menu_chip_sections(dishes):
+        sections_payload.append({
+            "id": section["id"],
+            "label": section["label"],
+            "dish_ids": [d.id for d in section["dishes"]],
+        })
+
+    return JsonResponse({
+        "dishes": dishes_payload,
+        "slots": slots_payload,
+        "sections": sections_payload,
+    })
+
+
 def order(request: HttpRequest) -> HttpResponse:
     """PR 5: menu-only screen — day/slot picker moved to /basket/."""
     settings = Settings.current()
@@ -440,6 +525,7 @@ def order(request: HttpRequest) -> HttpResponse:
         "chip_sections": _menu_chip_sections(dishes, featured_slug),
         "menu_catalog_json": json.dumps(_menu_catalog_payload(dishes)).replace("</", "<\\/"),
         "preview": request.GET.get("preview") == "1",
+        "days": days,
         "collection_window": (
             f"{coerce_time(first_day.window_start).strftime('%H:%M')}–"
             f"{coerce_time(first_day.window_end).strftime('%H:%M')}"

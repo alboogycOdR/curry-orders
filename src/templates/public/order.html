@@ -8,6 +8,11 @@ The menu is server-rendered for the first orderable day; item clicks open
 the item sheet overlay (BKItemSheet.open). Cart state is maintained in
 localStorage (cart v2, cart.js); the sticky basket bar / mobile badge from
 base.html's cart.js refreshHeader() keeps the customer oriented.
+
+Monday-sprint Phase 1a: day chips added back to this screen (browse-only —
+no slot selection, that stays in /basket/). Picking a day chip calls
+GET /api/order/day/<date>/ and rebuilds the dish-list DOM in order.js.
+Any basket lines unavailable on the new day are removed with a notice.
 {% endcomment %}
 
 {% block title %}Order — Roti Connect{% endblock %}
@@ -24,6 +29,26 @@ base.html's cart.js refreshHeader() keeps the customer oriented.
     border-radius: var(--radius-md);
   }
   .op-date-notice.is-error { background: var(--color-neutral-100, #f2f2f2); color: var(--color-neutral-800); }
+
+  /* Day chip bar — above the category filter bar */
+  .op-day-bar {
+    display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 0;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .op-day-bar::-webkit-scrollbar { display: none; }
+  .op-day-chip {
+    flex: none; cursor: pointer;
+    padding: 6px 10px; border-radius: var(--radius-md);
+    border: 1px solid var(--color-divider);
+    background: transparent; color: var(--color-text);
+    font-family: var(--font-body); font-size: 14px; text-align: center; line-height: 1.2;
+    min-height: 44px; min-width: 48px;
+    transition: background 140ms ease, color 140ms ease;
+  }
+  .op-day-chip .op-chip-top { display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+  .op-day-chip .op-chip-bottom { display: block; font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; }
+  .op-day-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  .op-day-chip:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .op-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 72px; margin-top: 44px; align-items: start; }
   .op-menu { display: flex; flex-direction: column; gap: 56px; }
@@ -51,7 +76,7 @@ base.html's cart.js refreshHeader() keeps the customer oriented.
     -webkit-overflow-scrolling: touch;
   }
   .op-filter-chip {
-    flex: none; min-height: 36px; padding: 6px 14px;
+    flex: none; min-height: 44px; padding: 6px 14px;
     border-radius: var(--radius-pill, 999px);
     border: 1px solid var(--color-divider);
     background: var(--color-surface);
@@ -79,10 +104,20 @@ base.html's cart.js refreshHeader() keeps the customer oriented.
   .op-context { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 0; }
   .op-total-row.is-empty { display: none; }
 
-  {% comment %} Not the real responsive pass — just enough that the screen isn't broken on a phone. {% endcomment %}
+  /* Real 480px mobile breakpoint (replaces the 900px stopgap above) */
   @media (max-width: 900px) {
     .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
     .op-dish-qty { justify-content: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .op-wrap { padding: 0 16px; }
+    .op-day-bar { gap: 6px; }
+    .op-day-chip { min-height: 44px; padding: 6px 8px; }
+    .op-filter-bar { gap: 6px; }
+    .op-filter-chip { min-height: 44px; padding: 8px 12px; }
+    .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
+    .op-dish-qty { justify-content: flex-start; }
+    .op-dish-qty .btn-add { min-height: 44px; }
   }
 </style>
 {% endblock %}
@@ -93,8 +128,28 @@ base.html's cart.js refreshHeader() keeps the customer oriented.
     <h2>What's cooking</h2>
     {% if preview %}<span class="op-head-note">Sample menu &amp; pricing &mdash; for review</span>{% endif %}
   </div>
+
+  {% comment %}Phase 1a: day chip bar — browse menu by collection day.
+  JS populates selected state; server renders chips for initial paint.{% endcomment %}
+  {% if days %}
+  <div class="op-day-bar" id="op-day-bar" role="group" aria-label="Collection day">
+    {% for d in days %}
+    <button type="button" class="op-day-chip{% if forloop.first %} is-selected{% endif %}"
+            data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}">
+      <span class="op-chip-top">{{ d.dow }}</span>
+      <span class="op-chip-bottom">{{ d.dom }}</span>
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% comment %}Phase 1a: inline notice for basket items removed on day change.{% endcomment %}
+  <p class="op-date-notice" id="op-date-notice" hidden aria-live="polite"></p>
+
   {% if edition_label %}
-  <p class="op-context">Collection · {{ edition_label }} · {{ collection_window }}</p>
+  <p class="op-context" id="op-context">Collection · {{ edition_label }} · {{ collection_window }}</p>
+  {% else %}
+  <p class="op-context" id="op-context" hidden></p>
   {% endif %}
 
   <div class="op-filter-bar" id="op-filter-bar" role="tablist" aria-label="Menu categories">
@@ -146,6 +201,13 @@ base.html's cart.js refreshHeader() keeps the customer oriented.
 {% include "public/_item_sheet.html" %}
 
 <script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
+{{ days|json_script:"op-days-data" }}
+<script>
+  // Base URL for GET /api/order/day/<date>/  — JS appends the ISO date + "/"
+  window.OP_URLS = {
+    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00", ""),
+  };
+</script>
 <script src="{% static 'js/order.js' %}" defer></script>
 <script src="{% static 'js/item-sheet.js' %}" defer></script>
 {% endblock %}

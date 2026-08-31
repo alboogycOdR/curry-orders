@@ -15,6 +15,10 @@ urlpatterns = [
     # per-date refresh; see api.availability's docstring for why this
     # combines spec §17.3's separately-named /api/menu + /api/availability.
     path("api/availability", api.availability, name="api_availability"),
+    # Phase 1a: order screen per-date refresh — dishes + slots for a
+    # given date, path-param style so order.js can construct the URL
+    # without string-building a query param (simpler cache-key too).
+    path("api/order/day/<str:date_str>/", views.api_day_availability, name="api_day_availability"),
     # Spec §6.1's real per-dish permalink now exists (milestone 2), which
     # is exactly the trigger docs/DECISIONS.md D-32 named for revisiting
     # the /menu-vs-/order split — not revisited yet: /menu is the
