@@ -135,7 +135,13 @@
 
     function renderTotalsAndCta() {
       var t = window.BKCart.totals();
-      totalEl.textContent = window.BKCart.rands(t.total);
+      var totalRow = document.getElementById("op-total-row");
+      if (totalRow) totalRow.classList.toggle("is-empty", t.count === 0);
+      if (t.count === 0) {
+        totalEl.textContent = "";
+      } else {
+        totalEl.textContent = window.BKCart.rands(t.total);
+      }
       var ready = t.count > 0 && !!state.slot;
       continueBtn.disabled = !ready;
       if (ready) {
@@ -159,27 +165,103 @@
       dateNoticeEl.classList.remove("is-error");
     }
 
-    function buildMenuHtml(categories) {
-      var html = "";
+    var CHIP_TILES = [
+      { id: "roti", label: "Roti", cats: ["Masala Roti Rolls", "Roti & Curry", "Roti & Gatsby, Large"] },
+      { id: "gatsby", label: "Gatsby", cats: ["Gatsby", "Roti & Gatsby, Large"] },
+      { id: "curry", label: "Curry", cats: ["Roti & Curry"] },
+      { id: "lasagne", label: "Lasagne", cats: ["Italian Lasagne"] },
+    ];
+    var THIS_WEEK_SLUGS = [
+      "chicken-masala-roti-roll",
+      "full-house-masala-steak-gatsby",
+      "beef-lasagne",
+    ];
+
+    function flattenDishes(categories) {
+      var dishes = [];
+      var seen = {};
       categories.forEach(function (cat) {
-        html +=
-          '<div><div class="op-cat-head"><h3 class="op-cat-name">' + escapeHtml(cat.name) +
-          '</h3><span class="op-cat-rule"></span><span class="op-cat-portion">' +
-          escapeHtml(cat.portion_label) + "</span></div>";
-        cat.dishes.forEach(function (dish) {
-          html +=
-            '<div class="op-dish-row' + (dish.sold_out ? " is-sold-out" : "") + '" ' +
-            'data-dish-id="' + dish.id + '" data-dish-name="' + escapeHtml(dish.name) + '" ' +
-            'data-dish-price="' + dish.price_cents + '">' +
-            '<div><div class="op-dish-name">' + escapeHtml(dish.name) + "</div>" +
-            '<div class="op-dish-desc">' + escapeHtml(dish.short_description) + "</div></div>" +
-            '<div class="op-dish-price">' + window.BKCart.rands(dish.price_cents) + "</div>";
-          html += dish.sold_out
-            ? '<div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>'
-            : '<div class="op-dish-qty" data-qty-control></div>';
-          html += "</div>";
+        (cat.dishes || []).forEach(function (dish) {
+          if (seen[dish.id]) return;
+          seen[dish.id] = true;
+          dishes.push({
+            id: dish.id,
+            slug: dish.slug || "",
+            name: dish.name,
+            short_description: dish.short_description || "",
+            price_cents: dish.price_cents,
+            sold_out: !!dish.sold_out,
+            photo_url: dish.photo_url || "",
+            portion_label: dish.portion_label || cat.portion_label || "",
+            category: dish.category || cat.name || "",
+          });
         });
-        html += "</div>";
+      });
+      return dishes;
+    }
+
+    function uniqueById(list) {
+      var seen = {};
+      var out = [];
+      list.forEach(function (d) {
+        if (seen[d.id]) return;
+        seen[d.id] = true;
+        out.push(d);
+      });
+      return out;
+    }
+
+    function dishRowHtml(dish) {
+      var photo = dish.photo_url
+        ? '<img class="op-dish-photo" src="' + escapeHtml(dish.photo_url) + '" alt="" ' +
+          "onerror=\"this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')\">"
+        : '<div class="op-dish-photo" aria-hidden="true"></div>';
+      var qty = dish.sold_out
+        ? '<div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>'
+        : '<div class="op-dish-qty" data-qty-control></div>';
+      return (
+        '<div class="op-dish-row has-photo' +
+        (dish.sold_out ? " is-sold-out" : "") +
+        (dish.photo_url ? "" : " is-placeholder") +
+        '" data-dish-id="' + dish.id + '" data-dish-name="' + escapeHtml(dish.name) +
+        '" data-dish-price="' + dish.price_cents + '">' +
+        photo +
+        "<div><div class=\"op-dish-name\">" + escapeHtml(dish.name) + "</div>" +
+        '<div class="op-dish-desc">' + escapeHtml(dish.short_description) + "</div>" +
+        (dish.portion_label ? '<div class="op-dish-note">' + escapeHtml(dish.portion_label) + "</div>" : "") +
+        '<div class="op-dish-price">' + window.BKCart.rands(dish.price_cents) + "</div></div>" +
+        qty +
+        "</div>"
+      );
+    }
+
+    function sectionHtml(id, label, dishes) {
+      var rows = dishes.length
+        ? dishes.map(dishRowHtml).join("")
+        : '<p class="op-sheet-empty">Nothing in this section this week.</p>';
+      return (
+        '<div class="op-section" id="section-' + id + '"' +
+        (id === "all" ? "" : " hidden") +
+        '><div class="op-cat-head"><h3 class="op-cat-name">' + escapeHtml(label) +
+        '</h3><span class="op-cat-rule"></span></div>' + rows + "</div>"
+      );
+    }
+
+    function buildMenuHtml(categories) {
+      var dishes = flattenDishes(categories);
+      var bySlug = {};
+      dishes.forEach(function (d) { if (d.slug) bySlug[d.slug] = d; });
+      var featured = (new URLSearchParams(location.search).get("featured") || "");
+      var thisWeek = [];
+      [featured].concat(THIS_WEEK_SLUGS).forEach(function (slug) {
+        if (slug && bySlug[slug]) thisWeek.push(bySlug[slug]);
+      });
+      thisWeek = uniqueById(thisWeek);
+      var html = sectionHtml("all", "All", uniqueById(dishes));
+      html += sectionHtml("this-week", "This week", thisWeek);
+      CHIP_TILES.forEach(function (chip) {
+        var members = dishes.filter(function (d) { return chip.cats.indexOf(d.category) !== -1; });
+        html += sectionHtml(chip.id, chip.label, members);
       });
       return html;
     }
@@ -255,6 +337,8 @@
           renderSlotGrid();
           renderSheet();
           renderTotalsAndCta();
+          var hash = (location.hash || "").replace(/^#/, "");
+          if (hash) showChip(hash);
           if (removed.length) {
             var subject = removed.length === 1 ? removed[0] : removed.join(", ");
             var verb = removed.length === 1 ? "isn't" : "aren't";
@@ -328,6 +412,37 @@
       window.location.href = continueBtn.getAttribute("data-checkout-url");
     });
 
+    function showChip(id) {
+      var known = false;
+      menuEl.querySelectorAll(".op-section").forEach(function (sec) {
+        var match = sec.id === "section-" + id;
+        if (match) known = true;
+        sec.hidden = !match;
+      });
+      if (!known) {
+        id = "all";
+        menuEl.querySelectorAll(".op-section").forEach(function (sec) {
+          sec.hidden = sec.id !== "section-all";
+        });
+      }
+      document.querySelectorAll(".op-filter-chip").forEach(function (chip) {
+        chip.classList.toggle("is-selected", chip.getAttribute("data-chip") === id);
+      });
+      var section = document.getElementById("section-" + id);
+      if (section) section.scrollIntoView({ block: "start" });
+    }
+
+    var filterBar = document.getElementById("op-filter-bar");
+    if (filterBar) {
+      filterBar.addEventListener("click", function (e) {
+        var chip = e.target.closest("[data-chip]");
+        if (!chip) return;
+        var id = chip.getAttribute("data-chip");
+        showChip(id);
+        if (history.replaceState) history.replaceState(null, "", "#" + id);
+      });
+    }
+
     // The page is always server-rendered for days[0] (public/views.py's
     // order() only ever renders the first orderable day) -- if a
     // returning visitor's stored day is anything else, that markup is
@@ -339,6 +454,8 @@
       loadDay(state.day);
     } else {
       renderAll();
+      var hash = (location.hash || "").replace(/^#/, "");
+      if (hash) showChip(hash);
     }
   });
 })();

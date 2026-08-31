@@ -2,569 +2,230 @@
 {% load static moneyfmt %}
 
 {% comment %}
-Front page — design handoff README §"Screens" §1. Recreates the `isFront`
-branch of `Brandon's Kitchen.dc.html` as a normal Django template: the
-masthead/hero/picks/how-it-works/footer sections are all static structure
-+ copy (kept verbatim per the handoff's instruction), with the three hero
-figures and the dateline driven by `public.views.home`'s context instead
-of hard-coded, per the handoff's own callout ("should come from settings,
-not hard-coded in the template").
-
-The `.cmyk`/`.cmyk-head`/`.cmyk-num` print-plate treatments are pure CSS +
-the shared SVG filter defs `print-plates.js` injects (base.html loads it
-already) — no page-specific JS needed for them.
+Customer Home — wireframe Screen 1. One mobile column (KD-11). No search.
+Collection chip never includes a street address (D-23).
 {% endcomment %}
 
 {% block title %}Roti Connect — home kitchen, collection only{% endblock %}
 
 {% block extra_head %}
 <style>
-  @keyframes fpInkIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes fpRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) {
-    .fp-masthead, .fp-hero-left, .fp-hero-right { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .rc-home {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px 16px 24px;
   }
-
-  .fp-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
-
-  .fp-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
-  .fp-dateline-row {
-    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
-    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
-    text-transform: uppercase; color: var(--color-neutral-700);
+  .rc-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: var(--radius-pill, 999px);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    color: var(--color-accent);
+    font-family: var(--font-ui, var(--font-body));
+    font-size: 13px;
+    font-weight: 600;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
   }
-  .fp-dateline-row .accent { color: var(--color-accent-700); }
-  .fp-dateline-row .push { margin-left: auto; }
-  .fp-dateline-thin { height: 1px; background: var(--color-text); }
-
-  .fp-masthead {
-    font-family: var(--font-heading); font-weight: 700;
-    font-size: clamp(52px, 11.2vw, 158px); line-height: 0.9; letter-spacing: -0.02em;
-    margin: 22px 0 0; animation: fpInkIn 700ms ease-out both;
+  .rc-chip-sheet {
+    margin-top: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-card, 16px);
+    background: var(--color-surface);
+    color: var(--color-muted, var(--color-neutral-600));
+    font-size: 14px;
+    line-height: 1.45;
   }
-
-  .fp-hero-grid {
-    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 64px;
-    margin-top: 56px; align-items: start;
+  .rc-chip-sheet[hidden] { display: none; }
+  .rc-cutoff {
+    margin: 10px 0 18px;
+    color: var(--color-muted, var(--color-neutral-600));
+    font-size: 14px;
   }
-  .fp-hero-left { animation: fpRiseIn 620ms ease-out both; }
-  .fp-hero-right { animation: fpRiseIn 760ms ease-out both; }
-  .fp-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); }
-  .fp-hero-left h2 {
-    font-size: clamp(30px, 3.6vw, 50px); font-weight: 600; line-height: 1.06;
-    letter-spacing: -0.015em; margin: 14px 0 0; text-wrap: pretty;
+  .rc-hero {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--color-surface);
+    border-radius: var(--radius-card, 16px);
+    overflow: hidden;
   }
-  .fp-lead { font-size: 19px; line-height: 1.6; max-width: 44ch; margin: 24px 0 0; color: var(--color-neutral-800); text-wrap: pretty; }
-  .fp-cta-row { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
-  .fp-cta-row .btn { min-height: 46px; font-size: 15px; }
-  .fp-cta-row .btn-primary { padding-inline: 26px; }
-  .fp-cta-row .btn-secondary { padding-inline: 22px; }
-  .fp-stats-row { display: flex; gap: 40px; margin-top: 44px; padding-top: 26px; border-top: 1px solid var(--color-divider); }
-  .fp-stat-num { font-family: var(--font-heading); font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-  .fp-stat-label { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-700); margin-top: 8px; }
-
-  .fp-hero-figure { margin: 0; width: 100%; aspect-ratio: 4 / 3.2; }
-  .fp-hero-caption { display: flex; gap: 16px; margin-top: 12px; font-size: 13px; color: var(--color-neutral-700); line-height: 1.45; }
-  .fp-hero-caption .plate-label { color: var(--color-accent-700); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
-  .fp-hero-caption span:last-child { text-wrap: pretty; }
-
-  .fp-picks { margin-top: 96px; }
-  .fp-picks-head { display: flex; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--color-text); padding-bottom: 10px; }
-  .fp-picks-title { font-size: 15px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin: 0; }
-  .fp-picks-note { font-size: 13px; color: var(--color-neutral-700); margin-left: auto; }
-  .fp-picks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 30px; }
-  .fp-picks-grid > div { padding: 0 36px; border-left: 1px solid var(--color-divider); }
-  .fp-picks-grid > div:first-child { padding-left: 0; border-left: none; }
-  .fp-picks-grid > div:last-child { padding-right: 0; }
-  .fp-pick-portion { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-accent-2-700); }
-  .fp-pick-name { font-size: 25px; font-weight: 600; line-height: 1.14; margin: 10px 0 0; }
-  .fp-pick-desc { font-size: 16px; color: var(--color-neutral-800); margin: 12px 0 0; max-width: 30ch; }
-  .fp-pick-price { font-family: var(--font-heading); font-size: 19px; font-style: italic; margin-top: 16px; font-variant-numeric: tabular-nums; }
-
-  .fp-how { margin-top: 110px; display: grid; grid-template-columns: 0.7fr 2.3fr; gap: 64px; align-items: start; }
-  .fp-how-title { font-size: clamp(26px, 2.4vw, 34px); font-weight: 600; line-height: 1.1; margin: 0; }
-  .fp-how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 44px; }
-  .fp-step-num { font-family: var(--font-heading); font-weight: 700; font-size: 70px; display: block; }
-  .fp-step-title { font-size: 20px; font-weight: 600; margin: 22px 0 0; }
-  .fp-step-desc { font-size: 16px; color: var(--color-neutral-800); margin: 10px 0 0; max-width: 30ch; }
-
-  .fp-footer { margin-top: 110px; padding-top: 14px; border-top: 7px solid var(--color-text); }
-  .fp-footer-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: baseline; }
-  .fp-footer-brand { font-family: var(--font-heading); font-weight: 700; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
-  .fp-footer-loc { font-size: 13px; color: var(--color-neutral-700); }
-  .fp-footer-cta { margin-left: auto; font-size: 14px; }
-  .fp-footer-note { font-size: 12.5px; color: var(--color-neutral-600); max-width: 66ch; margin: 18px 0 0; }
-
-  .mobile-home { display: none; }
-
-  @media (max-width: 860px) {
-    .fp-hero-grid, .fp-how { grid-template-columns: 1fr; }
-    .fp-picks-grid { grid-template-columns: 1fr; gap: 28px; }
-    .fp-picks-grid > div { padding: 0 !important; border-left: none !important; }
-    .fp-how-steps { grid-template-columns: 1fr; gap: 28px; }
+  .rc-hero-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--color-surface);
   }
-
-  @media (max-width: 760px) {
-    .desktop-home { display: none; }
-    .mobile-home {
-      display: block;
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 18px 16px 34px;
-    }
-    .mh-context {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 34px;
-      padding: 7px 11px;
-      border: 1px solid var(--color-divider);
-      border-radius: 999px;
-      color: var(--color-neutral-700);
-      font-size: 12px;
-      line-height: 1;
-    }
-    .mh-context::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--color-accent);
-      box-shadow: 0 0 0 3px var(--color-accent-100);
-    }
-    .mh-search {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      min-height: 50px;
-      margin-top: 14px;
-      padding: 0 16px;
-      border: 1px solid var(--color-divider);
-      border-radius: 999px;
-      background: var(--color-surface);
-      color: var(--color-neutral-700);
-      font-size: 15px;
-      text-decoration: none;
-    }
-    .mh-search svg { width: 21px; height: 21px; flex: none; color: var(--color-text); }
-    .mh-promo {
-      position: relative;
-      aspect-ratio: 1 / 1;
-      min-height: 0;
-      margin-top: 18px;
-      overflow: hidden;
-      border-radius: 20px 20px 6px 20px;
-      background: var(--color-neutral-900);
-      color: var(--color-bg);
-      box-shadow: var(--shadow-md);
-    }
-    .mh-promo img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: #071321;
-    }
-    .mh-promo::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, transparent 28%, rgba(22, 13, 12, .86) 100%);
-    }
-    .mh-promo-copy {
-      position: absolute;
-      z-index: 1;
-      left: 18px;
-      right: 18px;
-      bottom: 18px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      align-items: end;
-    }
-    .mh-promo-kicker {
-      display: block;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-    .mh-promo-title {
-      max-width: 12ch;
-      margin: 5px 0 0;
-      color: #fff;
-      font-size: clamp(27px, 8vw, 36px);
-      line-height: .98;
-      text-wrap: balance;
-    }
-    .mh-promo-price {
-      display: block;
-      margin-top: 8px;
-      color: #fff;
-      font-size: 16px;
-      font-style: italic;
-    }
-    .mh-promo-cta {
-      display: inline-flex;
-      min-height: 44px;
-      align-items: center;
-      justify-content: center;
-      padding: 0 16px;
-      border-radius: 999px;
-      background: var(--color-bg);
-      color: var(--color-text);
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .mh-returning {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-top: 18px;
-      padding: 16px 2px;
-      border-bottom: 1px solid var(--color-divider);
-    }
-    .mh-returning-copy {
-      flex: 1;
-      margin: 0;
-      color: var(--color-neutral-800);
-      font-size: 14px;
-      line-height: 1.35;
-      text-align: right;
-    }
-    .mh-returning-link {
-      display: inline-flex;
-      min-height: 44px;
-      align-items: center;
-      justify-content: center;
-      padding: 0 18px;
-      border: 1px solid var(--color-text);
-      border-radius: 999px;
-      color: var(--color-text);
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .mh-section-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 16px;
-      margin: 24px 0 12px;
-    }
-    .mh-section-head h2 {
-      margin: 0;
-      font-size: 21px;
-    }
-    .mh-section-head a {
-      color: var(--color-accent-700);
-      font-size: 13px;
-    }
-    .mh-discovery-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .mh-discovery-card {
-      position: relative;
-      display: flex;
-      min-height: 176px;
-      overflow: hidden;
-      align-items: center;
-      padding: 15px;
-      border-radius: 16px 16px 4px 16px;
-      color: #fff;
-      text-decoration: none;
-    }
-    .mh-discovery-card:first-child { background: var(--color-accent-800); }
-    .mh-discovery-card:last-child { background: var(--color-accent-2-800); }
-    .mh-discovery-card::before {
-      content: "";
-      position: absolute;
-      width: 112px;
-      height: 112px;
-      top: -32px;
-      right: -26px;
-      border: 1px solid rgba(255, 255, 255, .28);
-      border-radius: 50%;
-      box-shadow: 0 0 0 18px rgba(255, 255, 255, .05), 0 0 0 38px rgba(255, 255, 255, .035);
-    }
-    .mh-discovery-label {
-      position: relative;
-      z-index: 1;
-      max-width: 9ch;
-      color: #fff;
-      font-family: var(--font-heading);
-      font-size: 22px;
-      font-weight: 650;
-      line-height: 1.05;
-    }
-    .mh-picks {
-      display: flex;
-      gap: 10px;
-      margin: 0 -16px;
-      padding: 0 16px 8px;
-      overflow-x: auto;
-      scroll-snap-type: x proximity;
-      scrollbar-width: none;
-    }
-    .mh-picks::-webkit-scrollbar { display: none; }
-    .mh-pick {
-      flex: 0 0 min(76vw, 280px);
-      min-height: 126px;
-      padding: 16px;
-      border: 1px solid var(--color-divider);
-      border-radius: 14px 14px 4px 14px;
-      background: var(--color-surface);
-      color: var(--color-text);
-      text-decoration: none;
-      scroll-snap-align: start;
-    }
-    .mh-pick-portion {
-      color: var(--color-accent-2-700);
-      font-size: 10px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .mh-pick-name {
-      margin: 8px 0 0;
-      font-size: 19px;
-      line-height: 1.08;
-    }
-    .mh-pick-price {
-      display: block;
-      margin-top: 12px;
-      color: var(--color-neutral-800);
-      font-size: 15px;
-      font-style: italic;
-    }
-    .mh-owner {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 16px;
-      align-items: center;
-      margin-top: 28px;
-      padding-top: 22px;
-      border-top: 1px solid var(--color-divider);
-    }
-    .mh-owner img {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      object-fit: cover;
-      border-radius: 16px 16px 4px 16px;
-      background: var(--color-neutral-900);
-    }
-    .mh-owner-kicker {
-      color: var(--color-accent-2-700);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-    .mh-owner h2 {
-      margin: 7px 0 0;
-      font-family: var(--font-heading);
-      font-size: 24px;
-      line-height: 1.02;
-    }
+  .rc-hero.is-placeholder .rc-hero-photo {
+    background: var(--color-surface);
+    min-height: 180px;
   }
+  .rc-hero-body { padding: 16px; }
+  .rc-hero-kicker {
+    font-family: var(--font-ui, var(--font-body));
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+  .rc-hero-name {
+    font-family: var(--font-heading);
+    font-size: 26px;
+    line-height: 1.1;
+    margin: 8px 0 4px;
+  }
+  .rc-hero-meta {
+    color: var(--color-muted, var(--color-neutral-600));
+    font-size: 14px;
+    margin: 0 0 14px;
+  }
+  .rc-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: var(--radius-btn, 12px);
+    background: var(--color-accent);
+    color: #fff;
+    font-family: var(--font-ui, var(--font-body));
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .rc-cta.is-secondary {
+    background: transparent;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+  }
+  .rc-sold { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--color-accent-2); }
+  .rc-find {
+    margin: 16px 0 28px;
+    font-size: 15px;
+  }
+  .rc-find a { color: var(--color-accent-2); font-weight: 600; }
+  .rc-section-title {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    margin: 0 0 12px;
+  }
+  .rc-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .rc-tile {
+    display: flex;
+    flex-direction: column;
+    min-height: 44px;
+    text-decoration: none;
+    color: inherit;
+    background: var(--color-surface);
+    border-radius: var(--radius-card, 16px);
+    overflow: hidden;
+  }
+  .rc-tile-photo {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--color-surface);
+  }
+  .rc-tile.is-placeholder .rc-tile-photo {
+    min-height: 88px;
+    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  }
+  .rc-tile-body { padding: 10px 12px 14px; }
+  .rc-tile-name { font-weight: 700; font-size: 16px; }
+  .rc-tile-from { color: var(--color-muted, var(--color-neutral-600)); font-size: 13px; margin-top: 2px; }
+  .rc-how { margin-top: 28px; }
+  .rc-how ol {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--color-muted, var(--color-neutral-600));
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .rc-how a { color: var(--color-accent-2); }
 </style>
 {% endblock %}
 
 {% block content %}
-<main class="mobile-home">
-  <div class="mh-context">Collection only · {{ collection_window }}</div>
+<main class="rc-home">
+  <button type="button" class="rc-chip" id="rc-collection-chip" aria-expanded="false" aria-controls="rc-chip-sheet">
+    Collection only · {{ edition_label|default:"this week" }} · {{ collection_window }}
+  </button>
+  <div class="rc-chip-sheet" id="rc-chip-sheet" hidden>
+    Kraaifontein · {{ collection_window }}. Same-day orders close at {{ same_day_cutoff }}.
+    Text on arrival. Do not hoot. Address is on your confirmation after we take the order.
+  </div>
+  <p class="rc-cutoff">{{ cutoff_copy }}</p>
 
-  <a href="{% url 'public:menu' %}" class="mh-search" aria-label="Search the menu">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-      <circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4.5 4.5"></path>
-    </svg>
-    <span>Search the menu</span>
-  </a>
-
-  <section class="mh-promo" aria-label="Chicken roti special">
-    <img src="{% static 'img/roti-connect-advert.jpg' %}" alt="Chicken roti special for R45, available Friday 4 September">
-    <div class="mh-promo-copy">
-      <a href="{% url 'public:menu' %}" class="mh-promo-cta">Order now</a>
+  {% if featured %}
+  <a class="rc-hero{% if not featured_photo_url %} is-placeholder has-photo{% else %} has-photo{% endif %}"
+     href="{% url 'public:order' %}?featured={{ featured.slug }}">
+    {% if edition_sold_out %}<div class="rc-sold">Sold out</div>{% endif %}
+    <img class="rc-hero-photo"
+         src="{% if featured_photo_url %}{{ featured_photo_url }}{% else %}{% static 'img/roti-connect-advert.jpg' %}{% endif %}"
+         alt="{{ featured.name }}"
+         onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
+    <div class="rc-hero-body">
+      <div class="rc-hero-kicker">{% if edition_label %}{{ edition_label }}{% else %}This week{% endif %}</div>
+      <h1 class="rc-hero-name">{{ featured.name }}</h1>
+      <p class="rc-hero-meta">{{ featured.price_cents|cents }} · Kraaifontein</p>
+      {% if edition_sold_out %}
+      <span class="rc-cta is-secondary">See next week</span>
+      {% else %}
+      <span class="rc-cta">{{ cta_label }}</span>
+      {% endif %}
     </div>
-  </section>
+  </a>
+  {% endif %}
 
-  <section class="mh-returning" aria-label="Find an existing order">
-    <p class="mh-returning-copy">Already ordered with us?</p>
-    <a href="{% url 'public:lookup' %}" class="mh-returning-link">Find my order</a>
-  </section>
+  <p class="rc-find">Already ordered? <a href="{% url 'public:lookup' %}">Find my order</a></p>
 
-  <div class="mh-section-head">
-    <h2>What are you hungry for?</h2>
-  </div>
-  <div class="mh-discovery-grid">
-    <a href="{% url 'public:menu' %}" class="mh-discovery-card"><span class="mh-discovery-label">Our menu</span></a>
-    <a href="{% url 'public:order' %}" class="mh-discovery-card"><span class="mh-discovery-label">Start an order</span></a>
-  </div>
-
-  {% if picks %}
-  <div class="mh-section-head">
-    <h2>Today&rsquo;s picks</h2>
-    <a href="{% url 'public:menu' %}">See all</a>
-  </div>
-  <div class="mh-picks" aria-label="Featured dishes">
-    {% for pick in picks %}
-    <a href="{% url 'public:dish_detail' pick.dish.slug %}" class="mh-pick">
-      <span class="mh-pick-portion">{{ pick.portion }}</span>
-      <h3 class="mh-pick-name">{{ pick.dish.name }}</h3>
-      <span class="mh-pick-price">{{ pick.dish.price_cents|cents }}</span>
+  <h2 class="rc-section-title">What are you hungry for?</h2>
+  <div class="rc-tiles">
+    {% for tile in chip_tiles %}
+    <a class="rc-tile has-photo{% if not tile.photo_url %} is-placeholder{% endif %}" href="{% url 'public:order' %}#{{ tile.slug }}">
+      {% if tile.photo_url %}
+      <img class="rc-tile-photo" src="{{ tile.photo_url }}" alt="{{ tile.photo_alt }}"
+           onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
+      {% else %}
+      <div class="rc-tile-photo" aria-hidden="true"></div>
+      {% endif %}
+      <div class="rc-tile-body">
+        <div class="rc-tile-name">{{ tile.label }}</div>
+        <div class="rc-tile-from">from {{ tile.from_cents|cents }}</div>
+      </div>
     </a>
     {% endfor %}
   </div>
-  {% endif %}
 
-  <section class="mh-owner" aria-labelledby="mh-owner-title">
-    <img src="{% static 'img/roti-connect-owner.jpg' %}" alt="The owner of Roti Connect">
-    <div>
-      <span class="mh-owner-kicker">From our kitchen</span>
-      <h2 id="mh-owner-title">Made with a little more heart.</h2>
-    </div>
+  <section class="rc-how" id="how-it-works">
+    <h2 class="rc-section-title">How collection works</h2>
+    <ol>
+      <li>Choose a slot</li>
+      <li>Pay EFT</li>
+      <li>Text on arrival</li>
+    </ol>
+    <p><a href="{% url 'public:help' %}">Read the rules</a></p>
   </section>
 </main>
-
-<div class="desktop-home">
-<div class="fp-wrap">
-
-  <div class="fp-dateline-thick"></div>
-  <div class="fp-dateline-row">
-    <span>Cape Town, South Africa</span>
-    <span>{{ today_label }}</span>
-    <span>Collection only</span>
-    <span class="accent">Slots {{ collection_window }}</span>
-    <span class="push">Edition No. 1</span>
-  </div>
-  <div class="fp-dateline-thin"></div>
-
-  <h1 class="cmyk-head fp-masthead">
-    <span class="paper">Roti Connect</span>
-    <span class="plate plate-c" aria-hidden="true">Roti Connect</span>
-    <span class="plate plate-m" aria-hidden="true">Roti Connect</span>
-    <span class="plate plate-y" aria-hidden="true">Roti Connect</span>
-  </h1>
-
-  <div class="fp-hero-grid">
-    <div class="fp-hero-left">
-      <span class="fp-eyebrow">The kitchen</span>
-      <h2>Roti, curry and Gatsby &mdash; cooked to order, from a home kitchen.</h2>
-      <p class="fp-lead">Roti Connect serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
-      <div class="fp-cta-row">
-        <a href="{% url 'public:menu' %}" class="btn btn-primary">View the menu</a>
-        {% comment %}
-        Was a "See the kitchen desk" button linking straight at
-        manage:kitchen — the staff-only board (order tickets, customer
-        names, @staff_login_required-gated). Harmless as a dead-end login
-        bounce for an anonymous visitor, but wrong on the merits: a
-        customer-facing homepage has no reason to surface a link to the
-        internal ops surface at all, staff-gated or not. Spec §11.2's own
-        line for this CTA row is "primary Order now -> /menu; three-step
-        how it works" — no second staff-facing button — so this now
-        scrolls to the "How collection works" section already on this
-        same page instead.
-        {% endcomment %}
-        <a href="#how-it-works" class="btn btn-secondary">How it works</a>
-      </div>
-      <div class="fp-stats-row">
-        <div>
-          <div class="fp-stat-num">{{ orders_per_day }}</div>
-          <div class="fp-stat-label">Orders a day, capped</div>
-        </div>
-        <div>
-          <div class="fp-stat-num">{{ slot_minutes }}</div>
-          <div class="fp-stat-label">Minute collection window</div>
-        </div>
-        <div>
-          <div class="fp-stat-num">{{ same_day_cutoff }}</div>
-          <div class="fp-stat-label">Same-day cut-off</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="fp-hero-right">
-      <figure class="cmyk fp-hero-figure">
-        <img src="{% static 'img/hero-dish.jpg' %}" alt="A masala steak Gatsby, cut open">
-        <img class="sep-c" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
-        <img class="sep-m" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
-        <img class="sep-y" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
-        <img class="sep-k" src="{% static 'img/hero-dish.jpg' %}" alt="" aria-hidden="true">
-      </figure>
-      <figcaption class="fp-hero-caption">
-        <span class="plate-label">Plate 1</span>
-        <span>The full house masala steak Gatsby &mdash; egg and cheese, no shortcuts. Photographed in the kitchen, 28 August.</span>
-      </figcaption>
-    </div>
-  </div>
-
-  <div class="fp-picks">
-    <div class="fp-picks-head">
-      <h3 class="fp-picks-title">Today's picks</h3>
-      <span class="fp-picks-note">Sample selection &mdash; full menu on the order page</span>
-    </div>
-    <div class="fp-picks-grid">
-      {% for pick in picks %}
-      <div>
-        <div class="fp-pick-portion">{{ pick.portion }}</div>
-        <h4 class="fp-pick-name">{{ pick.dish.name }}</h4>
-        <p class="fp-pick-desc">{{ pick.dish.desc }}</p>
-        <div class="fp-pick-price">{{ pick.dish.price_cents|cents }}</div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div class="fp-how" id="how-it-works">
-    <h3 class="fp-how-title">How collection works</h3>
-    <div class="fp-how-steps">
-      <div>
-        <span class="cmyk-num fp-step-num">
-          <span class="paper">1</span>
-          <span class="plate plate-c" aria-hidden="true">1</span>
-          <span class="plate plate-m" aria-hidden="true">1</span>
-          <span class="plate plate-y" aria-hidden="true">1</span>
-        </span>
-        <h4 class="fp-step-title">Choose your slot</h4>
-        <p class="fp-step-desc">Order online for today or any of the next 7 days. Same-day orders close at {{ same_day_cutoff }}.</p>
-      </div>
-      <div>
-        <span class="cmyk-num fp-step-num">
-          <span class="paper">2</span>
-          <span class="plate plate-c" aria-hidden="true">2</span>
-          <span class="plate plate-m" aria-hidden="true">2</span>
-          <span class="plate plate-y" aria-hidden="true">2</span>
-        </span>
-        <h4 class="fp-step-title">We confirm</h4>
-        <p class="fp-step-desc">Pay by EFT or cash &mdash; we start cooking once your order is confirmed, not before.</p>
-      </div>
-      <div>
-        <span class="cmyk-num fp-step-num">
-          <span class="paper">3</span>
-          <span class="plate plate-c" aria-hidden="true">3</span>
-          <span class="plate plate-m" aria-hidden="true">3</span>
-          <span class="plate plate-y" aria-hidden="true">3</span>
-        </span>
-        <h4 class="fp-step-title">Collect at the door</h4>
-        <p class="fp-step-desc">Swing by during your 15-minute window. Text on arrival &mdash; no hooting.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="fp-footer">
-    <div class="fp-footer-row">
-      <span class="fp-footer-brand">Roti Connect</span>
-      <span class="fp-footer-loc">Cape Town, South Africa &mdash; collection only</span>
-      <a href="{% url 'public:order' %}" class="btn btn-ghost fp-footer-cta">Start an order</a>
-    </div>
-    <p class="fp-footer-note">Prototype for internal review. Menu, portions and pricing shown here are placeholders and will be finalised with Brandon before this goes live.</p>
-  </div>
-</div>
-</div>
+<script>
+  (function () {
+    var btn = document.getElementById("rc-collection-chip");
+    var sheet = document.getElementById("rc-chip-sheet");
+    if (!btn || !sheet) return;
+    btn.addEventListener("click", function () {
+      var open = sheet.hasAttribute("hidden");
+      if (open) sheet.removeAttribute("hidden");
+      else sheet.setAttribute("hidden", "");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  })();
+</script>
 {% endblock %}

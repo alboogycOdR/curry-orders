@@ -10,7 +10,7 @@ staff EFT queue that verifies/rejects a proof (milestone 5) doesn't exist
 yet — a `payment_review` order here just says "we're checking it".
 {% endcomment %}
 
-{% block title %}Order {{ order.order_number }} — Brandon's Kitchen{% endblock %}
+{% block title %}Order {{ order.order_number }} — Roti Connect{% endblock %}
 
 {% block extra_head %}
 <meta name="robots" content="noindex, nofollow">
@@ -211,7 +211,7 @@ yet — a `payment_review` order here just says "we're checking it".
       input: document.getElementById("os-share-input"),
       status: document.getElementById("os-share-status"),
       url: window.location.href,
-      title: "Brandon's Kitchen — order {{ order.order_number|escapejs }}",
+      title: "Roti Connect — order {{ order.order_number|escapejs }}",
     });
   });
 </script>

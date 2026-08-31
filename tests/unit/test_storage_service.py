@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from storage.service import InvalidUpload, sniff_mime_type, validate_proof
+from storage.service import InvalidUpload, public_dish_image_url, sniff_mime_type, validate_proof
 
 # Real magic bytes for each accepted type, plus enough padding that a
 # "too small to be a real file" check (if this module ever grows one)
@@ -69,3 +69,28 @@ class TestValidateProof:
         with pytest.raises(InvalidUpload) as exc_info:
             validate_proof(b"not a real file at all")
         assert exc_info.value.reason == "type"
+
+
+class TestPublicDishImageUrl:
+    def test_cdn_wins(self, settings) -> None:
+        settings.CDN_BASE_URL = "https://cdn.example"
+        settings.S3_PUBLIC_ENDPOINT = "https://minio.example"
+        assert public_dish_image_url("dish-images/abc.png") == "https://cdn.example/dish-images/abc.png"
+
+    def test_s3_public_endpoint(self, settings) -> None:
+        settings.CDN_BASE_URL = ""
+        settings.S3_PUBLIC_ENDPOINT = "https://minio.example"
+        settings.S3_BUCKET_PUBLIC = "curry-media"
+        assert (
+            public_dish_image_url("dish-images/abc.png")
+            == "https://minio.example/curry-media/dish-images/abc.png"
+        )
+
+    def test_local_media_path(self, settings) -> None:
+        settings.CDN_BASE_URL = ""
+        settings.S3_PUBLIC_ENDPOINT = ""
+        settings.MEDIA_URL = "/media/"
+        assert public_dish_image_url("dish-images/abc.png") == "/media/dish-images/abc.png"
+
+    def test_empty_key(self) -> None:
+        assert public_dish_image_url("") == ""

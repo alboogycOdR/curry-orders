@@ -43,8 +43,10 @@ from core import lookup as lookup_service
 from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
+from core.menu import dish_photo_url
 from core.models import (
     Customer,
+    Dish,
     DishOptionValue,
     Order,
     OrderStatus,
@@ -162,33 +164,138 @@ def _slot_list_for_day(trading_day: TradingDay | None) -> list[dict]:
     return result
 
 
+_THIS_WEEK_SLUGS = (
+    "chicken-masala-roti-roll",
+    "full-house-masala-steak-gatsby",
+    "beef-lasagne",
+)
+
+
+def _unique_dishes(dishes: list) -> list:
+    seen: set[int] = set()
+    out = []
+    for dish in dishes:
+        if dish.id in seen:
+            continue
+        seen.add(dish.id)
+        out.append(dish)
+    return out
+
+
+def _menu_chip_sections(dishes: list, featured_slug: str = "") -> list[dict]:
+    """KD-9 chip sections for /order/. All / This week unique by dish.id;
+    named chips may repeat a dual-category dish."""
+    by_slug = {d.slug: d for d in dishes}
+    this_week = []
+    for slug in ((featured_slug,) if featured_slug else ()) + _THIS_WEEK_SLUGS:
+        dish = by_slug.get(slug)
+        if dish is not None:
+            this_week.append(dish)
+    this_week = _unique_dishes(this_week)
+
+    sections = [
+        {"id": "all", "label": "All", "dishes": _unique_dishes(dishes)},
+        {"id": "this-week", "label": "This week", "dishes": this_week},
+    ]
+    for slug, label, categories in _CHIP_TILES:
+        members = [d for d in dishes if (d.category or "") in categories]
+        sections.append({"id": slug, "label": label, "dishes": members})
+    return sections
+
+
+_CHIP_TILES = (
+    ("roti", "Roti", ("Masala Roti Rolls", "Roti & Curry", "Roti & Gatsby, Large")),
+    ("gatsby", "Gatsby", ("Gatsby", "Roti & Gatsby, Large")),
+    ("curry", "Curry", ("Roti & Curry",)),
+    ("lasagne", "Lasagne", ("Italian Lasagne",)),
+)
+
+
+def _featured_dish(active: list[Dish], requested_slug: str | None) -> Dish | None:
+    by_slug = {d.slug: d for d in active}
+    if requested_slug and requested_slug in by_slug:
+        return by_slug[requested_slug]
+    if "chicken-masala-roti-roll" in by_slug:
+        return by_slug["chicken-masala-roti-roll"]
+    ordered = sorted(active, key=lambda d: (d.sort_order, d.name))
+    return ordered[0] if ordered else None
+
+
+def _chip_tiles(active: list[Dish]) -> list[dict]:
+    tiles = []
+    for slug, label, categories in _CHIP_TILES:
+        members = [d for d in active if (d.category or "") in categories]
+        if not members:
+            continue
+        from_cents = min(d.price_cents for d in members)
+        photo_dish = next((d for d in members if dish_photo_url(d)), members[0])
+        tiles.append({
+            "slug": slug,
+            "label": label,
+            "from_cents": from_cents,
+            "photo_url": dish_photo_url(photo_dish),
+            "photo_alt": photo_dish.name,
+        })
+    return tiles
+
+
+def _day_occupying(trading_day: TradingDay) -> int:
+    return Order.objects.filter(
+        trading_day=trading_day, status__in=OCCUPYING_STATUSES
+    ).count()
+
+
 def home(request: HttpRequest) -> HttpResponse:
     settings = Settings.current()
     cutoff = coerce_time(settings.same_day_cutoff)
-    window_start = coerce_time(settings.default_window_start)
-    window_end = coerce_time(settings.default_window_end)
-
-    # The handoff's fixed "Today's picks" trio (README §2), now the real
-    # dishes with those slugs if they exist — falls back to "however many
-    # exist" rather than erroring pre-seed.
-    pick_slugs = ("full-house-masala-steak-gatsby", "chicken-masala-roti-roll", "beef-lasagne")
-    all_dishes = {d.slug: d for d in menu_queries.active_dishes()}
-    picks = [
-        {"dish": all_dishes[slug], "portion": all_dishes[slug].portion_label}
-        for slug in pick_slugs if slug in all_dishes
-    ]
-
     today = now_sast().date()
-    full_weekday = _DAY_NAMES_FULL[today.weekday()]
-    today_label = f"{full_weekday} {today.day} " + _MONTH_NAMES[today.month - 1]
+    days = _orderable_day_list(today, settings)
+    first = days[0] if days else None
+    first_date = dt.date.fromisoformat(first["iso"]) if first else today
+    trading_day = TradingDay.objects.filter(date=first_date).first()
+    if trading_day is not None:
+        window_start = coerce_time(trading_day.window_start)
+        window_end = coerce_time(trading_day.window_end)
+        day_cap = trading_day.daily_order_cap
+        occupying = _day_occupying(trading_day)
+    else:
+        window_start = coerce_time(settings.default_window_start)
+        window_end = coerce_time(settings.default_window_end)
+        day_cap = settings.default_daily_order_cap
+        occupying = 0
+    day_remaining = max(0, day_cap - occupying)
+    edition_sold_out = day_remaining == 0 and first is not None
+
+    today_orderable = bool(days) and days[0]["iso"] == today.isoformat()
+    edition_label = ""
+    if first is not None:
+        d = dt.date.fromisoformat(first["iso"])
+        edition_label = f"{_DAY_NAMES[d.weekday()]} {d.day} {_MONTH_NAMES[d.month - 1]}"
+    cutoff_copy = (
+        f"Order by {cutoff.strftime('%H:%M')}"
+        if today_orderable
+        else f"Ordering for {edition_label}" if edition_label else f"Order by {cutoff.strftime('%H:%M')}"
+    )
+    cta_label = (
+        "Order this drop" if today_orderable else (f"Order for {edition_label}" if edition_label else "See the menu")
+    )
+
+    active = menu_queries.active_dishes()
+    featured = _featured_dish(active, request.GET.get("featured"))
+    featured_photo = dish_photo_url(featured) if featured else ""
 
     return render(request, "public/home.html", {
-        "orders_per_day": settings.default_daily_order_cap,
         "slot_minutes": settings.slot_minutes,
         "same_day_cutoff": cutoff.strftime("%H:%M"),
         "collection_window": f"{window_start.strftime('%H:%M')}–{window_end.strftime('%H:%M')}",
-        "picks": picks,
-        "today_label": today_label,
+        "edition_label": edition_label,
+        "cutoff_copy": cutoff_copy,
+        "cta_label": cta_label,
+        "edition_sold_out": edition_sold_out,
+        "featured": featured,
+        "featured_photo_url": featured_photo,
+        "chip_tiles": _chip_tiles(active),
+        "today_orderable": today_orderable,
     })
 
 
@@ -271,13 +378,26 @@ def order(request: HttpRequest) -> HttpResponse:
 
     dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
     categories = menu_queries.categories_ordered(dishes)
+    featured_slug = request.GET.get("featured") or ""
 
     settings = Settings.current()
     return render(request, "public/order.html", {
         "categories": categories,
+        "chip_sections": _menu_chip_sections(dishes, featured_slug),
         "days": days,
         "slots": slots,
         "eft_hold_minutes": settings.eft_hold_minutes,
+        "preview": request.GET.get("preview") == "1",
+        "collection_window": (
+            f"{coerce_time(first_day.window_start).strftime('%H:%M')}–"
+            f"{coerce_time(first_day.window_end).strftime('%H:%M')}"
+            if first_day else ""
+        ),
+        "edition_label": (
+            f"{_DAY_NAMES[first_day.date.weekday()]} {first_day.date.day} "
+            f"{_MONTH_NAMES[first_day.date.month - 1]}"
+            if first_day else ""
+        ),
     })
 
 

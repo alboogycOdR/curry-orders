@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from storage.service import public_dish_image_url
+
 from .capacity import dish_units_used
 from .models import DayDishAvailability, Dish, TradingDay
 
@@ -44,6 +46,14 @@ class MenuDish:
     category: str
     sold_out: bool
     options: list[MenuDishOption]
+    photo_url: str = ""
+
+
+def dish_photo_url(dish: Dish) -> str:
+    media = getattr(dish, "image_media", None)
+    if media is None or not getattr(media, "storage_key", None):
+        return ""
+    return public_dish_image_url(media.storage_key)
 
 
 def active_dishes() -> list[Dish]:
@@ -53,6 +63,7 @@ def active_dishes() -> list[Dish]:
     """
     return list(
         Dish.objects.filter(is_active_on_menu=True, archived_at__isnull=True)
+        .select_related("image_media")
         .order_by("category", "sort_order", "name")
     )
 
@@ -95,6 +106,7 @@ def dishes_for_date(trading_day: TradingDay, *, with_options: bool = False) -> l
             category=dish.category or "",
             sold_out=sold_out,
             options=options,
+            photo_url=dish_photo_url(dish),
         ))
     return result
 

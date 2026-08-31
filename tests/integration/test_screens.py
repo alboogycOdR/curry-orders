@@ -52,7 +52,7 @@ class TestMobileApplicationShell:
         assert content.count('class="mobile-nav-label"') == 5
         for label in ("Home", "Menu", "Basket", "Account", "More"):
             assert f'class="mobile-nav-label">{label}</span>' in content
-        assert f'href="{reverse("public:menu")}"' in content
+        assert f'href="{reverse("public:order")}"' in content
         assert f'href="{reverse("public:checkout")}" id="mobile-nav-basket-link"' in content
         assert 'data-cart-badge hidden' in content
 
@@ -82,8 +82,8 @@ class TestHome:
         # defaults (§7.2) rather than crashing on a missing row.
         resp = client.get(reverse("public:home"))
         assert resp.status_code == 200
-        assert b"Brandon" in resp.content
-        assert b"100" in resp.content  # default_daily_order_cap default
+        assert b"Roti Connect" in resp.content
+        assert b"Collection only" in resp.content
 
     def test_hero_figures_come_from_settings_when_seeded(self, client) -> None:
         Settings.objects.create(
@@ -91,7 +91,10 @@ class TestHome:
         )
         resp = client.get(reverse("public:home"))
         assert resp.status_code == 200
-        assert b">24<" in resp.content
+        # Home no longer prints the day cap as a magazine stat; the
+        # collection chip still reflects the live window from settings.
+        assert b"16:00" in resp.content
+        assert b"18:00" in resp.content
 
     def test_todays_picks_present_when_seeded(self, client) -> None:
         _make_dish("full-house-masala-steak-gatsby", "Full House Masala Steak Gatsby", "Gatsby")
@@ -99,8 +102,10 @@ class TestHome:
         _make_dish("beef-lasagne", "Beef Lasagne", "Italian Lasagne")
         resp = client.get(reverse("public:home"))
         content = resp.content.decode()
-        for name in ("Full House Masala Steak Gatsby", "Chicken Masala Roti Roll", "Beef Lasagne"):
-            assert name in content
+        assert "Chicken Masala Roti Roll" in content
+        assert "Gatsby" in content
+        assert "Lasagne" in content
+        assert "Roti" in content
 
     def test_no_picks_section_crash_pre_seed(self, client) -> None:
         # No dishes at all yet — home() must not 500 on an empty picks list.
@@ -109,20 +114,18 @@ class TestHome:
 
     def test_mobile_home_is_compact_discovery_surface(self, client) -> None:
         _make_dish("full-house-masala-steak-gatsby", "Full House Masala Steak Gatsby", "Gatsby")
+        _make_dish("chicken-masala-roti-roll", "Chicken Masala Roti Roll", "Masala Roti Rolls")
         resp = client.get(reverse("public:home"))
         content = resp.content.decode()
 
-        assert 'class="mobile-home"' in content
-        assert 'class="mh-promo"' in content
-        assert "Search the menu" in content
-        assert "Already ordered with us?" in content
+        assert "Search the menu" not in content
         assert "Find my order" in content
         assert "What are you hungry for?" in content
-        assert "Our menu" in content
-        assert "Today&rsquo;s picks" in content
-        # The existing editorial home remains available above the mobile breakpoint.
-        assert 'class="desktop-home"' in content
         assert "How collection works" in content
+        assert 'class="desktop-home"' not in content
+        assert "Gatsby" in content
+        assert reverse("public:lookup") in content
+        assert "featured=chicken-masala-roti-roll" in content
 
 
 class TestOrder:
@@ -133,11 +136,13 @@ class TestOrder:
         resp = client.get(reverse("public:order"))
         assert resp.status_code == 200
         content = resp.content.decode()
-        assert "Roti &amp; Curry" in content or "Roti & Curry" in content
         assert "Chicken Curry &amp; Roti" in content or "Chicken Curry & Roti" in content
         assert "Steak Curry &amp; Roti" in content or "Steak Curry & Roti" in content
         assert "Beef Lasagne" in content
         assert "R 85.00" in content
+        assert 'id="section-roti"' in content
+        assert 'id="section-gatsby"' in content or "data-chip=\"curry\"" in content
+        assert "Sample menu" not in content
 
     def test_carries_the_availability_api_url_and_date_notice_element(self, client) -> None:
         # Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md) -- order.js
@@ -175,7 +180,7 @@ class TestOrder:
         )
         resp = client.get(reverse("public:order"))
         content = resp.content.decode()
-        assert 'class="op-dish-row is-sold-out"' in content
+        assert "is-sold-out" in content
         assert '<span class="tag tag-neutral">Sold out</span>' in content
 
     def test_day_picker_present_within_horizon(self, client) -> None:

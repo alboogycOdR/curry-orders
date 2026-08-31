@@ -371,10 +371,14 @@ def availability(request: HttpRequest) -> JsonResponse:
                 "dishes": [
                     {
                         "id": dish.id,
+                        "slug": dish.slug,
                         "name": dish.name,
                         "short_description": dish.short_description,
                         "price_cents": dish.price_cents,
                         "sold_out": dish.sold_out,
+                        "photo_url": dish.photo_url,
+                        "portion_label": dish.portion_label,
+                        "category": dish.category,
                     }
                     for dish in category_dishes
                 ],

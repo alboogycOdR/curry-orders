@@ -24,7 +24,7 @@ from core.models import (
 
 @pytest.fixture
 def biz_settings(db) -> Settings:
-    return Settings.objects.create(id=1, public_site_name="Brandon's Kitchen (test)")
+    return Settings.objects.create(id=1, public_site_name="Roti Connect (test)")
 
 
 @pytest.fixture

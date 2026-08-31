@@ -97,7 +97,7 @@ class Command(BaseCommand):
     def _seed_settings(self) -> Settings:
         settings, created = Settings.objects.get_or_create(
             id=1,
-            defaults={"public_site_name": "Brandon's Kitchen (dev)"},
+            defaults={"public_site_name": "Roti Connect"},
         )
         if created:
             self.stdout.write(self.style.SUCCESS("Settings: created default row."))

@@ -14,6 +14,8 @@ no separate host/CORS setup. The Python package behind that prefix is
 named `staff`, not `manage` (see config/settings/base.py's STAFF_APP_NAME
 comment for why); only the URL namespace is `manage`.
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -27,3 +29,6 @@ urlpatterns = [
     path("manage/", include("staff.urls")),  # namespace "manage" (app_name in staff/urls.py)
     path("", include("public.urls")),  # namespace "public"
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

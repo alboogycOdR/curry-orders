@@ -115,6 +115,25 @@ def validate_dish_image(data: bytes) -> str:
     return mime_type
 
 
+def public_dish_image_url(storage_key: str) -> str:
+    """Public GET URL for a dish image. Never signs; never HEADs the object.
+
+    CDN_BASE_URL wins, then S3_PUBLIC_ENDPOINT/bucket, else local /media/.
+    """
+    key = (storage_key or "").lstrip("/")
+    if not key:
+        return ""
+    cdn = (getattr(settings, "CDN_BASE_URL", "") or "").rstrip("/")
+    if cdn:
+        return f"{cdn}/{key}"
+    public_endpoint = (getattr(settings, "S3_PUBLIC_ENDPOINT", "") or "").rstrip("/")
+    if public_endpoint:
+        bucket = getattr(settings, "S3_BUCKET_PUBLIC", "curry-media")
+        return f"{public_endpoint}/{bucket}/{key}"
+    media = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip("/")
+    return f"/{media}/{key}"
+
+
 def store_dish_image_bytes(data: bytes, mime_type: str) -> str:
     """Same storage backend selection as `store_proof_bytes`, under a
     separate `dish-images/` key prefix and the public media bucket

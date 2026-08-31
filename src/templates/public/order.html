@@ -22,7 +22,7 @@ review and independently confirmed against this exact code before
 being scheduled.
 {% endcomment %}
 
-{% block title %}Order — Brandon's Kitchen{% endblock %}
+{% block title %}Order — Roti Connect{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -45,7 +45,7 @@ being scheduled.
   .op-cat-rule { flex: 1; height: 1px; background: var(--color-divider); }
   .op-cat-portion { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); }
 
-  .op-dish-row { display: grid; grid-template-columns: 1fr auto auto; gap: 24px; align-items: start; padding: 18px 0 18px 48px; border-top: 1px solid var(--color-divider); }
+  .op-dish-row-legacy { display: none; }
   .op-dish-name { font-family: var(--font-heading); font-size: 19px; font-weight: 600; line-height: 1.2; }
   .op-dish-desc { font-size: 15.5px; color: var(--color-neutral-700); margin-top: 5px; max-width: 46ch; }
   .op-dish-note { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin-top: 8px; }
@@ -54,8 +54,42 @@ being scheduled.
   .op-dish-row.is-sold-out { opacity: 0.5; }
   .op-dish-row.is-sold-out .op-dish-name { text-decoration: line-through; }
   .op-dish-qty .qty-count { font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: center; }
-  .op-dish-qty .btn { min-height: 36px; }
-  .op-dish-qty .btn-add { padding-inline: 16px; }
+  .op-dish-qty .btn { min-height: 44px; min-width: 44px; }
+  .op-dish-qty .btn-add { padding-inline: 16px; min-height: 44px; }
+  .op-filter-bar {
+    position: sticky; top: 58px; z-index: 5;
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 10px 0 12px; background: var(--color-bg);
+    -webkit-overflow-scrolling: touch;
+  }
+  .op-filter-chip {
+    flex: none; min-height: 36px; padding: 6px 14px;
+    border-radius: var(--radius-pill, 999px);
+    border: 1px solid var(--color-divider);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: var(--font-ui, var(--font-body));
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .op-filter-chip.is-selected {
+    background: var(--color-accent); color: #fff; border-color: var(--color-accent);
+  }
+  .op-dish-row {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-divider);
+  }
+  .op-dish-photo {
+    width: 72px; height: 72px; object-fit: cover;
+    border-radius: 12px; background: var(--color-surface);
+  }
+  .op-dish-row.is-placeholder .op-dish-photo { background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface)); }
+  .op-dish-row.is-sold-out .op-dish-photo { opacity: 0.4; }
+  .op-context { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 0; }
+  .op-total-row.is-empty { display: none; }
 
   .op-panel { position: sticky; top: 96px; }
   .op-panel-bar { height: 4px; background: var(--color-text); }
@@ -97,7 +131,7 @@ being scheduled.
   @media (max-width: 900px) {
     .op-grid { grid-template-columns: 1fr; }
     .op-panel { position: static; }
-    .op-dish-row { grid-template-columns: 1fr; gap: 8px; padding-left: 0; }
+    .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
     .op-dish-qty { justify-content: flex-start; }
   }
 </style>
@@ -107,7 +141,17 @@ being scheduled.
 <div class="op-wrap">
   <div class="op-head">
     <h2>What's cooking</h2>
-    <span class="op-head-note">Sample menu &amp; pricing &mdash; for review</span>
+    {% if preview %}<span class="op-head-note">Sample menu &amp; pricing &mdash; for review</span>{% endif %}
+  </div>
+  {% if edition_label %}
+  <p class="op-context">Collection · {{ edition_label }} · {{ collection_window }}</p>
+  {% endif %}
+
+  <div class="op-filter-bar" id="op-filter-bar" role="tablist" aria-label="Menu categories">
+    {% for section in chip_sections %}
+    <button type="button" class="op-filter-chip{% if section.id == 'all' %} is-selected{% endif %}"
+            data-chip="{{ section.id }}">{{ section.label }}</button>
+    {% endfor %}
   </div>
 
   {% comment %}
@@ -119,26 +163,35 @@ being scheduled.
 
   <div class="op-grid">
     <div class="op-menu" id="op-menu">
-      {% for category_name, dishes in categories %}
-      <div>
+      {% for section in chip_sections %}
+      <div class="op-section" id="section-{{ section.id }}" {% if section.id != 'all' %}hidden{% endif %}>
         <div class="op-cat-head">
-          <h3 class="op-cat-name">{{ category_name }}</h3>
+          <h3 class="op-cat-name">{{ section.label }}</h3>
           <span class="op-cat-rule"></span>
-          <span class="op-cat-portion">{{ dishes.0.portion_label }}</span>
         </div>
-        {% for dish in dishes %}
-        <div class="op-dish-row {% if dish.sold_out %}is-sold-out{% endif %}" data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price_cents }}">
+        {% for dish in section.dishes %}
+        <div class="op-dish-row has-photo {% if dish.sold_out %}is-sold-out{% endif %}{% if not dish.photo_url %} is-placeholder{% endif %}"
+             data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price_cents }}">
+          {% if dish.photo_url %}
+          <img class="op-dish-photo" src="{{ dish.photo_url }}" alt=""
+               onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
+          {% else %}
+          <div class="op-dish-photo" aria-hidden="true"></div>
+          {% endif %}
           <div>
             <div class="op-dish-name">{{ dish.name }}</div>
             <div class="op-dish-desc">{{ dish.short_description }}</div>
+            {% if dish.portion_label %}<div class="op-dish-note">{{ dish.portion_label }}</div>{% endif %}
+            <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
           </div>
-          <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
           {% if dish.sold_out %}
           <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
           {% else %}
           <div class="op-dish-qty" data-qty-control></div>
           {% endif %}
         </div>
+        {% empty %}
+        <p class="op-sheet-empty">Nothing in this section this week.</p>
         {% endfor %}
       </div>
       {% endfor %}
@@ -176,7 +229,7 @@ being scheduled.
 
       <div class="op-sheet" id="op-sheet"></div>
 
-      <div class="op-total-row">
+      <div class="op-total-row is-empty" id="op-total-row">
         <span class="op-total-label">Total</span>
         <span class="op-total-value" id="op-total-value">R 0.00</span>
       </div>

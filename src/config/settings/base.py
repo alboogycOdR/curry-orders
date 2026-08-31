@@ -204,7 +204,7 @@ CDN_BASE_URL = env("CDN_BASE_URL", default="")
 # local media path), purely a dev/test convenience so proof upload works
 # without a running MinIO. Never referenced when S3_ENDPOINT is set.
 MEDIA_ROOT = REPO_ROOT / "media"  # already gitignored
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 
 # --- Backups (§15 / §17.1 — consumed by deploy/backup.sh, not Django itself) --
 BACKUP_TARGET = env("BACKUP_TARGET", default="")

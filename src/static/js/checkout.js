@@ -413,7 +413,7 @@
             input: shareInput,
             status: shareStatusEl,
             url: statusUrl,
-            title: "Brandon's Kitchen — order " + order.order_number,
+            title: "Roti Connect — order " + order.order_number,
             onBeforeShare: function () {
               // Whichever tier fires, the customer is actively engaging
               // with this screen — don't yank them off it via the 1.8s

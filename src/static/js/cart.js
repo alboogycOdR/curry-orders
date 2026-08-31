@@ -168,6 +168,18 @@
         }
       }
     }
+
+    var sticky = document.getElementById("sticky-basket-bar");
+    if (sticky) {
+      if (t.count === 0) {
+        sticky.hidden = true;
+        sticky.textContent = "View basket";
+      } else {
+        sticky.hidden = false;
+        sticky.textContent =
+          t.count + (t.count === 1 ? " item · " : " items · ") + rands(t.total) + " View basket";
+      }
+    }
   }
 
   function getDay() {

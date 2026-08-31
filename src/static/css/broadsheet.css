@@ -101,6 +101,24 @@
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
 }
 
+/* Public customer surface (KD-1): retoken Broadsheet toward the wireframe
+   spec without touching staff :root cyan/magenta. Names that do not exist
+   on :root (--color-muted, --radius-card/pill/btn, --font-ui) are added
+   here, not remapped from print radii. */
+body.route-public {
+  --color-text: #1A1A1A;
+  --color-muted: #5C5C5C;
+  --color-neutral-600: #5C5C5C;
+  --color-accent-2: #9B1B4A;
+  --color-accent: #0E5C66;
+  --color-bg: #F6F4F1;
+  --color-surface: #FFFDF9;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --radius-btn: 12px;
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text);
