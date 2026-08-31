@@ -2,24 +2,12 @@
 {% load static moneyfmt %}
 
 {% comment %}
-Order screen — design handoff README §"Screens" §2. The menu listing
-(categories, dish names/descriptions/prices, sold-out state) and the slot
-grid's full/disabled state are server-rendered from real `core.Dish`/
-`core.Slot` data, for the *first* orderable day only; the day picker, qty
-steppers, order sheet and total are client-side state (order.js + the
-shared cart.js) — that cart is only ever a client-side staging area,
-turned into one real order at checkout (see public/views.py's module
-docstring) — this mirrors the handoff's own reactive prototype, just
-re-homed onto plain DOM updates instead of a component re-render.
-
-Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md): picking a different day
-chip now re-fetches `GET /api/availability?date=` (public/api.py) and
-rebuilds #op-menu/#op-slot-grid from that response — previously the
-day chips only relabelled themselves, leaving the first day's dishes
-and slots on screen (and a now-invalid slot ID in state) regardless of
-which day was actually selected, a real bug caught in an external UX
-review and independently confirmed against this exact code before
-being scheduled.
+Order screen — design handoff README §"Screens" §2. Menu-only after PR 5:
+day/slot picker, qty steppers, order sheet and Continue moved to /basket/.
+The menu is server-rendered for the first orderable day; item clicks open
+the item sheet overlay (BKItemSheet.open). Cart state is maintained in
+localStorage (cart v2, cart.js); the sticky basket bar / mobile badge from
+base.html's cart.js refreshHeader() keeps the customer oriented.
 {% endcomment %}
 
 {% block title %}Order — Roti Connect{% endblock %}
@@ -91,46 +79,8 @@ being scheduled.
   .op-context { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 0; }
   .op-total-row.is-empty { display: none; }
 
-  .op-panel { position: sticky; top: 96px; }
-  .op-panel-bar { height: 4px; background: var(--color-text); }
-  .op-panel-title { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding: 9px 0; border-bottom: 1px solid var(--color-text); }
-  .op-section-label { font-family: var(--font-heading); font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
-  .op-day-section { margin-top: 26px; }
-  .op-day-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .op-slot-section { margin-top: 30px; }
-  .op-slot-head { display: flex; align-items: baseline; gap: 12px; }
-  .op-slot-note-inline { font-size: 13px; color: var(--color-neutral-600); margin-left: auto; }
-  .op-slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-  .op-slot-note { font-size: 13px; color: var(--color-neutral-700); margin-top: 12px; }
-
-  .op-chip {
-    font-family: var(--font-body); font-size: 14px; cursor: pointer;
-    padding: 8px 6px; border-radius: var(--radius-md); text-align: center; line-height: 1.2;
-    transition: background 140ms ease, color 140ms ease;
-    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
-  }
-  .op-chip .op-chip-top { display: block; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
-  .op-chip .op-chip-bottom { display: block; font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; }
-  .op-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
-  .op-slot-chip.is-full { color: var(--color-neutral-500); text-decoration: line-through; cursor: not-allowed; }
-
-  .op-sheet { margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--color-divider); }
-  .op-sheet-line { display: flex; gap: 14px; align-items: baseline; padding: 9px 0; }
-  .op-sheet-qty { font-family: var(--font-heading); font-variant-numeric: tabular-nums; color: var(--color-accent-700); width: 26px; }
-  .op-sheet-name { flex: 1; font-size: 16px; }
-  .op-sheet-total { font-variant-numeric: tabular-nums; font-size: 16px; }
-  .op-sheet-empty { font-size: 15.5px; color: var(--color-neutral-600); margin: 6px 0 0; max-width: 34ch; }
-
-  .op-total-row { display: flex; align-items: baseline; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-text); }
-  .op-total-label { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); }
-  .op-total-value { margin-left: auto; font-family: var(--font-heading); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .op-continue { min-height: 48px; font-size: 15px; margin-top: 18px; }
-  .op-ready-hint { font-size: 12.5px; color: var(--color-neutral-600); margin: 12px 0 0; }
-
-  {% comment %} Not the real responsive pass (handoff README: "worth a design pass rather than a developer guess") — just enough that the screen isn't broken on a phone. {% endcomment %}
+  {% comment %} Not the real responsive pass — just enough that the screen isn't broken on a phone. {% endcomment %}
   @media (max-width: 900px) {
-    .op-grid { grid-template-columns: 1fr; }
-    .op-panel { position: static; }
     .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
     .op-dish-qty { justify-content: flex-start; }
   }
@@ -154,102 +104,48 @@ being scheduled.
     {% endfor %}
   </div>
 
-  {% comment %}
-  Set by order.js after a day switch — either a plain-language notice
-  ("removed from your order" / a fetch failure), never silent. Empty and
-  hidden until then.
-  {% endcomment %}
-  <p class="op-date-notice" id="op-date-notice" hidden></p>
-
-  <div class="op-grid">
-    <div class="op-menu" id="op-menu">
-      {% for section in chip_sections %}
-      <div class="op-section" id="section-{{ section.id }}" {% if section.id != 'all' %}hidden{% endif %}>
-        <div class="op-cat-head">
-          <h3 class="op-cat-name">{{ section.label }}</h3>
-          <span class="op-cat-rule"></span>
-        </div>
-        {% for dish in section.dishes %}
-        <div class="op-dish-row has-photo {% if dish.sold_out %}is-sold-out{% endif %}{% if not dish.photo_url %} is-placeholder{% endif %}"
-             data-dish-id="{{ dish.id }}" data-dish-name="{{ dish.name }}" data-dish-price="{{ dish.price_cents }}">
-          {% if dish.photo_url %}
-          <img class="op-dish-photo" src="{{ dish.photo_url }}" alt=""
-               onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
-          {% else %}
-          <div class="op-dish-photo" aria-hidden="true"></div>
-          {% endif %}
-          <div>
-            <div class="op-dish-name">{{ dish.name }}</div>
-            <div class="op-dish-desc">{{ dish.short_description }}</div>
-            {% if dish.portion_label %}<div class="op-dish-note">{{ dish.portion_label }}</div>{% endif %}
-            <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
-          </div>
-          {% if dish.sold_out %}
-          <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
-          {% else %}
-          <div class="op-dish-qty" data-qty-control></div>
-          {% endif %}
-        </div>
-        {% empty %}
-        <p class="op-sheet-empty">Nothing in this section this week.</p>
-        {% endfor %}
+  <div class="op-menu" id="op-menu">
+    {% for section in chip_sections %}
+    <div class="op-section" id="section-{{ section.id }}" {% if section.id != 'all' %}hidden{% endif %}>
+      <div class="op-cat-head">
+        <h3 class="op-cat-name">{{ section.label }}</h3>
+        <span class="op-cat-rule"></span>
       </div>
+      {% for dish in section.dishes %}
+      <div class="op-dish-row has-photo {% if dish.sold_out %}is-sold-out{% endif %}{% if not dish.photo_url %} is-placeholder{% endif %}"
+           data-dish-id="{{ dish.id }}" data-item-id="{{ dish.id }}">
+        {% if dish.photo_url %}
+        <img class="op-dish-photo" src="{{ dish.photo_url }}" alt=""
+             onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
+        {% else %}
+        <div class="op-dish-photo" aria-hidden="true"></div>
+        {% endif %}
+        <div>
+          <div class="op-dish-name">{{ dish.name }}</div>
+          <div class="op-dish-desc">{{ dish.short_description }}</div>
+          {% if dish.portion_label %}<div class="op-dish-note">{{ dish.portion_label }}</div>{% endif %}
+          <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
+        </div>
+        {% if dish.sold_out %}
+        <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
+        {% else %}
+        <div class="op-dish-qty">
+          <button type="button" class="btn btn-secondary btn-add" data-action="open-sheet"
+                  aria-label="Add {{ dish.name }}">+</button>
+        </div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p class="op-sheet-empty">Nothing in this section this week.</p>
       {% endfor %}
     </div>
-
-    <div class="op-panel">
-      <div class="op-panel-bar"></div>
-      <div class="op-panel-title">Your collection order</div>
-
-      <div class="op-day-section">
-        <div class="op-section-label">Day</div>
-        <div class="op-day-chips" id="op-day-chips">
-          {% for d in days %}
-          <button type="button" class="op-chip" data-day-index="{{ d.index }}" data-day-long="{{ d.long }}">
-            <span class="op-chip-top">{{ d.dow }}</span>
-            <span class="op-chip-bottom">{{ d.dom }}</span>
-          </button>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="op-slot-section">
-        <div class="op-slot-head">
-          <div class="op-section-label">Collection slot</div>
-          <span class="op-slot-note-inline">15-minute windows</span>
-        </div>
-        <div class="op-slot-grid" id="op-slot-grid">
-          {% for s in slots %}
-          <button type="button" class="op-chip op-slot-chip {% if s.full %}is-full{% endif %}"
-                  data-slot-id="{{ s.id }}" data-slot="{{ s.label }}" {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
-          {% endfor %}
-        </div>
-        <div class="op-slot-note" id="op-slot-note"></div>
-      </div>
-
-      <div class="op-sheet" id="op-sheet"></div>
-
-      <div class="op-total-row is-empty" id="op-total-row">
-        <span class="op-total-label">Total</span>
-        <span class="op-total-value" id="op-total-value">R 0.00</span>
-      </div>
-      <button type="button" class="btn btn-primary btn-block op-continue" id="op-continue"
-              data-checkout-url="{% url 'public:checkout' %}" disabled>Continue to payment</button>
-      <p class="op-ready-hint" id="op-ready-hint"></p>
-    </div>
+    {% endfor %}
   </div>
 </div>
 
 {% include "public/_item_sheet.html" %}
 
-{{ days|json_script:"days-data" }}
-{{ eft_hold_minutes|json_script:"eft-hold-minutes-data" }}
 <script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
-<script>
-  window.BK_ORDER_URLS = {
-    api_availability: "{% url 'public:api_availability' %}",
-  };
-</script>
 <script src="{% static 'js/order.js' %}" defer></script>
 <script src="{% static 'js/item-sheet.js' %}" defer></script>
 {% endblock %}

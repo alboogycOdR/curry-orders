@@ -404,25 +404,21 @@ def _menu_catalog_payload(dishes: list) -> list[dict]:
 
 
 def order(request: HttpRequest) -> HttpResponse:
+    """PR 5: menu-only screen — day/slot picker moved to /basket/."""
     settings = Settings.current()
     today = now_sast().date()
     days = _orderable_day_list(today, settings)
     first_day = TradingDay.objects.filter(date=dt.date.fromisoformat(days[0]["iso"])).first() \
         if days else None
-    slots = _slot_list_for_day(first_day)
 
     dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
     categories = menu_queries.categories_ordered(dishes)
     featured_slug = request.GET.get("featured") or ""
 
-    settings = Settings.current()
     return render(request, "public/order.html", {
         "categories": categories,
         "chip_sections": _menu_chip_sections(dishes, featured_slug),
         "menu_catalog_json": json.dumps(_menu_catalog_payload(dishes)).replace("</", "<\\/"),
-        "days": days,
-        "slots": slots,
-        "eft_hold_minutes": settings.eft_hold_minutes,
         "preview": request.GET.get("preview") == "1",
         "collection_window": (
             f"{coerce_time(first_day.window_start).strftime('%H:%M')}–"
@@ -434,6 +430,32 @@ def order(request: HttpRequest) -> HttpResponse:
             f"{_MONTH_NAMES[first_day.date.month - 1]}"
             if first_day else ""
         ),
+    })
+
+
+def basket(request: HttpRequest) -> HttpResponse:
+    """PR 5: basket — day/slot picker, line steppers, Continue.
+
+    Emits `#menu-data` via `_menu_catalog_payload` so item-sheet.js can
+    power Edit mode on existing lines; missing/sold-out disables the Edit
+    button. Day/slot state lives in localStorage (cart v2 `dayIso`/`slotId`);
+    basket.js syncs UI ↔ cart on every interaction.
+    """
+    settings = Settings.current()
+    today = now_sast().date()
+    days = _orderable_day_list(today, settings)
+    first_day = TradingDay.objects.filter(date=dt.date.fromisoformat(days[0]["iso"])).first() \
+        if days else None
+    slots = _slot_list_for_day(first_day)
+
+    # Menu catalog needed for the Edit item sheet — same payload as order().
+    dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
+
+    return render(request, "public/basket.html", {
+        "menu_catalog_json": json.dumps(_menu_catalog_payload(dishes)).replace("</", "<\\/"),
+        "days": days,
+        "slots": slots,
+        "eft_hold_minutes": settings.eft_hold_minutes,
     })
 
 
@@ -782,6 +804,7 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
     lines = [
         "User-agent: *",
         "Disallow: /order/",
+        "Disallow: /basket/",
         "Disallow: /checkout/",
         "Disallow: /orders/",
         "Disallow: /lookup/",

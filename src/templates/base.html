@@ -380,8 +380,8 @@ screen readers.
         <circle cx="12" cy="12" r="4"></circle>
       </svg>
     </a>
-    <a href="{% url 'public:checkout' %}" class="nav-icon-link" id="nav-checkout-link" title="Checkout"
-       aria-label="Checkout" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>
+    <a href="{% url 'public:basket' %}" class="nav-icon-link" id="nav-checkout-link" title="Basket"
+       aria-label="Basket" {% if request.resolver_match.url_name == 'basket' %}aria-current="page"{% endif %}>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
            stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="5" y="8" width="14" height="13" rx="2"></rect>
@@ -445,7 +445,7 @@ screen readers.
 {% block content %}{% endblock %}
 
 {% if request.resolver_match.namespace == 'public' and not request.staff_user %}
-<a class="sticky-basket-bar" id="sticky-basket-bar" href="{% url 'public:checkout' %}" hidden>View basket</a>
+<a class="sticky-basket-bar" id="sticky-basket-bar" href="{% url 'public:basket' %}" hidden>View basket</a>
 <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
   <a href="{% url 'public:home' %}"
      {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>
@@ -461,8 +461,8 @@ screen readers.
     </svg>
     <span class="mobile-nav-label">Menu</span>
   </a>
-  <a href="{% url 'public:checkout' %}" id="mobile-nav-basket-link"
-     aria-label="Basket" {% if request.resolver_match.url_name == 'checkout' %}aria-current="page"{% endif %}>
+  <a href="{% url 'public:basket' %}" id="mobile-nav-basket-link"
+     aria-label="Basket" {% if request.resolver_match.url_name == 'basket' %}aria-current="page"{% endif %}>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M4 9h16l-1 12H5L4 9Z"></path><path d="m8 9 4-6 4 6"></path>
     </svg>

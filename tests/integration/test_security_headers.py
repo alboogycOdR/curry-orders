@@ -63,7 +63,7 @@ class TestRobotsTxt:
         assert resp.status_code == 200
         assert resp["Content-Type"] == "text/plain"
         body = resp.content.decode()
-        for path in ("/order/", "/checkout/", "/orders/", "/lookup/", "/manage/", "/admin/"):
+        for path in ("/order/", "/basket/", "/checkout/", "/orders/", "/lookup/", "/manage/", "/admin/"):
             assert f"Disallow: {path}" in body
 
     def test_public_marketing_pages_are_not_disallowed(self, client) -> None:
@@ -95,7 +95,8 @@ class TestNavAudienceSplit:
     def test_anonymous_visitor_still_sees_the_customer_nav(self, client) -> None:
         content = client.get(reverse("public:home")).content.decode()
         assert reverse("public:order") in content
-        assert reverse("public:checkout") in content
+        # PR 5: desktop bag icon and mobile basket tab now link to /basket/
+        assert reverse("public:basket") in content
 
     def test_front_page_nav_link_removed_wordmark_still_covers_it(self, client) -> None:
         # Same destination as the wordmark just to its left -- one click
@@ -105,12 +106,12 @@ class TestNavAudienceSplit:
         assert 'class="wordmark"' in content
 
     def test_order_and_checkout_are_icon_links_with_accessible_names(self, client) -> None:
-        # Order/Checkout became icon-only (a plate, a bag) rather than
-        # text -- title/aria-label carry the accessible name an
-        # icon-only link needs.
+        # Order/Basket are icon-only (a plate, a bag) — title/aria-label
+        # carry the accessible name an icon-only link needs.
+        # PR 5: "Checkout" icon label renamed to "Basket" (it now links /basket/).
         content = client.get(reverse("public:home")).content.decode()
         assert 'aria-label="Order"' in content
-        assert 'aria-label="Checkout"' in content
+        assert 'aria-label="Basket"' in content
         assert 'id="nav-cart-badge" hidden' in content
 
     def test_logged_in_staff_sees_the_staff_nav(self, client) -> None:

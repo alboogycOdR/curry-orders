@@ -53,18 +53,18 @@ class TestMobileApplicationShell:
         for label in ("Home", "Menu", "Basket", "Account", "More"):
             assert f'class="mobile-nav-label">{label}</span>' in content
         assert f'href="{reverse("public:order")}"' in content
-        assert f'href="{reverse("public:checkout")}" id="mobile-nav-basket-link"' in content
+        assert f'href="{reverse("public:basket")}" id="mobile-nav-basket-link"' in content
         assert 'data-cart-badge hidden' in content
 
     def test_active_mobile_destination_tracks_public_route(self, client) -> None:
         home = client.get(reverse("public:home")).content.decode()
-        checkout = client.get(reverse("public:checkout")).content.decode()
+        basket = client.get(reverse("public:basket")).content.decode()
         help_page = client.get(reverse("public:help")).content.decode()
 
         assert f'href="{reverse("public:home")}"\n     aria-current="page"' in home
         assert (
             'id="mobile-nav-basket-link"\n     aria-label="Basket" aria-current="page"'
-            in checkout
+            in basket
         )
         assert f'href="{reverse("public:help")}"\n     aria-current="page"' in help_page
 
@@ -144,14 +144,16 @@ class TestOrder:
         assert 'id="section-gatsby"' in content or "data-chip=\"curry\"" in content
         assert "Sample menu" not in content
 
-    def test_carries_the_availability_api_url_and_date_notice_element(self, client) -> None:
-        # Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md) -- order.js
-        # needs both of these to refresh dishes/slots on a day switch.
-        resp = client.get(reverse("public:order"))
+    def test_basket_carries_the_availability_api_url_and_date_notice_element(
+        self, client
+    ) -> None:
+        # PR 5: day/slot fetch machinery moved to /basket/ (basket.js).
+        # order.js no longer makes any fetch calls.
+        resp = client.get(reverse("public:basket"))
         content = resp.content.decode()
-        assert "window.BK_ORDER_URLS" in content
+        assert "window.BK_BASKET_URLS" in content
         assert reverse("public:api_availability") in content
-        assert 'id="op-date-notice"' in content
+        assert 'id="bk-date-notice"' in content
 
     def test_sold_out_dish_shows_sold_out_not_add(self, client, biz_settings) -> None:
         # Whichever date the order screen resolves as "soonest orderable"
@@ -183,13 +185,13 @@ class TestOrder:
         assert "is-sold-out" in content
         assert '<span class="tag tag-neutral">Sold out</span>' in content
 
-    def test_day_picker_present_within_horizon(self, client) -> None:
-        resp = client.get(reverse("public:order"))
-        content = resp.content.decode()
+    def test_basket_day_picker_present_within_horizon(self, client) -> None:
+        # PR 5: day picker moved to /basket/ (basket.html).
         # today (if before cut-off) + up to 7 more days (D-05) — 7 or 8
         # depending on the wall-clock time this test happens to run at
-        # relative to the default 10:00 SAST cut-off, not something to
-        # pin to a single number without mocking the clock.
+        # relative to the default 10:00 SAST cut-off.
+        resp = client.get(reverse("public:basket"))
+        content = resp.content.decode()
         count = content.count('data-day-index="')
         assert 7 <= count <= 8
 

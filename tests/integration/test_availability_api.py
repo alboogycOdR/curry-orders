@@ -94,7 +94,7 @@ class TestAvailabilityApi:
         resp = client.get(reverse("public:api_availability"), {"date": far_future})
         assert resp.status_code == 400
         body = resp.json()
-        assert body["error"] == "validation_error"
+        assert body["error"] == "outside_horizon"
         # It must actually refuse, not quietly substitute a different
         # date and return 200 for it -- that would just relocate the
         # stale-data bug this endpoint exists to fix.

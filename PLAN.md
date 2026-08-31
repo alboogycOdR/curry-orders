@@ -114,26 +114,26 @@ Status values: `todo` · `in_progress` · `done` · `blocked`
 
 ## Task 5 — PR 5: `/basket/` — steppers, day + slot, empty state
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 4
 - **Verify:** `py -3 -m pytest tests/integration/test_screens.py tests/integration/test_checkout_api.py tests/integration/test_availability_api.py tests/integration/test_security_headers.py -q`
 - **Browser:** add item → `/basket/` pick FULL vs open slot → Edit sheet → Continue
 
 ### Work items
 
-- [ ] New `public:basket` at `/basket/` (not `/cart/`)
-- [ ] Move day chips + slot grid + line steppers + Continue off `/order/`
-- [ ] Day chips use `getDayIso`/`setDayIso`
-- [ ] Host item sheet on basket; Edit = `BKCart.updateLine` (not navigate to `/order/`)
-- [ ] `views.basket` emits same `#menu-data`; missing/sold-out disables Edit
-- [ ] **No** `GET /api/menu`
-- [ ] `GET /api/availability?date=` frozen JSON (remaining/FULL, cash, dishes, `day_remaining`); 400 `outside_horizon`; never `check_day_cap`
-- [ ] Continue disabled until cart + live slot; empty state has no Total R0.00 / Place order
-- [ ] Reorder lands here with slot unselected
-- [ ] Retarget Basket tab, desktop bag, sticky bar to `/basket/`
-- [ ] `Disallow: /basket/` in robots.txt
-- [ ] Delete slot/day UI from `order.html`
-- [ ] Record **D-35 once** in `docs/DECISIONS.md`
+- [x] New `public:basket` at `/basket/` (not `/cart/`)
+- [x] Move day chips + slot grid + line steppers + Continue off `/order/`
+- [x] Day chips use `getDayIso`/`setDayIso`
+- [x] Host item sheet on basket; Edit = `BKCart.updateLine` (not navigate to `/order/`)
+- [x] `views.basket` emits same `#menu-data`; missing/sold-out disables Edit
+- [x] **No** `GET /api/menu`
+- [x] `GET /api/availability?date=` frozen JSON (remaining/FULL, cash, dishes, `day_remaining`); 400 `outside_horizon`; never `check_day_cap`
+- [x] Continue disabled until cart + live slot; empty state has no Total R0.00 / Place order
+- [x] Reorder lands here with slot unselected
+- [x] Retarget Basket tab, desktop bag, sticky bar to `/basket/`
+- [x] `Disallow: /basket/` in robots.txt
+- [x] Delete slot/day UI from `order.html`
+- [x] Record **D-35 once** in `docs/DECISIONS.md`
 
 ---
 

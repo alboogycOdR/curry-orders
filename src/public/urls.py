@@ -22,10 +22,10 @@ urlpatterns = [
     # interactive menu+cart+slot screen (§2's own framing, still true).
     path("menu/", views.menu, name="menu"),
     path("dishes/<slug:slug>/", views.dish_detail, name="dish_detail"),
-    # The handoff's "Order" screen (menu + day/slot picker + cart) — plain
-    # URL, no token, since it's a nav destination (base.html's "Order"
-    # link).
+    # The handoff's "Order" screen (menu) — plain URL, no token.
     path("order/", views.order, name="order"),
+    # PR 5: basket = day/slot picker + line steppers + Continue (moved off /order/).
+    path("basket/", views.basket, name="basket"),
     path("checkout/", views.checkout, name="checkout"),
     # Spec §6.1's real `/orders/:public_token` (order status / EFT
     # instructions / confirmed view) — named `order_status` rather than

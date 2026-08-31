@@ -80,6 +80,7 @@ _ERROR_STATUS = {
     "illegal_transition": 409,
     "idempotency_conflict": 409,
     "validation_error": 400,
+    "outside_horizon": 400,
     "throttled": 429,
     "upload_invalid": 400,
     "not_found": 404,
@@ -354,7 +355,7 @@ def availability(request: HttpRequest) -> JsonResponse:
     # would just move the stale-data bug here instead of fixing it.
     if not (today <= selected_date <= today + dt.timedelta(days=settings.preorder_days)):
         return _error_response(
-            "validation_error", "date is outside the orderable range.", field="date",
+            "outside_horizon", "date is outside the orderable range.", field="date",
         )
 
     trading_day = materialise_days(selected_date, settings, count=1)[0]

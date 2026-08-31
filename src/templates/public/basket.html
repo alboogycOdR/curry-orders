@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Basket screen — PR 5. Holds the day/slot picker, line steppers and
+Continue button that lived on /order/ through PR 4. /order/ is now the
+menu-only screen; this is step 1 of the checkout flow.
+
+basket.js reads the cart v2 state from localStorage and renders lines
+with qty steppers. Picking a day chip fires a GET /api/availability?date=
+fetch (same as the old order.js) to refresh the slot grid and prune sold-
+out lines. Edit on a line opens BKItemSheet.openEdit() using the #menu-data
+catalog below. Continue is disabled until cart is non-empty AND a live slot
+is selected.
+
+Empty state: if cart is empty, the whole basket content is replaced with a
+brief message and a "Browse the menu" link; no Total R0.00, no Place order.
+{% endcomment %}
+
+{% block title %}Basket — Roti Connect{% endblock %}
+
+{% block extra_head %}
+<style>
+  .bk-wrap { max-width: 1000px; margin: 0 auto; padding: 0 32px; }
+  .bk-topbar { height: 4px; background: var(--color-text); margin-top: 36px; }
+  .bk-step { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding: 9px 0; border-bottom: 1px solid var(--color-text); }
+
+  /* Empty state */
+  .bk-empty-content { max-width: 480px; margin: 60px auto 0; text-align: center; }
+  .bk-empty-heading { font-size: clamp(26px, 4vw, 38px); font-weight: 600; line-height: 1.1; margin: 0 0 14px; }
+  .bk-empty-hint { font-size: 16px; color: var(--color-neutral-700); margin: 0 0 28px; }
+
+  /* Grid */
+  .bk-grid { display: grid; grid-template-columns: 1fr 0.9fr; gap: 64px; margin-top: 44px; align-items: start; }
+
+  /* Lines */
+  .bk-lines-head { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding-bottom: 10px; border-bottom: 1px solid var(--color-text); }
+  .bk-line { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-divider); }
+  .bk-line-info { flex: 1; min-width: 0; }
+  .bk-line-name { font-family: var(--font-heading); font-size: 16px; font-weight: 600; }
+  .bk-line-opts { font-size: 13px; color: var(--color-neutral-600); margin-top: 2px; }
+  .bk-line-note { font-size: 12px; color: var(--color-neutral-500); margin-top: 2px; font-style: italic; }
+  .bk-line-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .bk-line-total { font-family: var(--font-heading); font-variant-numeric: tabular-nums; font-size: 15px; white-space: nowrap; }
+  .bk-stepper { display: flex; align-items: center; gap: 4px; }
+  .bk-stepper-btn { min-height: 34px; min-width: 34px; padding: 0; font-size: 18px; line-height: 1; border-radius: var(--radius-md); }
+  .bk-stepper-count { font-family: var(--font-heading); font-size: 16px; font-variant-numeric: tabular-nums; min-width: 22px; text-align: center; }
+  .bk-edit-btn { font-size: 12.5px; padding: 3px 10px; min-height: 28px; color: var(--color-neutral-600); border-color: var(--color-divider); }
+
+  .bk-date-notice { margin: 14px 0 0; padding: 12px 16px; font-size: 14px; background: var(--color-accent-100, #fde8e6); color: var(--color-accent-800, #7a1f16); border-radius: var(--radius-md); }
+
+  .bk-total-row { display: flex; align-items: baseline; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-text); }
+  .bk-total-label { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); }
+  .bk-total-value { margin-left: auto; font-family: var(--font-heading); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Panel */
+  .bk-panel { position: sticky; top: 96px; }
+  .bk-panel-bar { height: 4px; background: var(--color-text); }
+  .bk-panel-title { font-size: 12.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-neutral-700); padding: 9px 0; border-bottom: 1px solid var(--color-text); }
+  .bk-section-label { font-family: var(--font-heading); font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .bk-day-section { margin-top: 26px; }
+  .bk-day-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .bk-slot-section { margin-top: 30px; }
+  .bk-slot-head { display: flex; align-items: baseline; gap: 12px; }
+  .bk-slot-note-inline { font-size: 13px; color: var(--color-neutral-600); margin-left: auto; }
+  .bk-slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .bk-slot-note { font-size: 13px; color: var(--color-neutral-700); margin-top: 12px; }
+  .bk-chip {
+    font-family: var(--font-body); font-size: 14px; cursor: pointer;
+    padding: 8px 6px; border-radius: var(--radius-md); text-align: center; line-height: 1.2;
+    transition: background 140ms ease, color 140ms ease;
+    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
+  }
+  .bk-chip .bk-chip-top { display: block; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+  .bk-chip .bk-chip-bottom { display: block; font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; }
+  .bk-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  .bk-slot-chip.is-full { color: var(--color-neutral-500); text-decoration: line-through; cursor: not-allowed; }
+  .bk-ready-hint { font-size: 12.5px; color: var(--color-neutral-600); margin: 0 0 14px; }
+  .bk-continue { min-height: 48px; font-size: 15px; margin-top: 18px; }
+  .bk-back { font-size: 14px; }
+
+  @media (max-width: 820px) {
+    .bk-grid { grid-template-columns: 1fr; }
+    .bk-panel { position: static; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bk-wrap">
+  <div class="bk-topbar"></div>
+  <div class="bk-step">Step 1 of 2 &mdash; items &amp; collection slot</div>
+
+  {% comment %}Empty state — basket.js toggles this and bk-content.{% endcomment %}
+  <div id="bk-empty" hidden>
+    <div class="bk-empty-content">
+      <h2 class="bk-empty-heading">Your basket is empty</h2>
+      <p class="bk-empty-hint">Browse the menu and add something to get started.</p>
+      <a href="{% url 'public:order' %}" class="btn btn-primary">Browse the menu</a>
+    </div>
+  </div>
+
+  <div class="bk-grid" id="bk-content">
+    <div>
+      <div class="bk-lines-head">Order sheet</div>
+      <p class="bk-date-notice" id="bk-date-notice" hidden></p>
+      <div id="bk-lines"></div>
+      <div class="bk-total-row" id="bk-total-row">
+        <span class="bk-total-label">Total</span>
+        <span class="bk-total-value" id="bk-total-value"></span>
+      </div>
+    </div>
+
+    <div class="bk-panel">
+      <div class="bk-panel-bar"></div>
+      <div class="bk-panel-title">When to collect</div>
+
+      <div class="bk-day-section">
+        <div class="bk-section-label">Day</div>
+        <div class="bk-day-chips" id="bk-day-chips">
+          {% for d in days %}
+          <button type="button" class="bk-chip"
+                  data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}">
+            <span class="bk-chip-top">{{ d.dow }}</span>
+            <span class="bk-chip-bottom">{{ d.dom }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bk-slot-section">
+        <div class="bk-slot-head">
+          <div class="bk-section-label">Collection slot</div>
+          <span class="bk-slot-note-inline">15-minute windows</span>
+        </div>
+        <div class="bk-slot-grid" id="bk-slot-grid">
+          {% for s in slots %}
+          <button type="button"
+                  class="bk-chip bk-slot-chip {% if s.full %}is-full{% endif %}"
+                  data-slot-id="{{ s.id }}" data-slot="{{ s.label }}"
+                  {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
+          {% endfor %}
+        </div>
+        <div class="bk-slot-note" id="bk-slot-note"></div>
+      </div>
+
+      <p class="bk-ready-hint" id="bk-ready-hint"></p>
+      <button type="button" class="btn btn-primary btn-block bk-continue"
+              id="bk-continue"
+              data-checkout-url="{% url 'public:checkout' %}"
+              disabled>Continue to payment</button>
+      <a href="{% url 'public:order' %}" class="btn btn-ghost btn-block bk-back">Back to the menu</a>
+    </div>
+  </div>
+</div>
+
+{% include "public/_item_sheet.html" %}
+
+{{ days|json_script:"bk-days-data" }}
+{{ eft_hold_minutes|json_script:"bk-eft-hold-data" }}
+<script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
+<script>
+  window.BK_BASKET_URLS = {
+    api_availability: "{% url 'public:api_availability' %}",
+    checkout: "{% url 'public:checkout' %}",
+  };
+</script>
+<script src="{% static 'js/basket.js' %}" defer></script>
+<script src="{% static 'js/item-sheet.js' %}" defer></script>
+{% endblock %}
