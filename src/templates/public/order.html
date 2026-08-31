@@ -119,10 +119,13 @@ Any basket lines unavailable on the new day are removed with a notice.
     .op-dish-qty { justify-content: flex-start; }
     .op-dish-qty .btn-add { min-height: 44px; }
   }
+  .skip-link { position: absolute; left: -9999px; top: 4px; z-index: 9999; background: var(--color-bg); padding: 8px 16px; }
+  .skip-link:focus { left: 4px; }
 </style>
 {% endblock %}
 
 {% block content %}
+<a class="skip-link" href="#op-menu">Skip to menu</a>
 <div class="op-wrap">
   <div class="op-head">
     <h2>What's cooking</h2>
@@ -135,7 +138,8 @@ Any basket lines unavailable on the new day are removed with a notice.
   <div class="op-day-bar" id="op-day-bar" role="group" aria-label="Collection day">
     {% for d in days %}
     <button type="button" class="op-day-chip{% if forloop.first %} is-selected{% endif %}"
-            data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}">
+            data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}"
+            aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">
       <span class="op-chip-top">{{ d.dow }}</span>
       <span class="op-chip-bottom">{{ d.dom }}</span>
     </button>
@@ -144,7 +148,7 @@ Any basket lines unavailable on the new day are removed with a notice.
   {% endif %}
 
   {% comment %}Phase 1a: inline notice for basket items removed on day change.{% endcomment %}
-  <p class="op-date-notice" id="op-date-notice" hidden aria-live="polite"></p>
+  <p class="op-date-notice" id="op-date-notice" hidden role="status" aria-live="polite"></p>
 
   {% if edition_label %}
   <p class="op-context" id="op-context">Collection · {{ edition_label }} · {{ collection_window }}</p>

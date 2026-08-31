@@ -34,6 +34,9 @@ key, not just the dish id.
   .dd-confirm { display: none; margin-top: 16px; font-size: 14.5px; color: var(--color-accent-700); }
   .dd-confirm.is-visible { display: block; }
   .dd-confirm a { margin-left: 8px; }
+
+  /* Sold-out: only the image may be muted; name, price, and status label keep full contrast. */
+  .dd-wrap.is-sold-out .dd-dish-photo { opacity: 0.4; }
 </style>
 {% endblock %}
 
@@ -78,7 +81,7 @@ key, not just the dish id.
       {% else %}
         <button type="button" class="btn btn-primary dd-add" id="dd-add">Add to cart</button>
       {% endif %}
-      <p class="dd-confirm" id="dd-confirm">Added to your order.<a href="{% url 'public:order' %}" class="btn btn-ghost">Continue to your order</a></p>
+      <p class="dd-confirm" id="dd-confirm" role="status" aria-live="polite"><span id="dd-confirm-text"></span><a href="{% url 'public:order' %}" class="btn btn-ghost">Continue to your order</a></p>
     </div>
   {% endif %}
 </div>

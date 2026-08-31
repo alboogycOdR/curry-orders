@@ -13,11 +13,12 @@
     var dishName  = form.dataset.dishName;
     var basePrice = parseFloat(form.dataset.basePrice);
 
-    var qtyEl     = document.getElementById("dd-qty-count");
-    var decBtn    = document.getElementById("dd-qty-dec");
-    var incBtn    = document.getElementById("dd-qty-inc");
-    var addBtn    = document.getElementById("dd-add");
-    var confirmEl = document.getElementById("dd-confirm");
+    var qtyEl       = document.getElementById("dd-qty-count");
+    var decBtn      = document.getElementById("dd-qty-dec");
+    var incBtn      = document.getElementById("dd-qty-inc");
+    var addBtn      = document.getElementById("dd-add");
+    var confirmEl   = document.getElementById("dd-confirm");
+    var confirmText = document.getElementById("dd-confirm-text");
 
     var qty = 1;
     var MIN_QTY = 1;
@@ -133,6 +134,7 @@
         photoUrl:       "",
         optionValueIds: optionIds,
       });
+      if (confirmText) confirmText.textContent = "Added to your order.";
       confirmEl.classList.add("is-visible");
     });
 
