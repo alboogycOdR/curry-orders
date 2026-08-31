@@ -1,11 +1,30 @@
 """The public JSON API endpoints this project builds outside the plain
 server-rendered pages (`public/views.py`): `POST /api/checkout` (spec
 §11.6, §17.3) and `POST /api/orders/:token/proof` (§17.3, milestone 4).
-Everything else in §17.3's public API table (`/api/dates`, `/api/menu`,
-`/api/availability`, ...) is still served by the server-rendered pages —
-both endpoints here exist because they need a real transactional
-response (success/failure, an error code), not because the project is
-moving to a JSON-API-first architecture wholesale.
+`GET /api/availability?date=` (Monday-sprint Phase 1a, see
+docs/MONDAY_SPRINT.md) is the first departure from that -- the order
+screen (`order.js`) needs to refresh its own dishes/slots without a full
+page reload when the customer changes their collection date, something
+the server-rendered `/order/` page (which only ever renders the first
+orderable day, `public/views.py::order()`) can't do on its own.
+
+Spec §17.3's own table names `/api/menu?date=` (dishes) and
+`/api/availability?date=` (slots) as two separate endpoints; this
+implementation deliberately combines both into the one
+`/api/availability` response instead. The order screen's day-chip click
+is a single user action that needs both atomically -- two separate
+fetches would leave a window where the dish list and slot grid disagree
+about which date they're showing, exactly the class of bug this
+endpoint exists to fix. `/api/menu?date=` as its own spec-named endpoint
+is still unbuilt; nothing here blocks adding it later if something else
+needs dishes without slots.
+
+Everything else in §17.3's public API table (`/api/dates`, ...) is
+still served by the server-rendered pages -- these endpoints exist
+because they need either a real transactional response (checkout,
+proof upload) or a same-page refresh a full reload can't give
+(availability), not because the project is moving to a JSON-API-first
+architecture wholesale.
 
 Field validation (this module, §11.6's table, 400 on failure) is
 deliberately separate from capacity validation (`core.capacity.reserve()`,
@@ -26,14 +45,16 @@ from typing import TypedDict
 from django.db import transaction
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from core import eft
+from core import menu as menu_queries
 from core.capacity import CapacityError, CheckoutLine, ReservationRequest, reserve
 from core.materialise import materialise_days
 from core.models import ActorKind, IdempotencyKey, Order, OrderSource, PaymentMethod, Settings
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import now_sast
+from public.views import _slot_list_for_day
 from storage import service as storage_service
 
 
@@ -297,3 +318,68 @@ def upload_proof(request: HttpRequest, public_token: str) -> JsonResponse:
         return _error_response(exc.code, exc.message, **exc.extra)
 
     return JsonResponse({"status": "payment_review"})
+
+
+@require_GET
+def availability(request: HttpRequest) -> JsonResponse:
+    """`GET /api/availability?date=YYYY-MM-DD` — see this module's own
+    docstring for why dishes and slots are combined into one response
+    rather than spec §17.3's literal `/api/menu?date=` +
+    `/api/availability?date=` split.
+
+    Monday-sprint Phase 1a: fixes the order screen's stale-slot bug
+    (docs/MONDAY_SPRINT.md) — `order.js`'s day-chip click hits this to
+    refresh the dish list and slot grid for the newly chosen date,
+    instead of leaving the first orderable day's dishes/slots on screen
+    (and a now-invalid slot ID sitting in state) no matter which day
+    chip is clicked.
+    """
+    date_param = request.GET.get("date")
+    if not date_param:
+        return _error_response("validation_error", "date is required.", field="date")
+    try:
+        selected_date = dt.date.fromisoformat(date_param)
+    except ValueError:
+        return _error_response("validation_error", "date must be YYYY-MM-DD.", field="date")
+
+    settings = Settings.current()
+    today = now_sast().date()
+    # Same horizon clamp as dish_detail() -- an arbitrary date must not
+    # be able to make this endpoint insert TradingDay rows without
+    # bound. Unlike dish_detail(), a bad date here is a real error
+    # (400), not a silent fall-back to today: order.js only ever
+    # requests dates from the same orderable-day list the page itself
+    # rendered, so this should never fire from ordinary use, and
+    # silently substituting a different date than the one asked for
+    # would just move the stale-data bug here instead of fixing it.
+    if not (today <= selected_date <= today + dt.timedelta(days=settings.preorder_days)):
+        return _error_response(
+            "validation_error", "date is outside the orderable range.", field="date",
+        )
+
+    trading_day = materialise_days(selected_date, settings, count=1)[0]
+    dishes = menu_queries.dishes_for_date(trading_day)
+    categories = menu_queries.categories_ordered(dishes)
+    slots = _slot_list_for_day(trading_day)
+
+    return JsonResponse({
+        "date": selected_date.isoformat(),
+        "categories": [
+            {
+                "name": category_name,
+                "portion_label": category_dishes[0].portion_label if category_dishes else "",
+                "dishes": [
+                    {
+                        "id": dish.id,
+                        "name": dish.name,
+                        "short_description": dish.short_description,
+                        "price_cents": dish.price_cents,
+                        "sold_out": dish.sold_out,
+                    }
+                    for dish in category_dishes
+                ],
+            }
+            for category_name, category_dishes in categories
+        ],
+        "slots": slots,
+    })

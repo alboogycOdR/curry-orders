@@ -11,6 +11,10 @@ urlpatterns = [
     # POST, so a slashed-vs-not mismatch here would just 404 the client).
     path("api/checkout", api.checkout, name="api_checkout"),
     path("api/orders/<str:public_token>/proof", api.upload_proof, name="api_upload_proof"),
+    # Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md) — order.js's own
+    # per-date refresh; see api.availability's docstring for why this
+    # combines spec §17.3's separately-named /api/menu + /api/availability.
+    path("api/availability", api.availability, name="api_availability"),
     # Spec §6.1's real per-dish permalink now exists (milestone 2), which
     # is exactly the trigger docs/DECISIONS.md D-32 named for revisiting
     # the /menu-vs-/order split — not revisited yet: /menu is the

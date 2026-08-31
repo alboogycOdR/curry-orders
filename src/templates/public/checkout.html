@@ -50,6 +50,12 @@ real `core.Order` — see that file's own header comment.
   .ck-back { font-size: 14px; }
   .ck-field-error { font-size: 13px; color: var(--color-error, #b3261e); margin: 6px 0 0; }
 
+  .ck-capacity-recovery { margin-top: 14px; padding: 14px; border: 1px solid var(--color-text); border-radius: var(--radius-md); }
+  .ck-capacity-recovery p { font-size: 14px; margin: 0 0 10px; }
+  .ck-capacity-recovery .ck-recovery-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ck-capacity-recovery button { font-family: var(--font-body); font-size: 13px; padding: 7px 12px; border: 1px solid var(--color-text); background: none; cursor: pointer; }
+  .ck-capacity-recovery button:hover { background: var(--color-text); color: var(--color-bg); }
+
   #ck-confirmed-state { margin-top: 56px; animation: ckRiseIn 520ms ease-out both; }
   .ck-eyebrow { font-size: 12.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-accent-2-700); }
   #ck-confirm-heading { font-size: clamp(32px, 4.6vw, 60px); font-weight: 600; line-height: 1.02; margin: 16px 0 0; letter-spacing: -0.015em; }
@@ -123,6 +129,18 @@ real `core.Order` — see that file's own header comment.
         <p class="ck-field-error" id="ck-accept-policies-error" hidden></p>
 
         <p class="ck-field-error" id="ck-form-error" hidden style="margin-top: 18px;"></p>
+        {% comment %}
+        Monday-sprint Phase 1b (docs/MONDAY_SPRINT.md): a capacity
+        conflict (slot filled, a basket dish no longer available, cash
+        capped) previously left "Back to the menu" as the only recovery
+        path, after the customer had already typed everything above.
+        checkout.js populates this with whatever the server actually
+        computed a fix for (alternatives.slots on slot_full, the
+        specific basket line on dish_unavailable/dish_qty_exceeded,
+        switch-to-EFT on a cash ceiling) — never fabricates a recovery
+        option the server didn't send.
+        {% endcomment %}
+        <div class="ck-capacity-recovery" id="ck-capacity-recovery" hidden></div>
       </div>
 
       <div>

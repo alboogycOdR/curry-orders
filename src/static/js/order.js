@@ -1,8 +1,9 @@
 // order.js — the Order screen (design handoff §"Screens" §2): qty
 // steppers on the menu, day/slot pickers, order sheet and total. Menu
-// listing itself is server-rendered (order.html); this only drives the
-// interactive parts, reading/writing state through window.BKCart
-// (cart.js, loaded first — see that file's header).
+// listing is server-rendered for the *first* orderable day only
+// (order.html); picking a different day re-fetches and rebuilds it —
+// Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md), see order.html's own
+// comment on this for why. Builds on the shared cart.js (loaded first).
 (function () {
   "use strict";
 
@@ -16,17 +17,21 @@
     }
   }
 
+  function escapeHtml(s) {
+    var div = document.createElement("div");
+    div.textContent = s == null ? "" : String(s);
+    return div.innerHTML;
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
-    // Dish name/price come off each .op-dish-row's data-* attributes
-    // (server-rendered from real core.Dish rows) — no separate menu
-    // price map needed here.
-    var days = readJSONScript("days-data", []); // [{index, dow, dom, long, ...}]
+    var days = readJSONScript("days-data", []); // [{index, dow, dom, long, iso}]
     var eftHoldMinutes = readJSONScript("eft-hold-minutes-data", 30); // core.models.Settings.eft_hold_minutes
 
     var menuEl = document.getElementById("op-menu");
     var dayChipsEl = document.getElementById("op-day-chips");
     var slotGridEl = document.getElementById("op-slot-grid");
     var slotNoteEl = document.getElementById("op-slot-note");
+    var dateNoticeEl = document.getElementById("op-date-notice");
     var sheetEl = document.getElementById("op-sheet");
     var totalEl = document.getElementById("op-total-value");
     var continueBtn = document.getElementById("op-continue");
@@ -37,6 +42,10 @@
       slot: window.BKCart.getSlot(),
       slotId: window.BKCart.getSlotId(),
     };
+    // Guards against an out-of-order response: if the customer taps two
+    // day chips in quick succession, only the most recent request's
+    // result is allowed to land.
+    var loadRequestId = 0;
 
     function clampDay(i) {
       if (!days.length) return 0;
@@ -50,11 +59,20 @@
     }
 
     function renderDishRow(row) {
+      var control = row.querySelector("[data-qty-control]");
+      // A sold-out row has no qty control at all (order.html/
+      // buildMenuHtml renders a static "Sold out" tag instead) --
+      // nothing to wire up. Previously unguarded: this threw on the
+      // first sold-out dish encountered and silently killed every
+      // renderAll() call after it in the same page load (day switching,
+      // slot picking, add-to-cart, totals -- all of it), independently
+      // found while rewriting this function for Phase 1a.
+      if (!control) return;
+
       var id = row.getAttribute("data-dish-id");
       var name = row.getAttribute("data-dish-name");
       var price = parseFloat(row.getAttribute("data-dish-price"));
       var qty = dishRowQty(id);
-      var control = row.querySelector("[data-qty-control]");
       if (qty > 0) {
         control.innerHTML =
           '<button type="button" class="btn btn-secondary btn-icon" data-action="dec" aria-label="One fewer">&minus;</button>' +
@@ -81,10 +99,10 @@
     }
 
     function renderSlotGrid() {
-      // Full/disabled state is server-rendered (order.html sets
-      // .is-full/disabled per slot from a real occupying-orders count —
-      // public.views._slot_list_for_day) — this only ever manages which
-      // chip looks selected, never which ones are clickable.
+      // Full/disabled state comes from the day's own data (server-
+      // rendered for the first day, from GET /api/availability for any
+      // other — see loadDay()) — this only ever manages which chip
+      // looks selected, never which ones are clickable.
       slotGridEl.querySelectorAll(".op-slot-chip").forEach(function (btn) {
         var slotId = parseInt(btn.getAttribute("data-slot-id"), 10);
         btn.classList.toggle("is-selected", !btn.disabled && slotId === state.slotId);
@@ -129,10 +147,135 @@
       }
     }
 
-    function escapeHtml(s) {
-      var div = document.createElement("div");
-      div.textContent = s;
-      return div.innerHTML;
+    function showDateNotice(message, isError) {
+      dateNoticeEl.textContent = message;
+      dateNoticeEl.classList.toggle("is-error", !!isError);
+      dateNoticeEl.hidden = false;
+    }
+
+    function clearDateNotice() {
+      dateNoticeEl.hidden = true;
+      dateNoticeEl.textContent = "";
+      dateNoticeEl.classList.remove("is-error");
+    }
+
+    function buildMenuHtml(categories) {
+      var html = "";
+      categories.forEach(function (cat) {
+        html +=
+          '<div><div class="op-cat-head"><h3 class="op-cat-name">' + escapeHtml(cat.name) +
+          '</h3><span class="op-cat-rule"></span><span class="op-cat-portion">' +
+          escapeHtml(cat.portion_label) + "</span></div>";
+        cat.dishes.forEach(function (dish) {
+          html +=
+            '<div class="op-dish-row' + (dish.sold_out ? " is-sold-out" : "") + '" ' +
+            'data-dish-id="' + dish.id + '" data-dish-name="' + escapeHtml(dish.name) + '" ' +
+            'data-dish-price="' + dish.price_cents + '">' +
+            '<div><div class="op-dish-name">' + escapeHtml(dish.name) + "</div>" +
+            '<div class="op-dish-desc">' + escapeHtml(dish.short_description) + "</div></div>" +
+            '<div class="op-dish-price">' + window.BKCart.rands(dish.price_cents) + "</div>";
+          html += dish.sold_out
+            ? '<div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>'
+            : '<div class="op-dish-qty" data-qty-control></div>';
+          html += "</div>";
+        });
+        html += "</div>";
+      });
+      return html;
+    }
+
+    function buildSlotGridHtml(slots) {
+      var html = "";
+      slots.forEach(function (s) {
+        html +=
+          '<button type="button" class="op-chip op-slot-chip' + (s.full ? " is-full" : "") + '" ' +
+          'data-slot-id="' + s.id + '" data-slot="' + escapeHtml(s.label) + '"' +
+          (s.full ? " disabled" : "") + ">" + escapeHtml(s.label) + "</button>";
+      });
+      return html;
+    }
+
+    // Removes any basket line for a dish that's either sold out on the
+    // newly chosen date or no longer in the active menu at all. Never a
+    // silent drop — returns the removed names so the caller can tell
+    // the customer plainly what happened and why.
+    function pruneCartForCategories(categories) {
+      var availableIds = {};
+      categories.forEach(function (cat) {
+        cat.dishes.forEach(function (dish) {
+          if (!dish.sold_out) availableIds[dish.id] = true;
+        });
+      });
+      var cart = window.BKCart.getCart();
+      var removedNames = [];
+      var changed = false;
+      Object.keys(cart).forEach(function (key) {
+        var dishId = parseInt(String(key).split(":")[0], 10);
+        if (!availableIds[dishId]) {
+          removedNames.push(cart[key].name);
+          delete cart[key];
+          changed = true;
+        }
+      });
+      if (changed) window.BKCart.setCart(cart);
+      return removedNames;
+    }
+
+    function loadDay(dayIndex) {
+      var day = days[dayIndex];
+      if (!day) return;
+
+      // Cleared immediately, before the fetch even starts -- a slot
+      // that belonged to the previous day must never survive into this
+      // one, even if the fetch is slow or fails outright. This is the
+      // core of the bug this whole function exists to fix.
+      state.slot = null;
+      state.slotId = null;
+      window.BKCart.setSlot(null);
+      window.BKCart.setSlotId(null);
+      clearDateNotice();
+      renderSlotGrid();
+      renderTotalsAndCta();
+
+      var requestId = ++loadRequestId;
+      menuEl.setAttribute("aria-busy", "true");
+
+      var url = window.BK_ORDER_URLS.api_availability + "?date=" + encodeURIComponent(day.iso);
+      fetch(url, { credentials: "same-origin" })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("bad status " + resp.status);
+          return resp.json();
+        })
+        .then(function (body) {
+          if (requestId !== loadRequestId) return; // superseded by a later click
+          menuEl.innerHTML = buildMenuHtml(body.categories);
+          slotGridEl.innerHTML = buildSlotGridHtml(body.slots);
+          var removed = pruneCartForCategories(body.categories);
+          renderMenu();
+          renderSlotGrid();
+          renderSheet();
+          renderTotalsAndCta();
+          if (removed.length) {
+            var subject = removed.length === 1 ? removed[0] : removed.join(", ");
+            var verb = removed.length === 1 ? "isn't" : "aren't";
+            var pastVerb = removed.length === 1 ? "was" : "were";
+            showDateNotice(
+              subject + " " + verb + " available on " + day.long + " and " + pastVerb +
+                " removed from your order.",
+              false
+            );
+          }
+        })
+        .catch(function () {
+          if (requestId !== loadRequestId) return;
+          showDateNotice(
+            "Couldn't load " + day.long + "'s menu — try again or pick a different day.",
+            true
+          );
+        })
+        .then(function () {
+          if (requestId === loadRequestId) menuEl.removeAttribute("aria-busy");
+        });
     }
 
     function renderAll() {
@@ -161,11 +304,12 @@
     dayChipsEl.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-day-index]");
       if (!btn) return;
-      state.day = parseInt(btn.getAttribute("data-day-index"), 10);
+      var newDay = parseInt(btn.getAttribute("data-day-index"), 10);
+      if (newDay === state.day) return;
+      state.day = newDay;
       window.BKCart.setDay(state.day);
       renderDayChips();
-      renderSlotGrid();
-      renderTotalsAndCta();
+      loadDay(state.day);
     });
 
     slotGridEl.addEventListener("click", function (e) {
@@ -184,6 +328,17 @@
       window.location.href = continueBtn.getAttribute("data-checkout-url");
     });
 
-    renderAll();
+    // The page is always server-rendered for days[0] (public/views.py's
+    // order() only ever renders the first orderable day) -- if a
+    // returning visitor's stored day is anything else, that markup is
+    // already wrong for their actual selection the instant the page
+    // loads, the exact same bug loadDay() fixes for an in-page switch.
+    // Fetch it properly rather than trust stale server HTML.
+    if (state.day !== 0) {
+      renderDayChips();
+      loadDay(state.day);
+    } else {
+      renderAll();
+    }
   });
 })();

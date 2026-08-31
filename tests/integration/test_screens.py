@@ -89,6 +89,15 @@ class TestOrder:
         assert "Beef Lasagne" in content
         assert "R 85.00" in content
 
+    def test_carries_the_availability_api_url_and_date_notice_element(self, client) -> None:
+        # Monday-sprint Phase 1a (docs/MONDAY_SPRINT.md) -- order.js
+        # needs both of these to refresh dishes/slots on a day switch.
+        resp = client.get(reverse("public:order"))
+        content = resp.content.decode()
+        assert "window.BK_ORDER_URLS" in content
+        assert reverse("public:api_availability") in content
+        assert 'id="op-date-notice"' in content
+
     def test_sold_out_dish_shows_sold_out_not_add(self, client, biz_settings) -> None:
         # Whichever date the order screen resolves as "soonest orderable"
         # (today itself only if still before the cut-off — depends on
@@ -191,6 +200,15 @@ class TestCheckout:
         resp = client.get(reverse("public:checkout"))
         content = resp.content.decode()
         assert 'id="days-data"' in content
+
+    def test_capacity_recovery_element_present(self, client) -> None:
+        # Monday-sprint Phase 1b (docs/MONDAY_SPRINT.md) -- checkout.js
+        # populates this on a slot_full/dish_unavailable/
+        # dish_qty_exceeded/cash_* capacity error instead of leaving
+        # "Back to the menu" as the only recovery path.
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-capacity-recovery"' in content
 
     def test_copy_share_button_present(self, client) -> None:
         # Spec §13's "Order created" row: On-screen + token URL +

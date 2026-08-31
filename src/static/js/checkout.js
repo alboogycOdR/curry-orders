@@ -53,8 +53,15 @@
     return { dishId: dishId, optionValueIds: optionValueIds };
   }
 
-  function cartToLines(cart) {
-    return Object.keys(cart).map(function (id) {
+  // `keys` explicit (not re-derived internally via Object.keys(cart))
+  // so the caller can keep the exact same array around afterward --
+  // the server's `line_index` on a capacity error refers to a position
+  // in *this* array, and re-computing Object.keys(cart) later isn't
+  // guaranteed to reproduce the same order (integer-like string keys —
+  // a plain dish id with no options — enumerate before non-integer
+  // ones like "5:12,7", regardless of insertion order).
+  function cartToLines(cart, keys) {
+    return keys.map(function (id) {
       var parsed = parseLineKey(id);
       return {
         dish_id: parsed.dishId,
@@ -103,6 +110,8 @@
     var shareStatusEl = document.getElementById("ck-share-status");
     var redirectTimer = null;
     var formErrorEl = document.getElementById("ck-form-error");
+    var recoveryEl = document.getElementById("ck-capacity-recovery");
+    var lastSubmittedCartKeys = [];
     var fieldErrorEls = {
       name: document.getElementById("ck-name-error"),
       mobile: document.getElementById("ck-phone-error"),
@@ -155,6 +164,8 @@
         fieldErrorEls[key].hidden = true;
         fieldErrorEls[key].textContent = "";
       });
+      recoveryEl.hidden = true;
+      recoveryEl.innerHTML = "";
     }
 
     function showErrors(message, fields) {
@@ -170,6 +181,89 @@
             el.hidden = false;
           }
         });
+      }
+    }
+
+    // Monday-sprint Phase 1b (docs/MONDAY_SPRINT.md): a capacity error
+    // used to be a dead end -- "Back to the menu" was the only recovery
+    // path, after the customer had already filled in the whole form.
+    // This offers whatever the server actually computed a fix for; it
+    // never invents a recovery option the response didn't send (e.g.
+    // day_full's `alternatives` is currently always empty server-side —
+    // core.capacity's own "not computed this pass" — so day_full just
+    // falls through to the plain message, same as before).
+    function renderCapacityRecovery(errorCode, body) {
+      recoveryEl.innerHTML = "";
+
+      if (errorCode === "slot_full" && body.alternatives && body.alternatives.slots
+          && body.alternatives.slots.length) {
+        var p = document.createElement("p");
+        p.textContent = "That time filled up. Other collection times still open today:";
+        recoveryEl.appendChild(p);
+        var actions = document.createElement("div");
+        actions.className = "ck-recovery-actions";
+        body.alternatives.slots.forEach(function (alt) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = alt.label;
+          btn.addEventListener("click", function () {
+            window.BKCart.setSlot(alt.label);
+            window.BKCart.setSlotId(alt.slot_id);
+            clearErrors();
+            renderSheetAndTotals();
+          });
+          actions.appendChild(btn);
+        });
+        recoveryEl.appendChild(actions);
+        recoveryEl.hidden = false;
+        return;
+      }
+
+      if (errorCode === "dish_unavailable" || errorCode === "dish_qty_exceeded") {
+        var lineIndex = body.line_index;
+        var cartKey = typeof lineIndex === "number" ? lastSubmittedCartKeys[lineIndex] : null;
+        var cart = window.BKCart.getCart();
+        var line = cartKey ? cart[cartKey] : null;
+        if (line) {
+          var p2 = document.createElement("p");
+          // .textContent, not innerHTML -- no escaping needed, the
+          // browser treats this as literal text either way.
+          p2.textContent = line.name + " — " + body.message;
+          recoveryEl.appendChild(p2);
+          var actions2 = document.createElement("div");
+          actions2.className = "ck-recovery-actions";
+          var removeBtn = document.createElement("button");
+          removeBtn.type = "button";
+          removeBtn.textContent = "Remove from my order";
+          removeBtn.addEventListener("click", function () {
+            window.BKCart.setLine(cartKey, line.name, line.price, 0);
+            clearErrors();
+            renderSheetAndTotals();
+          });
+          actions2.appendChild(removeBtn);
+          recoveryEl.appendChild(actions2);
+          recoveryEl.hidden = false;
+          return;
+        }
+      }
+
+      if (errorCode === "cash_not_allowed" || errorCode === "cash_cap") {
+        var p3 = document.createElement("p");
+        p3.textContent = body.message;
+        recoveryEl.appendChild(p3);
+        var actions3 = document.createElement("div");
+        actions3.className = "ck-recovery-actions";
+        var switchBtn = document.createElement("button");
+        switchBtn.type = "button";
+        switchBtn.textContent = "Switch to EFT";
+        switchBtn.addEventListener("click", function () {
+          window.BKCart.setPay("eft");
+          clearErrors();
+          renderPay();
+        });
+        actions3.appendChild(switchBtn);
+        recoveryEl.appendChild(actions3);
+        recoveryEl.hidden = false;
       }
     }
 
@@ -235,6 +329,8 @@
       var day = currentDay();
       var slotId = window.BKCart.getSlotId();
       var cart = window.BKCart.getCart();
+      var cartKeys = Object.keys(cart);
+      lastSubmittedCartKeys = cartKeys;
       var payload = {
         name: nameInput.value.trim(),
         mobile: phoneInput.value.trim(),
@@ -243,7 +339,7 @@
         slot_id: slotId,
         payment_method: window.BKCart.getPay(),
         accept_policies: !!(acceptPoliciesInput && acceptPoliciesInput.checked),
-        lines: cartToLines(cart),
+        lines: cartToLines(cart, cartKeys),
       };
 
       setPlacing(true);
@@ -259,6 +355,15 @@
         credentials: "same-origin",
       })
         .then(function (resp) {
+          // A non-JSON failure (a proxy error page, an unhandled 500
+          // with an HTML debug page, ...) used to reach resp.json()
+          // anyway and degrade to a generic "couldn't reach the server"
+          // message -- true-sounding but wrong, since the server *was*
+          // reached, it just didn't answer the way this code expected.
+          var contentType = resp.headers.get("Content-Type") || "";
+          if (contentType.indexOf("application/json") === -1) {
+            return { ok: false, status: resp.status, body: null, nonJson: true };
+          }
           return resp.json().then(function (body) {
             return { ok: resp.ok, status: resp.status, body: body };
           });
@@ -266,10 +371,15 @@
         .then(function (result) {
           setPlacing(false);
           if (!result.ok) {
-            if (result.body && result.body.fields) {
+            if (result.nonJson) {
+              showErrors("Something went wrong on our end — try again in a moment.");
+            } else if (result.body && result.body.fields) {
               showErrors(result.body.message, result.body.fields);
             } else {
               showErrors((result.body && result.body.message) || "Something went wrong placing your order — try again.");
+              if (result.body && result.body.error) {
+                renderCapacityRecovery(result.body.error, result.body);
+              }
             }
             return;
           }
