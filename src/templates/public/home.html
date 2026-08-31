@@ -261,7 +261,7 @@ Collection chip never includes a street address (D-23).
 
   <p class="rc-find">Already ordered? <a href="{% url 'public:lookup' %}">Find my order</a></p>
 
-  <h2 class="rc-section-title">What are you hungry for?</h2>
+  <h2 class="rc-section-title">What are you craving?</h2>
   <div class="rc-tiles">
     {% for tile in chip_tiles %}
     <a class="rc-tile has-photo{% if not tile.photo_url %} is-placeholder{% endif %}" href="{% url 'public:order' %}#{{ tile.slug }}">
