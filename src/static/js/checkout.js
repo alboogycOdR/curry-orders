@@ -1,8 +1,9 @@
 // checkout.js — the Checkout screen (PR 4).
 // Cart v2: uses BKCart.getLines() / getDayIso() / getSlotId() / etc.
 // cartToLines() now sends kitchen_note per line (KD-5).
-// Recovery: slot_full / dish_unavailable / dish_qty_exceeded still work;
-// line references now use getLines() index rather than Object.keys order.
+// Recovery: slot_full/closed: inline alternative-slot buttons that auto-
+// resubmit; dish errors: highlight line + Remove action; day_full: show
+// next_open_date; nonJson: distinct server-error state (Phase 1b).
 (function () {
   "use strict";
 
@@ -134,6 +135,11 @@
       });
       recoveryEl.hidden = true;
       recoveryEl.innerHTML = "";
+      // Remove any line-error highlights from the sheet.
+      var highlighted = sheetEl.querySelectorAll(".ck-sheet-line--error");
+      for (var i = 0; i < highlighted.length; i++) {
+        highlighted[i].classList.remove("ck-sheet-line--error");
+      }
     }
 
     function showErrors(message, fields) {
@@ -146,28 +152,72 @@
       }
     }
 
-    // Capacity recovery (Monday-sprint Phase 1b, preserved in v2)
+    // Phase 1b: capacity-error recovery rendered inline — no navigation away.
+    // Name, mobile, note, and policy checkbox are never touched by this function
+    // so they survive every retry path automatically.
     function renderCapacityRecovery(errorCode, body) {
       recoveryEl.innerHTML = "";
 
-      if (errorCode === "slot_full") {
-        // Task 6: redirect to /basket/ so the customer can pick a
-        // different slot — the basket screen has the full live slot grid.
-        // A toast message explains why they're being sent back.
-        try {
-          sessionStorage.setItem(
-            "rc_basket_toast",
-            "That time slot just filled up — please choose another collection time."
-          );
-        } catch (e) {}
-        window.location.href = window.BK_CHECKOUT_URLS.basket;
+      // ---- slot_full / slot_closed: render alternatives inline ----
+      if (errorCode === "slot_full" || errorCode === "slot_closed") {
+        var p = document.createElement("p");
+        p.textContent = body.message;
+        recoveryEl.appendChild(p);
+
+        var alts = Array.isArray(body.alternatives) && body.alternatives.length
+          ? body.alternatives : [];
+
+        if (alts.length) {
+          var altsHint = document.createElement("p");
+          altsHint.style.cssText = "margin: 8px 0 6px; font-size: 13px;";
+          altsHint.textContent = "Available times — tap one to switch and retry:";
+          recoveryEl.appendChild(altsHint);
+
+          var actionsDiv = document.createElement("div");
+          actionsDiv.className = "ck-recovery-actions";
+
+          alts.forEach(function (alt) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = alt.label;
+            btn.addEventListener("click", function () {
+              window.BKCart.setSlotId(alt.id);
+              window.BKCart.setSlot(alt.label);
+              renderSheetAndTotals();
+              // New idempotency key: different slot = different request body.
+              idempotencyKey = makeIdempotencyKey();
+              clearErrors();
+              submitOrder();
+            });
+            actionsDiv.appendChild(btn);
+          });
+
+          recoveryEl.appendChild(actionsDiv);
+        }
+
+        // Last-resort: go back to basket to pick a slot manually.
+        var backP = document.createElement("p");
+        backP.style.cssText = "margin-top: 10px; font-size: 13px;";
+        backP.innerHTML =
+          'Or <a href="' + window.BK_CHECKOUT_URLS.basket +
+          '">go back to choose a different time</a>.';
+        recoveryEl.appendChild(backP);
+        recoveryEl.hidden = false;
         return;
       }
 
+      // ---- dish_unavailable / dish_qty_exceeded: highlight line + Remove ----
       if (errorCode === "dish_unavailable" || errorCode === "dish_qty_exceeded") {
         var lineIndex = body.line_index;
         var lines = window.BKCart.getLines();
         var line = typeof lineIndex === "number" ? (lines[lineIndex] || null) : null;
+
+        // Highlight the specific sheet line.
+        if (typeof lineIndex === "number") {
+          var lineEl = sheetEl.querySelector('[data-line-index="' + lineIndex + '"]');
+          if (lineEl) lineEl.classList.add("ck-sheet-line--error");
+        }
+
         if (line) {
           var p2 = document.createElement("p");
           p2.textContent = line.name + " — " + body.message;
@@ -179,8 +229,12 @@
           removeBtn.textContent = "Remove from my order";
           removeBtn.addEventListener("click", function () {
             window.BKCart.removeLine(line.id);
+            // New idempotency key: different lines = different request body.
+            idempotencyKey = makeIdempotencyKey();
             clearErrors();
             renderSheetAndTotals();
+            // renderSheetAndTotals already shows the empty-basket state with a
+            // menu link, so no extra handling needed here.
           });
           actions2.appendChild(removeBtn);
           recoveryEl.appendChild(actions2);
@@ -189,6 +243,40 @@
         }
       }
 
+      // ---- day_full: show next_open_date and link to change date ----
+      if (errorCode === "day_full") {
+        var nextRaw = body.next_open_date;
+        var nextFormatted = nextRaw;
+        try {
+          // Parse as local midnight to avoid UTC-offset day-shift.
+          var d = new Date(nextRaw + "T00:00:00");
+          nextFormatted = d.toLocaleDateString("en-ZA", {
+            weekday: "long", year: "numeric", month: "long", day: "numeric",
+          });
+        } catch (e) {}
+
+        var p4 = document.createElement("p");
+        p4.textContent =
+          "This day is fully booked. The next available day is " + nextFormatted + ".";
+        recoveryEl.appendChild(p4);
+
+        var actions4 = document.createElement("div");
+        actions4.className = "ck-recovery-actions";
+        var changeA = document.createElement("a");
+        changeA.href = window.BK_CHECKOUT_URLS.basket;
+        changeA.textContent = "Go back and change your date";
+        // Style to match the button look used by sibling recovery actions.
+        changeA.style.cssText =
+          "font-family:var(--font-body);font-size:13px;padding:7px 12px;" +
+          "border:1px solid var(--color-text);background:none;cursor:pointer;" +
+          "text-decoration:none;display:inline-block;";
+        actions4.appendChild(changeA);
+        recoveryEl.appendChild(actions4);
+        recoveryEl.hidden = false;
+        return;
+      }
+
+      // ---- cash_not_allowed / cash_cap: switch to EFT ----
       if (errorCode === "cash_not_allowed" || errorCode === "cash_cap") {
         var p3 = document.createElement("p");
         p3.textContent = body.message;
@@ -212,13 +300,14 @@
     function renderSheetAndTotals() {
       var lines = window.BKCart.getLines();
       if (!lines.length) {
-        sheetEl.innerHTML = '<p class="ck-sheet-empty">No items yet — <a href="' +
-          window.BK_CHECKOUT_URLS.order + '">go back to the menu</a>.</p>';
+        sheetEl.innerHTML =
+          '<p class="ck-sheet-empty">Your order is empty &mdash; ' +
+          '<a href="' + window.BK_CHECKOUT_URLS.order + '">back to the menu</a>.</p>';
       } else {
         var html = "";
-        lines.forEach(function (l) {
+        lines.forEach(function (l, i) {
           html +=
-            '<div class="ck-sheet-line">' +
+            '<div class="ck-sheet-line" data-line-index="' + i + '">' +
             '<span class="ck-sheet-qty">' + l.qty + "&times;</span>" +
             '<span class="ck-sheet-name">' + escapeHtml(l.name) +
             (l.heat ? " <span style=\"font-size:12px;opacity:.7;\">" + escapeHtml(l.heat) + "</span>" : "") +
@@ -270,22 +359,26 @@
       placeBtn.textContent = placing ? "Placing your order…" : "Place the order";
     }
 
-    placeBtn.addEventListener("click", function () {
-      if (placeBtn.disabled) return;
-      clearErrors();
-
+    // submitOrder: extracted so alternative-slot buttons can auto-resubmit
+    // without going through the click handler's disabled-check guard.
+    // Name, mobile, note, and policy checkbox are read fresh from the DOM each
+    // time so their values are always preserved through retries.
+    function submitOrder() {
       var day = currentDay();
       var slotId = window.BKCart.getSlotId();
-      var lines = cartToLines(); // v2
+      var lines = cartToLines();
+      // Safety guard: do not submit if state is no longer valid.
+      if (!slotId || !lines.length) return;
+
       var payload = {
-        name:           nameInput.value.trim(),
-        mobile:         phoneInput.value.trim(),
-        note:           noteInput ? noteInput.value.trim() : "",
-        date:           day ? day.iso : null,
-        slot_id:        slotId,
-        payment_method: window.BKCart.getPay(),
+        name:            nameInput.value.trim(),
+        mobile:          phoneInput.value.trim(),
+        note:            noteInput ? noteInput.value.trim() : "",
+        date:            day ? day.iso : null,
+        slot_id:         slotId,
+        payment_method:  window.BKCart.getPay(),
         accept_policies: !!(acceptPoliciesInput && acceptPoliciesInput.checked),
-        lines:          lines,
+        lines:           lines,
       };
 
       setPlacing(true);
@@ -301,6 +394,9 @@
         credentials: "same-origin",
       })
         .then(function (resp) {
+          // Phase 1b: Content-Type guard — non-JSON responses from the server
+          // (error pages, proxy errors, etc.) get a distinct message that does
+          // not look like the connection-failure copy in the .catch() handler.
           var contentType = resp.headers.get("Content-Type") || "";
           if (contentType.indexOf("application/json") === -1) {
             return { ok: false, status: resp.status, body: null, nonJson: true };
@@ -313,7 +409,11 @@
           setPlacing(false);
           if (!result.ok) {
             if (result.nonJson) {
-              showErrors("Something went wrong on our end — try again in a moment.");
+              // Distinct server-error state — not the same copy as the network
+              // error below.
+              showErrors(
+                "Something went wrong on our end — please try again or call us."
+              );
             } else if (result.body && result.body.fields) {
               showErrors(result.body.message, result.body.fields);
             } else {
@@ -379,6 +479,12 @@
           setPlacing(false);
           showErrors("Couldn't reach the server — check your connection and try again.");
         });
+    }
+
+    placeBtn.addEventListener("click", function () {
+      if (placeBtn.disabled) return;
+      clearErrors();
+      submitOrder();
     });
 
     startAnotherBtn.addEventListener("click", function () {
