@@ -48,4 +48,8 @@ urlpatterns = [
     path("policies/", views.policies_page, name="policies"),
     # §6.1, §21 go-live item 7.
     path("robots.txt", views.robots_txt, name="robots_txt"),
+    # Interim media proxy — serves public dish images from the MinIO
+    # curry-media bucket until Caddy/TLS is configured (M10).
+    # Restricted to dish-images/ prefix; proofs are served via signed URL.
+    path("media/<path:key>", views.public_media, name="public_media"),
 ]

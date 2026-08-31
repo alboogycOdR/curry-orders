@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import urllib.request
 
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password, make_password
@@ -953,3 +954,34 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
         "Disallow: /healthz",
     ]
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
+
+
+@require_GET
+def public_media(request: HttpRequest, key: str) -> HttpResponse:
+    """Interim proxy for public dish images stored in MinIO's curry-media
+    bucket.  Only serves files under the dish-images/ prefix so proofs
+    (private, signed URLs only) can never be accidentally exposed here.
+    Remove once Caddy/TLS is configured and S3_PUBLIC_ENDPOINT is set
+    to the public CDN/Caddy address (M10).
+    """
+    if not key.startswith("dish-images/"):
+        raise Http404
+
+    from django.conf import settings  # local import — avoids circular at module load
+
+    endpoint = (getattr(settings, "S3_ENDPOINT", "") or "").rstrip("/")
+    bucket = getattr(settings, "S3_BUCKET_PUBLIC", "curry-media")
+    if not endpoint:
+        raise Http404
+
+    minio_url = f"{endpoint}/{bucket}/{key}"
+    try:
+        with urllib.request.urlopen(minio_url, timeout=8) as resp:  # noqa: S310
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            data = resp.read()
+    except Exception:
+        raise Http404
+
+    response = HttpResponse(data, content_type=content_type)
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
