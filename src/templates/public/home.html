@@ -220,9 +220,10 @@ Collection chip never includes a street address (D-23).
     <h2 class="rc-section-title">How collection works</h2>
     <ol>
       <li>Choose a slot</li>
-      <li>Pay EFT</li>
+      <li>Pay EFT or cash on collection</li>
       <li>Text on arrival</li>
     </ol>
+    <p style="font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 12px;">EFT: your slot is held for {{ eft_hold_minutes }} minutes &mdash; upload your proof of payment to confirm.</p>
     <p><a href="{% url 'public:help' %}">Read the rules</a></p>
   </section>
 </main>
