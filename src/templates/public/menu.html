@@ -85,5 +85,9 @@ handoff's interactive screen, once the customer is ready to build a cart.
   {% else %}
     <p class="mn-empty">Nothing on the menu for this date yet.</p>
   {% endif %}
+
+  <div style="margin: 56px 0 48px; text-align: center;">
+    <a href="{% url 'public:order' %}" class="btn btn-primary">Start an order</a>
+  </div>
 </div>
 {% endblock %}

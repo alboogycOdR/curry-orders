@@ -183,6 +183,9 @@ yet — a `payment_review` order here just says "we're checking it".
       <h2 class="os-eft-title">Pay by EFT</h2>
       <span class="os-eft-countdown" id="os-eft-countdown"></span>
     </div>
+    {% if not proof_already_uploaded %}
+    <p style="font-size: 14.5px; color: var(--color-neutral-700); margin: 14px 0 0;">Your slot is held for {{ eft_hold_minutes }} minutes &mdash; upload your proof of payment to confirm.</p>
+    {% endif %}
     <div class="os-bank-grid">
       <div><div class="os-bank-label">Bank</div><div class="os-bank-value">{{ settings.bank_name|default:"—" }}</div></div>
       <div><div class="os-bank-label">Account name</div><div class="os-bank-value">{{ settings.account_name|default:"—" }}</div></div>

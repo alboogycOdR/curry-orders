@@ -317,6 +317,7 @@ def home(request: HttpRequest) -> HttpResponse:
         "featured_photo_url": featured_photo,
         "chip_tiles": _chip_tiles(active),
         "today_orderable": today_orderable,
+        "eft_hold_minutes": settings.eft_hold_minutes,
     })
 
 
