@@ -5,12 +5,37 @@ This is a stub — fill each section out as milestone 10 (§22) builds the
 real deploy pipeline; keep it accurate as the source of truth for anyone
 operating the system other than the developer.
 
-## First deploy
-TODO: clone repo to `/srv/curry-orders` on Clawsrv, populate `.env` from
-`.env.example` (mode 0600), `docker compose build`, run
-`deploy/minio-bootstrap.sh`, `docker compose up -d`, run migrations, append
-`deploy/caddy-site.conf` to the host Caddyfile and `systemctl reload caddy`,
-verify `/healthz`.
+## First deploy (already done — for reference / disaster recovery)
+
+Stack lives at `/home/clawusr/curry-orders/` on Clawsrv (`ssh clawusr@100.78.70.2`).
+
+```bash
+# On Clawsrv:
+git clone https://github.com/alboogycOdR/curry-orders.git /home/clawusr/curry-orders
+cd /home/clawusr/curry-orders
+cp .env.example .env && chmod 0600 .env   # populate secrets
+docker compose build
+# Bootstrap MinIO bucket + policy (mc is inside the minio container):
+docker compose up -d minio
+docker exec curry-orders-minio-1 sh -c "
+  mc alias set local http://localhost:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD &&
+  mc mb --ignore-existing local/curry-media &&
+  mc anonymous set download local/curry-media/dish-images"
+docker compose up -d
+docker compose exec web python manage.py migrate
+# Append deploy/caddy-site.conf to host Caddyfile, then:
+systemctl reload caddy
+# Verify:
+curl http://localhost:8102/healthz
+```
+
+## Routine redeploy (frontend or backend changes)
+
+```bash
+cd /home/clawusr/curry-orders
+git pull --ff-only
+docker compose up -d --build web   # always --build; restart alone does NOT pick up template/JS changes
+```
 
 ## Rotate `SECRET_KEY` / MinIO keys
 TODO.

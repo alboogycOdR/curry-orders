@@ -14,6 +14,18 @@ Django 5 + PostgreSQL 16 collection-ordering site for a Kraaifontein home kitche
 - **No `RC-` order numbers or lookup aliases.** Display and bank ref stay `CT-YYMMDD-NNNN`. Lookup placeholder `CT-260901-0001`.
 - **Do not remove the `/order/` slot picker in PR 3.** PR 5 moves it to `/basket/`.
 
+## Deploy to Clawsrv (IMPORTANT)
+
+Templates (`.html`) and static files (`*.js`, `*.css`) are **COPY**-ed into the Docker image at build time. `docker compose restart` reuses the old image and will NOT serve updated frontend code — even a browser hard-refresh cannot help if the container is still running old code.
+
+**Always use `--build` for any frontend change:**
+```bash
+cd /home/clawusr/curry-orders && git pull --ff-only && docker compose up -d --build web
+```
+
+Use `--build web` only (not bare `--build`) to avoid rebuilding db/minio/scheduler.  
+`restart` is only safe for env-var changes that don't touch the image itself.
+
 ## Tests
 
 ```text

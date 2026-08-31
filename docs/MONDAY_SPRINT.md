@@ -1,12 +1,8 @@
 # Monday Sprint — customer-journey UX remediation
 
-**Status:** Scheduled, not started. Do not begin before the owner says go
-(planned: after 14:00 the day after this doc was written — 2026-08-31).
+**Status: COMPLETE (2026-08-31).** All four phases shipped and live on Clawsrv (`http://204.168.249.99:8102/`).
 **Source:** External UX review ("UX Optimization Review — Curry Orders",
-by Manus AI, reviewed against `main` at `bb5a2fd`). Findings below were
-independently re-verified against the running code before being added
-here — see "Verification notes" per item. Nothing in this doc has been
-acted on yet; no code has changed because of it.
+by Manus AI, reviewed against `main` at `bb5a2fd`).
 
 This is deliberately more detailed than a normal backlog entry (see
 `PHASE_2_PLAN.md`'s own Backlog section, which just points here) so a
