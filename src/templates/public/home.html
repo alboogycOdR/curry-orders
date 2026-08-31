@@ -150,6 +150,63 @@ Collection chip never includes a street address (D-23).
     line-height: 1.5;
   }
   .rc-how a { color: var(--color-accent-2); }
+
+  /* Hero above-fold tightening (Phase 2 mobile) — conservative/reversible.
+     Owner sign-off needed before further changes to the CMYK headline size.
+     Test at 320px, 375px, 480px. */
+  @media (max-width: 480px) {
+    /* Home container — flex column so order property works; reduce top padding */
+    .rc-home {
+      display: flex;
+      flex-direction: column;
+      padding-top: 8px;
+    }
+    /* Dateline strip (collection chip) — reduce vertical footprint */
+    .rc-chip {
+      min-height: 36px;
+      padding-top: 6px;
+      padding-bottom: 6px;
+    }
+    /* Cutoff line — tighten margins */
+    .rc-cutoff {
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+    /* Hero photo — shorten from 4:3 so body/CTA come into view sooner */
+    .rc-hero-photo {
+      aspect-ratio: 16 / 9;
+    }
+    /* Hero body — tighten internal padding */
+    .rc-hero-body {
+      padding: 10px 12px 12px;
+    }
+    /* Eyebrow / kicker */
+    .rc-hero-kicker {
+      margin-bottom: 4px;
+    }
+    /* Hero name (second headline) */
+    .rc-hero-name {
+      margin: 4px 0 4px;
+    }
+    /* Lead / meta line — reduce bottom gap before CTA */
+    .rc-hero-meta {
+      margin: 0 0 8px;
+    }
+    /* "How collection works" (stat-row equivalent) — push below everything via flex order */
+    .rc-how {
+      order: 10;
+    }
+  }
+
+  @media (max-width: 640px) {
+    /* Mid-range: moderate chip reduction only; keep 4:3 photo above 480px */
+    .rc-chip {
+      min-height: 40px;
+    }
+    .rc-cutoff {
+      margin-bottom: 12px;
+    }
+  }
 </style>
 {% endblock %}
 
