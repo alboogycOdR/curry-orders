@@ -31,7 +31,7 @@
 
   // v2 cartToLines: reads getLines(), sends kitchen_note (KD-5).
   function cartToLines() {
-    return window.BKCart.getLines().map(function (l) {
+    return safeGetLines().map(function (l) {
       return {
         dish_id:          l.itemId,
         quantity:         l.qty,
@@ -47,11 +47,25 @@
   }
   var idempotencyKey = makeIdempotencyKey();
 
+  // Phase 2c: safe BKCart wrappers — localStorage throws in private browsing
+  // and when storage quota is exceeded; catch silently rather than crashing.
+  function safeGetSlotId() { try { return window.BKCart.getSlotId(); } catch (e) { return null; } }
+  function safeGetSlot() { try { return window.BKCart.getSlot(); } catch (e) { return null; } }
+  function safeGetDayIso() { try { return window.BKCart.getDayIso(); } catch (e) { return null; } }
+  function safeGetLines() { try { return window.BKCart.getLines(); } catch (e) { return []; } }
+  function safeGetPay() { try { return window.BKCart.getPay(); } catch (e) { return "eft"; } }
+  function safeSetSlotId(v) { try { window.BKCart.setSlotId(v); } catch (e) {} }
+  function safeSetSlot(v) { try { window.BKCart.setSlot(v); } catch (e) {} }
+  function safeSetDayIso(v) { try { window.BKCart.setDayIso(v); } catch (e) {} }
+  function safeSetPay(v) { try { window.BKCart.setPay(v); } catch (e) {} }
+  function safeClearCart() { try { window.BKCart.clearCart(); } catch (e) {} }
+  function safeRemoveLine(id) { try { window.BKCart.removeLine(id); } catch (e) {} }
+
   document.addEventListener("DOMContentLoaded", function () {
     // Task 6 guard: redirect to /basket/ if cart is empty or no slot has
     // been selected. Prevents an empty "Collect —" state and ensures the
     // customer always arrives here with a real selection.
-    if (!window.BKCart.getSlotId() || !window.BKCart.getLines().length) {
+    if (!safeGetSlotId() || !safeGetLines().length) {
       window.location.replace(window.BK_CHECKOUT_URLS.basket);
       return;
     }
@@ -94,7 +108,7 @@
 
     // currentDay(): resolve stored dayIso to a day entry
     function currentDay() {
-      var iso = window.BKCart.getDayIso();
+      var iso = safeGetDayIso();
       if (!iso) return null;
       for (var i = 0; i < days.length; i++) {
         if (days[i].iso === iso) return days[i];
@@ -117,10 +131,10 @@
     function renderPay() {
       var offerable = cashIsOfferable();
       if (payCashRow) payCashRow.hidden = !offerable;
-      var pay = window.BKCart.getPay();
+      var pay = safeGetPay();
       if (pay === "cash" && !offerable) {
         pay = "eft";
-        window.BKCart.setPay("eft");
+        safeSetPay("eft");
       }
       payEft.checked = pay === "eft";
       payCash.checked = pay === "cash";
@@ -181,8 +195,8 @@
             btn.type = "button";
             btn.textContent = alt.label;
             btn.addEventListener("click", function () {
-              window.BKCart.setSlotId(alt.id);
-              window.BKCart.setSlot(alt.label);
+              safeSetSlotId(alt.id);
+              safeSetSlot(alt.label);
               renderSheetAndTotals();
               // New idempotency key: different slot = different request body.
               idempotencyKey = makeIdempotencyKey();
@@ -228,7 +242,7 @@
           removeBtn.type = "button";
           removeBtn.textContent = "Remove from my order";
           removeBtn.addEventListener("click", function () {
-            window.BKCart.removeLine(line.id);
+            safeRemoveLine(line.id);
             // New idempotency key: different lines = different request body.
             idempotencyKey = makeIdempotencyKey();
             clearErrors();
@@ -287,7 +301,7 @@
         switchBtn.type = "button";
         switchBtn.textContent = "Switch to EFT";
         switchBtn.addEventListener("click", function () {
-          window.BKCart.setPay("eft");
+          safeSetPay("eft");
           clearErrors();
           renderPay();
         });
@@ -298,7 +312,7 @@
     }
 
     function renderSheetAndTotals() {
-      var lines = window.BKCart.getLines();
+      var lines = safeGetLines();
       if (!lines.length) {
         sheetEl.innerHTML =
           '<p class="ck-sheet-empty">Your order is empty &mdash; ' +
@@ -321,7 +335,7 @@
       totalEl.textContent = window.BKCart.rands(t.total);
 
       var day = currentDay();
-      var slot = window.BKCart.getSlot();
+      var slot = safeGetSlot();
       collectDayEl.textContent = day ? titleCase(day.long) : "—";
       collectSlotEl.textContent = slot || "—";
 
@@ -331,7 +345,7 @@
       if (summaryDayEl) summaryDayEl.textContent = day ? titleCase(day.long) : "—";
       if (summarySlotEl) summarySlotEl.textContent = slot || "—";
 
-      var ready = t.count > 0 && !!slot && !!window.BKCart.getSlotId();
+      var ready = t.count > 0 && !!slot && !!safeGetSlotId();
       placeBtn.disabled = !ready;
 
       if (ready) {
@@ -348,10 +362,10 @@
     }
 
     payEft.addEventListener("change", function () {
-      if (payEft.checked) window.BKCart.setPay("eft");
+      if (payEft.checked) safeSetPay("eft");
     });
     payCash.addEventListener("change", function () {
-      if (payCash.checked) window.BKCart.setPay("cash");
+      if (payCash.checked) safeSetPay("cash");
     });
 
     function setPlacing(placing) {
@@ -365,7 +379,7 @@
     // time so their values are always preserved through retries.
     function submitOrder() {
       var day = currentDay();
-      var slotId = window.BKCart.getSlotId();
+      var slotId = safeGetSlotId();
       var lines = cartToLines();
       // Safety guard: do not submit if state is no longer valid.
       if (!slotId || !lines.length) return;
@@ -376,7 +390,7 @@
         note:            noteInput ? noteInput.value.trim() : "",
         date:            day ? day.iso : null,
         slot_id:         slotId,
-        payment_method:  window.BKCart.getPay(),
+        payment_method:  safeGetPay(),
         accept_policies: !!(acceptPoliciesInput && acceptPoliciesInput.checked),
         lines:           lines,
       };
@@ -426,9 +440,9 @@
             return;
           }
 
-          window.BKCart.clearCart();
-          window.BKCart.setSlot(null);
-          window.BKCart.setSlotId(null);
+          safeClearCart();
+          safeSetSlot(null);
+          safeSetSlotId(null);
 
           var order = result.body;
 
@@ -488,10 +502,162 @@
     });
 
     startAnotherBtn.addEventListener("click", function () {
-      window.BKCart.clearCart();
-      window.BKCart.setSlot(null);
-      window.BKCart.setSlotId(null);
+      safeClearCart();
+      safeSetSlot(null);
+      safeSetSlotId(null);
       window.location.href = window.BK_CHECKOUT_URLS.order;
+    });
+
+    // ---- Phase 2c: inline slot-change panel ----
+
+    var changeTimeBtn = document.getElementById("ck-change-time-btn");
+    var slotPanel     = document.getElementById("ck-slot-panel");
+    var slotDayBar    = document.getElementById("ck-slot-day-bar");
+    var slotGridEl    = document.getElementById("ck-slot-grid");
+    var slotCancelBtn = document.getElementById("ck-slot-cancel");
+    var slotStatusEl  = document.getElementById("ck-slot-status");
+
+    // Track which day ISO is currently selected inside the panel.
+    var panelDayIso = null;
+    // Prevent stale fetch responses from clobbering a newer request.
+    var slotFetchSeq = 0;
+
+    function announce(msg) {
+      if (!slotStatusEl) return;
+      slotStatusEl.textContent = "";
+      // Briefly clear so that screen readers re-announce identical strings.
+      setTimeout(function () { slotStatusEl.textContent = msg; }, 50);
+    }
+
+    function buildDayChipsHtml() {
+      if (!days.length) return "";
+      return days.map(function (d) {
+        var selected = d.iso === panelDayIso ? " is-selected" : "";
+        return '<button type="button" class="ck-slot-day-chip' + selected + '"' +
+          ' data-day-iso="' + escapeHtml(d.iso) + '"' +
+          ' data-day-long="' + escapeHtml(d.long) + '">' +
+          '<span class="ck-chip-top">' + escapeHtml(d.dow) + "</span>" +
+          '<span class="ck-chip-bottom">' + escapeHtml(d.dom) + "</span>" +
+          "</button>";
+      }).join("");
+    }
+
+    function buildSlotChipsHtml(slots) {
+      if (!slots || !slots.length) {
+        return '<p style="font-size:14px;color:var(--color-neutral-600);grid-column:1/-1">No slots available for this day.</p>';
+      }
+      return slots.map(function (s) {
+        var fullClass = s.full ? " is-full" : "";
+        return '<button type="button" class="ck-slot-chip' + fullClass + '"' +
+          ' data-slot-id="' + escapeHtml(String(s.id)) + '"' +
+          ' data-slot="' + escapeHtml(s.label) + '"' +
+          (s.full ? " disabled" : "") + ">" +
+          escapeHtml(s.label) + "</button>";
+      }).join("");
+    }
+
+    function fetchSlotsForDay(iso, dayLong) {
+      var seq = ++slotFetchSeq;
+      slotGridEl.innerHTML = '<p style="font-size:14px;color:var(--color-neutral-600);grid-column:1/-1">Loading…</p>';
+      var url = window.BK_CHECKOUT_URLS.api_day.replace("DATE_PLACEHOLDER", encodeURIComponent(iso));
+      fetch(url, { credentials: "same-origin" })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("non-ok");
+          return resp.json();
+        })
+        .then(function (body) {
+          if (seq !== slotFetchSeq) return; // stale
+          slotGridEl.innerHTML = buildSlotChipsHtml(body.slots || []);
+          announce("Showing slots for " + titleCase(dayLong));
+        })
+        .catch(function () {
+          if (seq !== slotFetchSeq) return;
+          slotGridEl.innerHTML = '<p style="font-size:14px;color:var(--color-neutral-600);grid-column:1/-1">Couldn\'t load slots — try again.</p>';
+        });
+    }
+
+    function openSlotPanel() {
+      // Initialise panel day to the current cart day.
+      var cartDay = currentDay();
+      panelDayIso = cartDay ? cartDay.iso : (days.length ? days[0].iso : null);
+      slotDayBar.innerHTML = buildDayChipsHtml();
+      slotPanel.hidden = false;
+      if (changeTimeBtn) changeTimeBtn.setAttribute("aria-expanded", "true");
+      if (panelDayIso) {
+        var cartDayLong = cartDay ? cartDay.long : (days[0] ? days[0].long : "");
+        fetchSlotsForDay(panelDayIso, cartDayLong);
+      }
+    }
+
+    function closeSlotPanel() {
+      slotPanel.hidden = true;
+      if (changeTimeBtn) {
+        changeTimeBtn.setAttribute("aria-expanded", "false");
+        changeTimeBtn.focus();
+      }
+    }
+
+    if (changeTimeBtn) {
+      changeTimeBtn.addEventListener("click", openSlotPanel);
+    }
+
+    if (slotCancelBtn) {
+      slotCancelBtn.addEventListener("click", closeSlotPanel);
+    }
+
+    // Day chip click inside the panel.
+    if (slotDayBar) {
+      slotDayBar.addEventListener("click", function (e) {
+        var chip = e.target.closest(".ck-slot-day-chip");
+        if (!chip) return;
+        var iso  = chip.getAttribute("data-day-iso");
+        var long = chip.getAttribute("data-day-long") || iso;
+        if (iso === panelDayIso) return; // already selected
+        panelDayIso = iso;
+        // Update selected state on chips.
+        slotDayBar.querySelectorAll(".ck-slot-day-chip").forEach(function (c) {
+          c.classList.toggle("is-selected", c.getAttribute("data-day-iso") === iso);
+        });
+        fetchSlotsForDay(iso, long);
+      });
+    }
+
+    // Slot chip click inside the panel.
+    if (slotGridEl) {
+      slotGridEl.addEventListener("click", function (e) {
+        var chip = e.target.closest(".ck-slot-chip");
+        if (!chip || chip.disabled) return;
+        var slotId    = chip.getAttribute("data-slot-id");
+        var slotLabel = chip.getAttribute("data-slot");
+
+        safeSetSlotId(slotId);
+        safeSetSlot(slotLabel);
+
+        // Update day in cart if the panel day differs from the stored day.
+        if (panelDayIso && panelDayIso !== safeGetDayIso()) {
+          safeSetDayIso(panelDayIso);
+        }
+
+        idempotencyKey = makeIdempotencyKey();
+        renderSheetAndTotals();
+        renderPay();
+        closeSlotPanel();
+
+        var dayLabel = "";
+        for (var i = 0; i < days.length; i++) {
+          if (days[i].iso === panelDayIso) { dayLabel = titleCase(days[i].long); break; }
+        }
+        announce("Collection time changed to " + dayLabel + " at " + slotLabel);
+      });
+    }
+
+    // ---- Phase 2c: cross-tab cart sync via storage event ----
+    // When another tab updates the cart key, re-read and refresh the view.
+    window.addEventListener("storage", function (e) {
+      if (e.key === "rc_cart_v2") {
+        renderSheetAndTotals();
+        renderPay();
+      }
     });
 
     renderPay();

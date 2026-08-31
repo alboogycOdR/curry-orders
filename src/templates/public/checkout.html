@@ -85,6 +85,39 @@ real `core.Order` — see that file's own header comment.
   .ck-collect-block-change { font-size: 13px; white-space: nowrap; flex-shrink: 0; }
   {% comment %} Task 9: one-liner note under checkout. {% endcomment %}
   .rc-oneliner { font-size: 13px; color: var(--color-neutral-600); margin: 18px 0 0; }
+
+  {% comment %} Phase 2c: inline slot-change panel. {% endcomment %}
+  .ck-change-time-btn { font-size: 13px; background: none; border: none; cursor: pointer; color: var(--color-accent-700, var(--color-accent)); text-decoration: underline; padding: 0; margin-left: 10px; font-family: var(--font-body); }
+  .ck-change-time-btn:hover { opacity: 0.75; }
+  #ck-slot-panel { margin-top: 14px; padding: 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface); }
+  .ck-slot-panel-title { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin: 0 0 10px; }
+  .ck-slot-day-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .ck-slot-day-chip {
+    font-family: var(--font-body); font-size: 14px; cursor: pointer;
+    padding: 6px 10px; border-radius: var(--radius-md); text-align: center; line-height: 1.2;
+    transition: background 140ms ease, color 140ms ease;
+    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
+    min-height: 44px; min-width: 48px;
+  }
+  .ck-slot-day-chip .ck-chip-top { display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+  .ck-slot-day-chip .ck-chip-bottom { display: block; font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; }
+  .ck-slot-day-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  #ck-slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+  .ck-slot-chip {
+    font-family: var(--font-body); font-size: 13px; cursor: pointer;
+    padding: 8px 6px; border-radius: var(--radius-md); text-align: center; line-height: 1.2;
+    transition: background 140ms ease, color 140ms ease;
+    background: transparent; color: var(--color-text); border: 1px solid var(--color-divider);
+    min-height: 44px;
+  }
+  .ck-slot-chip.is-selected { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
+  .ck-slot-chip.is-full { color: var(--color-neutral-500); text-decoration: line-through; cursor: not-allowed; }
+  .ck-slot-panel-footer { display: flex; align-items: center; margin-top: 14px; }
+  #ck-slot-cancel { font-family: var(--font-body); font-size: 13px; background: none; border: 1px solid var(--color-divider); cursor: pointer; padding: 7px 14px; border-radius: var(--radius-md); }
+  #ck-slot-cancel:hover { background: var(--color-surface); }
+  @media (max-width: 480px) {
+    #ck-slot-grid { grid-template-columns: repeat(3, 1fr); }
+  }
 </style>
 {% endblock %}
 
@@ -180,7 +213,23 @@ real `core.Order` — see that file's own header comment.
         </div>
         <div class="ck-collect-info">
           <div>Collect <strong id="ck-collect-day">&mdash;</strong></div>
-          <div>Window <strong id="ck-collect-slot">&mdash;</strong></div>
+          <div>Window <strong id="ck-collect-slot">&mdash;</strong>
+            <button type="button" class="ck-change-time-btn" id="ck-change-time-btn" aria-expanded="false" aria-controls="ck-slot-panel">Change time</button>
+          </div>
+        </div>
+        {% comment %}
+        Phase 2c: inline slot-change panel. Hidden until "Change time" is clicked.
+        Day chips are rendered by checkout.js from the #days-data JSON script tag.
+        Slot chips are fetched from /api/order/day/<date>/ and rendered dynamically.
+        {% endcomment %}
+        <div id="ck-slot-panel" hidden>
+          <p class="ck-slot-panel-title">Change collection time</p>
+          <div class="ck-slot-day-bar" id="ck-slot-day-bar" role="group" aria-label="Collection day"></div>
+          <div id="ck-slot-grid" aria-live="polite" aria-label="Available slots"></div>
+          <div class="ck-slot-panel-footer">
+            <button type="button" id="ck-slot-cancel">Cancel</button>
+          </div>
+          <p id="ck-slot-status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"></p>
         </div>
         {% comment %}
         Was previously invisible: the button just goes `disabled` when the
@@ -262,6 +311,8 @@ real `core.Order` — see that file's own header comment.
     order_status: "{% url 'public:order_status' public_token='TOKEN_PLACEHOLDER' %}",
     // Task 8: used to persist rc_last_order_v1 for the Repeat module.
     reorder:      "{% url 'public:reorder' public_token='TOKEN_PLACEHOLDER' %}",
+    // Phase 2c: DATE_PLACEHOLDER is replaced by checkout.js with the ISO date string.
+    api_day: "{% url 'public:api_day_availability' date_str='DATE_PLACEHOLDER' %}",
   };
   // Spec's own "cash hidden on advance dates and when cap reached" —
   // the page loaded with cash already hidden/shown for *today* (the
