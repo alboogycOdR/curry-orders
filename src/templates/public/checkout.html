@@ -73,6 +73,15 @@ real `core.Order` — see that file's own header comment.
   @media (max-width: 820px) {
     .ck-grid, .ck-fields { grid-template-columns: 1fr; }
   }
+
+  {% comment %} Task 6: collect summary block (fulfilment-first layout). {% endcomment %}
+  .ck-collect-block { display: flex; align-items: center; gap: 16px; margin-top: 26px; padding: 14px 18px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface); }
+  .ck-collect-block-info { flex: 1; min-width: 0; }
+  .ck-collect-block-kicker { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin-bottom: 4px; }
+  .ck-collect-block-value { font-family: var(--font-heading); font-size: 19px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ck-collect-block-change { font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+  {% comment %} Task 9: one-liner note under checkout. {% endcomment %}
+  .rc-oneliner { font-size: 13px; color: var(--color-neutral-600); margin: 18px 0 0; }
 </style>
 {% endblock %}
 
@@ -82,6 +91,22 @@ real `core.Order` — see that file's own header comment.
   <div class="ck-step">Step 2 of 2 &mdash; payment &amp; details</div>
 
   <div id="ck-form-state">
+    {% comment %}
+    Task 6 (fulfilment first): Collect summary is prominent at the top with a
+    "Change slot → /basket/" link so the customer always sees their chosen
+    day and window. checkout.js populates ck-collect-summary-{day,slot} on
+    render; the guard in checkout.js redirects to /basket/ before this ever
+    shows "—" (empty cart or no slot = no business being here).
+    {% endcomment %}
+    <div class="ck-collect-block" id="ck-collect-block">
+      <div class="ck-collect-block-info">
+        <div class="ck-collect-block-kicker">Collecting</div>
+        <div class="ck-collect-block-value">
+          <span id="ck-collect-summary-day">&mdash;</span>&ensp;&middot;&ensp;<span id="ck-collect-summary-slot">&mdash;</span>
+        </div>
+      </div>
+      <a href="{% url 'public:basket' %}" class="btn btn-ghost ck-collect-block-change" id="ck-change-slot-link">Change slot &rarr;</a>
+    </div>
     <div class="ck-grid">
       <div>
         <h2>How would you like to pay?</h2>
@@ -163,7 +188,9 @@ real `core.Order` — see that file's own header comment.
         {% endcomment %}
         <p class="ck-field-error" id="ck-place-blocked-reason" hidden style="margin-top: 4px;"></p>
         <button type="button" class="btn btn-primary btn-block ck-place" id="ck-place" disabled>Place the order</button>
-        <a href="{% url 'public:order' %}" class="btn btn-ghost btn-block ck-back">Back to the menu</a>
+        <a href="{% url 'public:basket' %}" class="btn btn-ghost btn-block ck-back">&larr; Basket</a>
+        {% comment %} Task 9: one-liner note (shared content with Home, kept inline to avoid include depth). {% endcomment %}
+        <p class="rc-oneliner">Collection only &mdash; Kraaifontein. <a href="{% url 'public:help' %}">How it works &rarr;</a></p>
       </div>
     </div>
   </div>
@@ -225,12 +252,13 @@ real `core.Order` — see that file's own header comment.
 {{ days|json_script:"days-data" }}
 <script>
   window.BK_CHECKOUT_URLS = {
-    order: "{% url 'public:order' %}",
+    order:        "{% url 'public:order' %}",
+    basket:       "{% url 'public:basket' %}",
     api_checkout: "{% url 'public:api_checkout' %}",
-    // %s stands in for the public_token — order_status takes a path
-    // argument, so there's no url-reverse-with-a-placeholder in Django;
-    // checkout.js does a plain string replace.
-    order_status: "{% url 'public:order_status' public_token='TOKEN_PLACEHOLDER' %}"
+    // TOKEN_PLACEHOLDER is replaced by checkout.js once it knows the public_token.
+    order_status: "{% url 'public:order_status' public_token='TOKEN_PLACEHOLDER' %}",
+    // Task 8: used to persist rc_last_order_v1 for the Repeat module.
+    reorder:      "{% url 'public:reorder' public_token='TOKEN_PLACEHOLDER' %}",
   };
   // Spec's own "cash hidden on advance dates and when cap reached" —
   // the page loaded with cash already hidden/shown for *today* (the

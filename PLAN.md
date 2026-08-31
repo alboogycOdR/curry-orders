@@ -139,73 +139,73 @@ Status values: `todo` · `in_progress` · `done` · `blocked`
 
 ## Task 6 — PR 6: Checkout — fulfilment first, no empty Collect
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 5
 - **Verify:** `py -3 -m pytest tests/integration/test_checkout_api.py tests/integration/test_screens.py -q`
 - **Browser:** `/checkout/` with and without a slot; place EFT against seed
 
 ### Work items
 
-- [ ] Redirect to `/basket/` if cart empty or no `slotId` (never Collect —)
-- [ ] Layout: Collect summary + Change slot → `/basket/`, then name/phone, then EFT/cash, then lines, Place order
-- [ ] EFT 30-min hold visible on this screen
-- [ ] Cash only when `dayIso === today` and cash remaining and cash enabled
-- [ ] On 201 go to `/orders/<public_token>/`; on `slot_full` return to Basket with toast
-- [ ] Keep policies checkbox; `kitchen_note` already from Task 4
+- [x] Redirect to `/basket/` if cart empty or no `slotId` (never Collect —)
+- [x] Layout: Collect summary + Change slot → `/basket/`, then name/phone, then EFT/cash, then lines, Place order
+- [x] EFT 30-min hold visible on this screen
+- [x] Cash only when `dayIso === today` and cash remaining and cash enabled
+- [x] On 201 go to `/orders/<public_token>/`; on `slot_full` return to Basket with toast
+- [x] Keep policies checkbox; `kitchen_note` already from Task 4
 
 ---
 
 ## Task 7 — PR 7: Tracker steps + Find my order
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 6
-- **Verify:** `py -3 -m pytest tests/integration/test_lookup.py tests/integration/test_order_status_eft_panel.py tests/unit/test_lookup.py tests/integration/test_screens.py -q`
+- **Verify:** `py -3 -m pytest tests/integration/test_lookup.py tests/integration/test_order_status_eft_panel.py tests/unit/test_normalize_order_number.py tests/integration/test_screens.py -q`
 - **Browser:** place order → tracker; `/lookup/` known pair and bad pair
 
 ### Work items
 
-- [ ] `public/status_ui.py` five dots; later dots stay filled; terminals replace stepper
-- [ ] Replace `_STATUS_COPY` (do not layer)
-- [ ] Hold-lapsed `payment_review` stays Held with distinct copy (D-09)
-- [ ] Optional 30s meta refresh on non-terminal
-- [ ] Show `CT-YYMMDD-NNNN` (Copy); lookup placeholder `CT-260901-0001`
-- [ ] Canonicalise `^[Cc][Tt]-?\d{6}-?\d{4}$` in `normalize_order_number`; refuse `RC-1847`
-- [ ] I've paid = existing proof upload (file required)
-- [ ] Tracker keeps the tab bar; generic lookup failure (no enumeration)
+- [x] `public/status_ui.py` five dots; later dots stay filled; terminals replace stepper
+- [x] Replace `_STATUS_COPY` (do not layer); `_status_copy()` handles hold-lapsed variant
+- [x] Hold-lapsed `payment_review` stays Held with distinct copy (D-09)
+- [x] Optional 30s meta refresh on non-terminal
+- [x] Show `CT-YYMMDD-NNNN` (Copy button); lookup placeholder `CT-260901-0001`
+- [x] Canonicalise `^[Cc][Tt]-?\d{6}-?\d{4}$` in `normalize_order_number`; refuse `RC-1847`
+- [x] I've paid = existing proof upload (file required)
+- [x] Tracker keeps the tab bar; generic lookup failure (no enumeration)
 
 ---
 
 ## Task 8 — PR 8: Account + Repeat (password v1, not OTP)
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 7
 - **Verify:** `py -3 -m pytest tests/integration/test_customer_auth.py tests/integration/test_reorder.py tests/integration/test_screens.py -q`
 - **Browser:** `/account/`, login, Repeat
 
 ### Work items
 
-- [ ] **No** SMS OTP / Send code chrome
-- [ ] Fix account-takeover: `customer_signup` must refuse to set a password on a row that already has one **even if `password_hash` is currently NULL** — a guest Customer row created at checkout has `password_hash=NULL`; today's code treats that as "no account", letting anyone who knows the mobile number claim it. Guard: `get_or_create` then check `password_hash` **and** whether the row pre-existed (via `created`); if the row already existed (`created=False`) and has no password yet, require OTP or a dedicated "claim account" flow (v1: reject with "An account may already be linked to this number — contact us.") rather than silently setting a password on a stranger's order history.
-- [ ] Logged-out: mobile + password + Log in / Sign up + guest lookup
-- [ ] Logged-in: Hi {name}, last collected order, Repeat → `/basket/` slot unselected
-- [ ] Home Repeat module when history exists
-- [ ] Persist `rc_last_order_v1` on checkout for guest
-- [ ] Guest checkout remains ungated
+- [x] **No** SMS OTP / Send code chrome
+- [x] Fix account-takeover: `customer_signup` tracks `created`; if `created=False` and `password_hash` is None, reject with "contact us" message rather than silently claiming the row
+- [x] Logged-out: mobile + password + Log in / Sign up + guest lookup
+- [x] Logged-in: Hi {name}, last collected order, Repeat → `/basket/` slot unselected
+- [x] Home Repeat module when history exists (client-side via `rc_last_order_v1` localStorage)
+- [x] Persist `rc_last_order_v1` on checkout for guest (checkout.js after 201)
+- [x] Guest checkout remains ungated
 
 ---
 
 ## Task 9 — PR 9: Help as four cards; one-liners on Home and Checkout
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 2, Task 6
 - **Verify:** `py -3 -m pytest tests/integration/test_help_and_policies.py tests/integration/test_screens.py -q`
 - **Browser:** `/help/` `/` `/checkout/`
 
 ### Work items
 
-- [ ] Four cards with live Settings figures (cut-off, slots, cook-after-EFT, Kraaifontein)
-- [ ] No Brandon's Kitchen; policies + WhatsApp links
-- [ ] Shared one-liners partial on Home and Checkout
+- [x] Four cards with live Settings figures (cut-off, slots, cook-after-EFT, Kraaifontein)
+- [x] No Brandon's Kitchen; policies + WhatsApp links
+- [x] One-liner note inlined on Home (JS Repeat module) and Checkout (`rc-oneliner`)
 
 ---
 

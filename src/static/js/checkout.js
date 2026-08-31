@@ -47,6 +47,14 @@
   var idempotencyKey = makeIdempotencyKey();
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Task 6 guard: redirect to /basket/ if cart is empty or no slot has
+    // been selected. Prevents an empty "Collect —" state and ensures the
+    // customer always arrives here with a real selection.
+    if (!window.BKCart.getSlotId() || !window.BKCart.getLines().length) {
+      window.location.replace(window.BK_CHECKOUT_URLS.basket);
+      return;
+    }
+
     var days = readJSONScript("days-data", []);
 
     var payEft   = document.getElementById("ck-pay-eft");
@@ -142,27 +150,17 @@
     function renderCapacityRecovery(errorCode, body) {
       recoveryEl.innerHTML = "";
 
-      if (errorCode === "slot_full" && body.alternatives && body.alternatives.slots &&
-          body.alternatives.slots.length) {
-        var p = document.createElement("p");
-        p.textContent = "That time filled up. Other collection times still open today:";
-        recoveryEl.appendChild(p);
-        var actions = document.createElement("div");
-        actions.className = "ck-recovery-actions";
-        body.alternatives.slots.forEach(function (alt) {
-          var btn = document.createElement("button");
-          btn.type = "button";
-          btn.textContent = alt.label;
-          btn.addEventListener("click", function () {
-            window.BKCart.setSlot(alt.label);
-            window.BKCart.setSlotId(alt.slot_id);
-            clearErrors();
-            renderSheetAndTotals();
-          });
-          actions.appendChild(btn);
-        });
-        recoveryEl.appendChild(actions);
-        recoveryEl.hidden = false;
+      if (errorCode === "slot_full") {
+        // Task 6: redirect to /basket/ so the customer can pick a
+        // different slot — the basket screen has the full live slot grid.
+        // A toast message explains why they're being sent back.
+        try {
+          sessionStorage.setItem(
+            "rc_basket_toast",
+            "That time slot just filled up — please choose another collection time."
+          );
+        } catch (e) {}
+        window.location.href = window.BK_CHECKOUT_URLS.basket;
         return;
       }
 
@@ -237,6 +235,12 @@
       var slot = window.BKCart.getSlot();
       collectDayEl.textContent = day ? titleCase(day.long) : "—";
       collectSlotEl.textContent = slot || "—";
+
+      // Task 6: also update the prominent collect summary block at the top.
+      var summaryDayEl = document.getElementById("ck-collect-summary-day");
+      var summarySlotEl = document.getElementById("ck-collect-summary-slot");
+      if (summaryDayEl) summaryDayEl.textContent = day ? titleCase(day.long) : "—";
+      if (summarySlotEl) summarySlotEl.textContent = slot || "—";
 
       var ready = t.count > 0 && !!slot && !!window.BKCart.getSlotId();
       placeBtn.disabled = !ready;
@@ -327,6 +331,19 @@
           window.BKCart.setSlotId(null);
 
           var order = result.body;
+
+          // Task 8: persist last order for the Repeat module on Home /
+          // Account. Guests don't have a session, so localStorage is the
+          // right place; logged-in customers get it from the DB too.
+          try {
+            localStorage.setItem("rc_last_order_v1", JSON.stringify({
+              order_number: order.order_number,
+              public_token: order.public_token,
+              reorder_url: window.BK_CHECKOUT_URLS.reorder.replace(
+                "TOKEN_PLACEHOLDER", order.public_token
+              ),
+            }));
+          } catch (e) {}
           refEl.textContent = order.order_number;
           confirmHeading.textContent = "We've got it. Order " + order.order_number + ".";
           confirmCopy.textContent =

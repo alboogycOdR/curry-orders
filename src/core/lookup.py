@@ -33,13 +33,22 @@ class LookupError(Exception):
         self.extra = extra
 
 
+# Task 7: canonicalize CT-YYMMDD-NNNN variants (dashes optional, any case).
+_CT_CANONICAL = re.compile(r"^[Cc][Tt]-?(\d{6})-?(\d{4})$")
+
+
 def normalize_order_number(raw: str) -> str:
-    """`CT-…` case-insensitive (§11.10) — upper-cased, whitespace
-    trimmed; not otherwise validated here (an unrecognised/garbled
-    number just fails to match any order, same generic-message path as
-    a wrong mobile).
+    """`CT-…` case-insensitive (§11.10) — stripped, canonicalized to
+    ``CT-YYMMDD-NNNN`` when the pattern matches (dashes optional, any
+    case), upper-cased only for everything else.  Non-CT inputs (e.g.
+    ``RC-…``) pass through as upper-case and fail the DB lookup cleanly
+    — no ``RC-`` alias exists and none will be created (PLAN.md D-01).
     """
-    return raw.strip().upper()
+    s = raw.strip()
+    m = _CT_CANONICAL.match(s)
+    if m:
+        return f"CT-{m.group(1)}-{m.group(2)}"
+    return s.upper()
 
 
 def last9_digits(raw: str) -> str:

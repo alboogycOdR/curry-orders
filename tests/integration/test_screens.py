@@ -321,6 +321,89 @@ class TestCheckout:
         assert 'id="ck-pay-cash-row" hidden' not in content
         assert "7 cash orders still open today" in content
 
+    def test_collect_block_present_with_basket_change_link(self, client) -> None:
+        # Task 6 (fulfilment first): prominent Collect summary at top of
+        # ck-form-state so the customer can always see and change their slot.
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert 'id="ck-collect-block"' in content
+        assert reverse("public:basket") in content  # "Change slot →" link
+
+    def test_basket_url_in_bk_checkout_urls(self, client) -> None:
+        # checkout.js guard needs BK_CHECKOUT_URLS.basket to redirect to.
+        # JS object literal uses unquoted key: `basket: "/basket/"`.
+        resp = client.get(reverse("public:checkout"))
+        content = resp.content.decode()
+        assert "basket:" in content
+        assert reverse("public:basket") in content
+
+
+class TestOrderStatus:
+    """Task 7: five-dot stepper + meta refresh on non-terminal statuses."""
+
+    def _place_order(self, biz_settings, trading_day, slot, dish):
+        import datetime as dt
+        from core.capacity import CheckoutLine, ReservationRequest, reserve
+        return reserve(
+            ReservationRequest(
+                trading_day_date=trading_day.date, slot_id=slot.pk,
+                payment_method="eft",
+                customer_name="Jane", customer_mobile_e164="+27821234567",
+                lines=[CheckoutLine(dish_id=dish.pk, quantity=1)],
+                now=dt.datetime(2026, 8, 31, 6, 0, tzinfo=dt.UTC),
+            ),
+            biz_settings,
+        )
+
+    def test_stepper_present_on_non_terminal_status(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        order = self._place_order(biz_settings, trading_day, slot, dish)
+        # awaiting_eft is non-terminal — stepper should render
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        content = resp.content.decode()
+        assert 'class="os-stepper"' in content
+        assert "Order received" in content
+        assert "Payment" in content
+        assert "Ready to collect" in content
+
+    def test_stepper_absent_on_terminal_status(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        from core.models import OrderStatus
+        order = self._place_order(biz_settings, trading_day, slot, dish)
+        order.status = OrderStatus.COLLECTED
+        order.save(update_fields=["status"])
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        content = resp.content.decode()
+        assert 'class="os-stepper"' not in content
+
+    def test_meta_refresh_present_on_non_terminal(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        order = self._place_order(biz_settings, trading_day, slot, dish)
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        assert b'http-equiv="refresh"' in resp.content
+
+    def test_meta_refresh_absent_on_terminal(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        from core.models import OrderStatus
+        order = self._place_order(biz_settings, trading_day, slot, dish)
+        order.status = OrderStatus.COLLECTED
+        order.save(update_fields=["status"])
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        assert b'http-equiv="refresh"' not in resp.content
+
+    def test_copy_order_number_button_present(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        order = self._place_order(biz_settings, trading_day, slot, dish)
+        resp = client.get(reverse("public:order_status", args=[order.public_token]))
+        content = resp.content.decode()
+        assert 'id="os-copy-ref"' in content
+        assert order.order_number in content
+
 
 class TestKitchen:
     """Now behind `@staff_login_required` (staff/decorators.py) — see

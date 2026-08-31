@@ -18,7 +18,20 @@
   {% if request.customer_user %}
     <h1 class="ac-heading">Hi, {{ request.customer_user.full_name|truncatewords:2 }}</h1>
     <p class="ac-intro">Your account is ready for your next order.</p>
-    <section class="ac-card"><h2>Find an order</h2><p>Look up an order placed with your mobile number.</p><a class="btn btn-primary" href="{% url 'public:lookup' %}">Find my order</a></section>
+
+    {% if last_order %}
+    {# Task 8: last collected order + Repeat button. #}
+    <section class="ac-card">
+      <h2>Last collected order</h2>
+      <p>{{ last_order.order_number }} &mdash; {{ last_order.trading_day.date|date:"j M" }}</p>
+      <div class="ac-actions">
+        <a class="btn btn-primary" href="{% url 'public:reorder' public_token=last_order.public_token %}">Order these again</a>
+        <a class="btn btn-secondary" href="{% url 'public:order_status' public_token=last_order.public_token %}">View order</a>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="ac-card"><h2>Find an order</h2><p>Look up any order placed with your mobile number.</p><a class="btn btn-primary" href="{% url 'public:lookup' %}">Find my order</a></section>
     <a class="ac-link" href="{% url 'public:customer_logout' %}">Log out</a>
   {% else %}
     <h1 class="ac-heading">Your account</h1>

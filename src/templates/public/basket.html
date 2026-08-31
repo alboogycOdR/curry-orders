@@ -90,6 +90,13 @@ brief message and a "Browse the menu" link; no Total R0.00, no Place order.
 <div class="bk-wrap">
   <div class="bk-topbar"></div>
   <div class="bk-step">Step 1 of 2 &mdash; items &amp; collection slot</div>
+  {% comment %}
+  Task 6: slot_full toast — checkout.js stores the message in sessionStorage
+  when it redirects back here on a slot_full error; basket.js reads and clears
+  it on load. The bk-date-notice class gives it the same warning styling as
+  the day-change notice below.
+  {% endcomment %}
+  <p class="bk-date-notice" id="bk-toast" role="alert" hidden></p>
 
   {% comment %}Empty state — basket.js toggles this and bk-content.{% endcomment %}
   <div id="bk-empty" hidden>

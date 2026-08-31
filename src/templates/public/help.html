@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 
 {% comment %}
-Help — spec §6.1 `/help`: "how to order, collection, payment, cut-off".
-Every figure below is a live `Settings` value passed by `help_page`
-(`public/views.py`), not hard-coded copy — a settings change is reflected
-here without touching this template, matching §20's own acceptance line
-("cut-off, hold minutes, ... editable without deploy").
+Help — spec §6.1 `/help`: four cards, Task 9. Each figure is a live
+`Settings` value passed by `help_page` (`public/views.py`) — a settings
+change is reflected here without a deploy (spec §20 acceptance line:
+"cut-off, hold minutes, ... editable without deploy").
+
+Four cards:
+1. Ordering & cut-off — when orders close, how far ahead you can order
+2. Collecting — slot length, collection window, Kraaifontein
+3. Payment — EFT hold time ("cook after EFT"), cash if enabled
+4. Still need help? — WhatsApp link (if configured) + policies
 {% endcomment %}
 
 {% block title %}Help — Roti Connect{% endblock %}
@@ -14,13 +19,20 @@ here without touching this template, matching §20's own acceptance line
 <style>
   .hp-wrap { max-width: 680px; margin: 0 auto; padding: 48px 32px 80px; }
   .hp-heading { font-family: var(--font-heading); font-size: clamp(28px, 4vw, 40px); font-weight: 600; margin: 0 0 8px; letter-spacing: -0.015em; }
-  .hp-intro { font-size: 15.5px; color: var(--color-neutral-700); margin: 0 0 36px; max-width: 56ch; }
-  .hp-section { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--color-divider); }
-  .hp-section-title { font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-2-700); margin: 0 0 10px; }
-  .hp-section p { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin: 0 0 10px; }
-  .hp-section ul { margin: 0 0 10px; padding-left: 20px; }
-  .hp-section li { font-size: 15.5px; line-height: 1.55; color: var(--color-neutral-800); margin-bottom: 6px; }
-  .hp-links { margin-top: 40px; font-size: 14px; }
+  .hp-intro { font-size: 15.5px; color: var(--color-neutral-700); margin: 0 0 32px; max-width: 56ch; }
+
+  .hp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .hp-card { border: 1px solid var(--color-divider); border-radius: var(--radius-md, 12px); padding: 22px 24px; }
+  .hp-card-title { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-2-700, #a0004f); margin: 0 0 12px; }
+  .hp-card-body { font-size: 15px; line-height: 1.55; color: var(--color-neutral-800); }
+  .hp-card-body p { margin: 0 0 8px; }
+  .hp-card-body p:last-child { margin-bottom: 0; }
+  .hp-card-figure { font-family: var(--font-heading); font-size: 22px; font-weight: 600; display: block; margin-bottom: 4px; }
+  .hp-links { margin-top: 28px; font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .hp-cards { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
 
@@ -29,35 +41,50 @@ here without touching this template, matching §20's own acceptance line
   <h1 class="hp-heading">Help</h1>
   <p class="hp-intro">How ordering, collection and payment work at Roti Connect.</p>
 
-  <section class="hp-section">
-    <h2 class="hp-section-title">Ordering &amp; cut-off</h2>
-    <p>Same-day orders close at <strong>{{ same_day_cutoff }}</strong>. You can order for any open day up to <strong>{{ preorder_days }} days</strong> ahead.</p>
-    <p>Orders are placed against <strong>{{ slot_minutes }}-minute collection slots</strong>, each with its own capacity — once a slot fills up, it stops appearing as a choice.</p>
-  </section>
+  <div class="hp-cards">
 
-  <section class="hp-section">
-    <h2 class="hp-section-title">Collection</h2>
-    <p>Collection happens during the day's collection window, currently <strong>{{ collection_window }}</strong> (this can vary by day — always check the time on your order confirmation, not this page).</p>
-    <p>The kitchen only starts preparing your order once payment is verified (EFT) or your cash order is accepted by staff — see Payment below.</p>
-  </section>
+    <div class="hp-card">
+      <h2 class="hp-card-title">Ordering &amp; cut-off</h2>
+      <div class="hp-card-body">
+        <p><span class="hp-card-figure">{{ same_day_cutoff }}</span>Same-day orders close at this time. After cut-off, the next available collection day is shown.</p>
+        <p>Order up to <strong>{{ preorder_days }} days</strong> ahead. Open days only — closed days are not listed.</p>
+      </div>
+    </div>
 
-  <section class="hp-section">
-    <h2 class="hp-section-title">Payment</h2>
-    <p><strong>EFT:</strong> pay by bank transfer using the reference on your order confirmation. Your slot is held for <strong>{{ eft_hold_minutes }} minutes</strong> — if payment isn't verified within that time, the hold is released.</p>
-    {% if cash_enabled %}
-    <p><strong>Cash:</strong> available on a limited basis{% if cash_same_day_only %}, for same-day orders only{% endif %}. A cash order is only confirmed once staff accept it, and payment is due at collection.</p>
-    {% else %}
-    <p><strong>Cash:</strong> not currently accepted — EFT only.</p>
-    {% endif %}
-  </section>
+    <div class="hp-card">
+      <h2 class="hp-card-title">Collecting</h2>
+      <div class="hp-card-body">
+        <p><span class="hp-card-figure">{{ collection_window }}</span>Typical collection window (check your confirmation — this can vary by day).</p>
+        <p>Slots are <strong>{{ slot_minutes }}-minute</strong> windows, each with its own capacity. A full slot stops appearing as a choice.</p>
+        <p>Kraaifontein — collection address is on your confirmation, not on this page.</p>
+      </div>
+    </div>
 
-  {% if support_whatsapp_e164 %}
-  <section class="hp-section">
-    <h2 class="hp-section-title">Still need help?</h2>
-    <p>Message us on WhatsApp about a specific order from that order's status page — please don't place routine orders over WhatsApp.</p>
-  </section>
-  {% endif %}
+    <div class="hp-card">
+      <h2 class="hp-card-title">Payment</h2>
+      <div class="hp-card-body">
+        <p><strong>EFT before cooking:</strong> pay by bank transfer using the reference on your order. Your slot is held for <strong>{{ eft_hold_minutes }} minutes</strong>. We start cooking once payment is verified.</p>
+        {% if cash_enabled %}
+        <p><strong>Cash on collection:</strong> same-day orders only{% if cash_same_day_only %} (today only){% endif %}, limited availability. Confirmed once staff accept — payment is due at collection.</p>
+        {% else %}
+        <p><strong>Cash:</strong> not currently accepted &mdash; EFT only.</p>
+        {% endif %}
+      </div>
+    </div>
 
-  <p class="hp-links"><a href="{% url 'public:policies' %}">Read our collection, cancellation &amp; privacy policies →</a></p>
+    <div class="hp-card">
+      <h2 class="hp-card-title">Still need help?</h2>
+      <div class="hp-card-body">
+        {% if support_whatsapp_e164 %}
+        <p>Message us on WhatsApp from your order&rsquo;s own status page &mdash; the link is there once you&rsquo;ve placed an order.</p>
+        <p>Please don&rsquo;t place routine orders over WhatsApp.</p>
+        {% else %}
+        <p>Find your order via the <a href="{% url 'public:lookup' %}">order lookup</a>, then message us from there if needed.</p>
+        {% endif %}
+        <p><a href="{% url 'public:policies' %}">Read our collection, cancellation &amp; privacy policies &rarr;</a></p>
+      </div>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

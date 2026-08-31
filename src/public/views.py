@@ -58,6 +58,7 @@ from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import coerce_time, now_sast, orderable_dates
 
 from . import customer_sessions
+from . import status_ui as _status_ui
 
 # §9.1's own note under the customer-copy table: "Collection address and
 # instructions render only on confirmed_prep, cash_due, in_kitchen,
@@ -69,21 +70,40 @@ _ADDRESS_BEARING_STATUSES = frozenset({
 # only makes sense while payment is still outstanding.
 _EFT_PAGE_STATUSES = frozenset({OrderStatus.AWAITING_EFT, OrderStatus.PAYMENT_REVIEW})
 
-# §11.7-9's plain-language status copy — not the internal state-machine
-# name (OrderStatus's own label is closer to a kitchen-desk word than
-# something to put in front of a customer, e.g. "confirmed_prep").
+# §11.7-9 / Task 7: plain-language status copy shown to the customer.
+# D-09: payment_review never auto-expires; hold-lapsed copy is computed
+# in _status_copy() below, not baked into this dict.
 _STATUS_COPY: dict[str, str] = {
-    OrderStatus.AWAITING_EFT: "Awaiting your EFT payment.",
-    OrderStatus.PAYMENT_REVIEW: "Payment received — a staff member is confirming it.",
-    OrderStatus.CONFIRMED_PREP: "Confirmed — going into prep before your slot.",
-    OrderStatus.CASH_REQUEST: "Awaiting kitchen confirmation for cash on collection.",
-    OrderStatus.CASH_DUE: "Confirmed — bring cash at collection.",
-    OrderStatus.IN_KITCHEN: "In the kitchen now.",
-    OrderStatus.READY: "Ready for collection.",
-    OrderStatus.COLLECTED: "Collected — thank you!",
+    OrderStatus.AWAITING_EFT:    "Awaiting your EFT payment.",
+    OrderStatus.PAYMENT_REVIEW:  "Payment received — a staff member is confirming it.",
+    OrderStatus.CONFIRMED_PREP:  "Confirmed — going into prep before your slot.",
+    OrderStatus.CASH_REQUEST:    "Awaiting kitchen confirmation for cash on collection.",
+    OrderStatus.CASH_DUE:        "Confirmed — bring cash at collection.",
+    OrderStatus.IN_KITCHEN:      "In the kitchen now.",
+    OrderStatus.READY:           "Ready for collection.",
+    OrderStatus.COLLECTED:       "Collected — thank you!",
     OrderStatus.PAYMENT_EXPIRED: "This order's payment window expired and the hold was released.",
-    OrderStatus.CANCELLED: "This order was cancelled.",
+    OrderStatus.CANCELLED:       "This order was cancelled.",
 }
+
+# D-09: payment_review with an expired hold deserves distinct copy so the
+# customer knows the proof is received but the hold window has passed.
+_STATUS_COPY_PAYMENT_REVIEW_LAPSED = (
+    "Your payment window has passed — but your proof is with us and "
+    "a staff member will confirm it shortly."
+)
+
+
+def _status_copy(order: "Order") -> str:
+    """Return the customer-facing status copy for *order*.
+
+    Handles the D-09 hold-lapsed ``payment_review`` case separately from
+    the shared ``_STATUS_COPY`` dict.
+    """
+    if order.status == OrderStatus.PAYMENT_REVIEW and order.hold_expires_at:
+        if order.hold_expires_at < now_sast():
+            return _STATUS_COPY_PAYMENT_REVIEW_LAPSED
+    return _STATUS_COPY.get(order.status, order.get_status_display())
 
 _DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 _DAY_NAMES_FULL = [
@@ -512,7 +532,7 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
     return render(request, "public/order_status.html", {
         "order": order,
         "lines": order.lines.all(),
-        "status_copy": _STATUS_COPY.get(order.status, order.get_status_display()),
+        "status_copy": _status_copy(order),
         "show_address": order.status in _ADDRESS_BEARING_STATUSES,
         "show_eft_panel": show_eft_panel,
         # collection_address_line/instructions (show_address) and the
@@ -525,6 +545,9 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
         ),
         # §11.11: "Order these again" only on a collected order's page.
         "can_reorder": order.status == OrderStatus.COLLECTED,
+        # Task 7: five-dot stepper (None for terminal statuses).
+        "step_data": _status_ui.step_data(order.status),
+        "is_terminal": order.status in _status_ui.TERMINAL_STATUSES,
     })
 
 
@@ -581,7 +604,20 @@ def lookup(request: HttpRequest) -> HttpResponse:
 
 
 def account(request: HttpRequest) -> HttpResponse:
-    return render(request, "public/account.html")
+    # Task 8: pass last collected order for logged-in customers so the
+    # template can show a Repeat button (guest repeat comes from
+    # rc_last_order_v1 in localStorage, populated by checkout.js).
+    last_order = None
+    if request.customer_user:
+        last_order = (
+            Order.objects.filter(
+                customer_mobile_snapshot=request.customer_user.mobile_e164,
+                status=OrderStatus.COLLECTED,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+    return render(request, "public/account.html", {"last_order": last_order})
 
 
 def customer_login(request: HttpRequest) -> HttpResponse:
@@ -621,11 +657,22 @@ def customer_signup(request: HttpRequest) -> HttpResponse:
         if not error and len(password) < 8:
             error = "Use at least 8 characters for your password."
         if not error:
-            customer, _ = Customer.objects.get_or_create(
+            customer, created = Customer.objects.get_or_create(
                 mobile_e164=mobile, defaults={"full_name": name}
             )
             if customer.password_hash:
                 error = "An account already exists for that mobile number."
+            elif not created:
+                # A guest Customer row already exists (e.g. the person placed
+                # an order without signing up). In v1 there is no OTP flow to
+                # verify ownership — silently setting a password on a pre-existing
+                # row would let anyone who knows the mobile number claim a
+                # stranger's order history. Reject with a contact-us message.
+                # (PLAN.md Task 8 account-takeover guard.)
+                error = (
+                    "An account may already be linked to this number — "
+                    "contact us to verify ownership."
+                )
             else:
                 customer.full_name = name
                 customer.password_hash = make_password(password)
@@ -766,6 +813,12 @@ def help_page(request: HttpRequest) -> HttpResponse:
         "cash_enabled": settings.cash_enabled,
         "cash_same_day_only": settings.cash_same_day_only,
         "support_whatsapp_e164": settings.support_whatsapp_e164,
+        # Task 9: WhatsApp number for the "Still need help?" card's link text.
+        "whatsapp_number": (
+            settings.support_whatsapp_e164.lstrip("+").replace("27", "0", 1)
+            if settings.support_whatsapp_e164
+            else None
+        ),
     })
 
 

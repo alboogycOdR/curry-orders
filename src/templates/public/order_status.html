@@ -14,6 +14,13 @@ yet — a `payment_review` order here just says "we're checking it".
 
 {% block extra_head %}
 <meta name="robots" content="noindex, nofollow">
+{% if not is_terminal %}
+{# Task 7: soft 30s refresh while order is not in a terminal state.
+   Keeps the status copy current without requiring the customer to reload.
+   The meta refresh fires only on non-terminal statuses so a collected /
+   expired / cancelled page does not keep reloading pointlessly. #}
+<meta http-equiv="refresh" content="30">
+{% endif %}
 <style>
   .os-wrap { max-width: 760px; margin: 0 auto; padding: 0 32px; }
   .os-topbar { height: 4px; background: var(--color-text); margin-top: 36px; }
@@ -69,6 +76,22 @@ yet — a `payment_review` order here just says "we're checking it".
     border-radius: var(--radius-md); padding: var(--space-3, 12px); font-size: 14px;
     margin-bottom: var(--space-2, 8px);
   }
+
+  /* Task 7: order number + copy button row. */
+  .os-ref-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .os-copy-ref { font-size: 13px; padding: 4px 10px; min-height: 32px; }
+
+  /* Task 7: five-dot stepper. */
+  .os-stepper { display: flex; align-items: flex-start; margin: 24px 0 0; overflow-x: auto; padding-bottom: 4px; }
+  .os-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 56px; position: relative; }
+  .os-step::after { content: ""; display: block; height: 2px; background: var(--color-divider); position: absolute; top: 8px; left: 50%; right: -50%; z-index: 0; }
+  .os-step:last-child::after { display: none; }
+  .os-step-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--color-divider); background: var(--color-bg); z-index: 1; display: block; flex-shrink: 0; }
+  .os-step.is-filled .os-step-dot { border-color: var(--color-text); background: var(--color-text); }
+  .os-step.is-active .os-step-dot { border-color: var(--color-accent-2, #d6006c); background: var(--color-accent-2, #d6006c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-2, #d6006c) 20%, transparent); }
+  .os-step-label { font-size: 10px; letter-spacing: 0.05em; text-align: center; color: var(--color-neutral-500); line-height: 1.25; padding: 0 2px; }
+  .os-step.is-filled .os-step-label { color: var(--color-neutral-700); }
+  .os-step.is-active .os-step-label { color: var(--color-accent-2-700, #a0004f); font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -77,8 +100,35 @@ yet — a `payment_review` order here just says "we're checking it".
   {% csrf_token %}
   <div class="os-topbar"></div>
   <span class="os-eyebrow">Order status</span>
-  <h1 class="os-heading">{{ order.order_number }}</h1>
+
+  {% comment %}
+  Task 7: order number row with Copy button (spec §13: "On-screen + token
+  URL + Copy/Share"). JS below wires the button to clipboard.
+  {% endcomment %}
+  <div class="os-ref-row">
+    <h1 class="os-heading" id="os-order-number">{{ order.order_number }}</h1>
+    <button type="button" class="btn btn-ghost os-copy-ref" id="os-copy-ref"
+            data-ref="{{ order.order_number }}">Copy</button>
+  </div>
+
   <p class="os-status" id="os-status-copy">{{ status_copy }}</p>
+
+  {% comment %}
+  Task 7: five-dot stepper. Terminal statuses (collected/expired/cancelled)
+  have step_data=None — the stepper is omitted and only the status copy above
+  carries the final state. Non-terminal steps: earlier dots filled ink,
+  active dot filled accent, later dots unfilled.
+  {% endcomment %}
+  {% if step_data %}
+  <div class="os-stepper" aria-label="Order progress">
+    {% for step in step_data %}
+    <div class="os-step{% if step.filled %} is-filled{% endif %}{% if step.active %} is-active{% endif %}">
+      <span class="os-step-dot" aria-hidden="true"></span>
+      <span class="os-step-label">{{ step.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% comment %}
   Spec §13's "Order created" row: "On-screen + token URL + Copy/Share" —
@@ -213,6 +263,20 @@ yet — a `payment_review` order here just says "we're checking it".
       url: window.location.href,
       title: "Roti Connect — order {{ order.order_number|escapejs }}",
     });
+
+    // Task 7: Copy order number button.
+    var copyRefBtn = document.getElementById("os-copy-ref");
+    if (copyRefBtn) {
+      copyRefBtn.addEventListener("click", function () {
+        var ref = copyRefBtn.getAttribute("data-ref");
+        if (navigator.clipboard && ref) {
+          navigator.clipboard.writeText(ref).then(function () {
+            copyRefBtn.textContent = "Copied!";
+            window.setTimeout(function () { copyRefBtn.textContent = "Copy"; }, 2000);
+          }).catch(function () {});
+        }
+      });
+    }
   });
 </script>
 {% endblock %}

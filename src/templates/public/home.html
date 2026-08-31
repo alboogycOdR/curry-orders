@@ -185,6 +185,17 @@ Collection chip never includes a street address (D-23).
   </a>
   {% endif %}
 
+  {% comment %}
+  Task 8: Repeat module — shown by JS when rc_last_order_v1 is in localStorage
+  (set by checkout.js after a successful order). Hidden by default (server
+  never knows the client's last order). The reorder URL is stored in the
+  rc_last_order_v1 payload so this works for both logged-in and guest customers.
+  {% endcomment %}
+  <div id="rc-repeat-module" hidden style="margin: 0 0 4px;">
+    <a id="rc-repeat-link" href="{% url 'public:basket' %}" class="btn btn-ghost"
+       style="font-size:14px;min-height:40px;">Order again</a>
+  </div>
+
   <p class="rc-find">Already ordered? <a href="{% url 'public:lookup' %}">Find my order</a></p>
 
   <h2 class="rc-section-title">What are you hungry for?</h2>
@@ -219,13 +230,29 @@ Collection chip never includes a street address (D-23).
   (function () {
     var btn = document.getElementById("rc-collection-chip");
     var sheet = document.getElementById("rc-chip-sheet");
-    if (!btn || !sheet) return;
-    btn.addEventListener("click", function () {
-      var open = sheet.hasAttribute("hidden");
-      if (open) sheet.removeAttribute("hidden");
-      else sheet.setAttribute("hidden", "");
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    });
+    if (btn && sheet) {
+      btn.addEventListener("click", function () {
+        var open = sheet.hasAttribute("hidden");
+        if (open) sheet.removeAttribute("hidden");
+        else sheet.setAttribute("hidden", "");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+
+    // Task 8: Repeat module — show when rc_last_order_v1 exists in localStorage.
+    try {
+      var stored = localStorage.getItem("rc_last_order_v1");
+      if (stored) {
+        var last = JSON.parse(stored);
+        var mod  = document.getElementById("rc-repeat-module");
+        var link = document.getElementById("rc-repeat-link");
+        if (mod && last) {
+          if (link && last.reorder_url) link.href = last.reorder_url;
+          if (link && last.order_number) link.textContent = "Order " + last.order_number + " again";
+          mod.hidden = false;
+        }
+      }
+    } catch (e) {}
   })();
 </script>
 {% endblock %}

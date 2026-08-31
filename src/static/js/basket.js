@@ -21,6 +21,22 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Task 6: show a toast if checkout.js redirected here with a message
+    // (e.g. slot_full). The message is stored in sessionStorage so it
+    // survives the redirect without appearing as a query param in the URL.
+    var toastEl = document.getElementById("bk-toast");
+    if (toastEl) {
+      try {
+        var pendingToast = sessionStorage.getItem("rc_basket_toast");
+        if (pendingToast) {
+          sessionStorage.removeItem("rc_basket_toast");
+          toastEl.textContent = pendingToast;
+          toastEl.hidden = false;
+          window.setTimeout(function () { if (toastEl) toastEl.hidden = true; }, 7000);
+        }
+      } catch (e) {}
+    }
+
     var days         = readJSONScript("bk-days-data", []);
     var eftHold      = readJSONScript("bk-eft-hold-data", 30);
 

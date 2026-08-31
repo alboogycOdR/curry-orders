@@ -89,6 +89,30 @@ class TestPoliciesPage:
         assert b"wa.me/" not in resp.content
 
 
+class TestHelpCards:
+    """Task 9: help page is four cards with live Settings figures."""
+
+    def test_four_cards_render(self, client, biz_settings) -> None:
+        resp = client.get(reverse("public:help"))
+        content = resp.content.decode()
+        assert content.count('class="hp-card"') == 4
+
+    def test_cards_carry_live_settings_figures(self, client, biz_settings) -> None:
+        biz_settings.same_day_cutoff = "08:00"
+        biz_settings.eft_hold_minutes = 45
+        biz_settings.slot_minutes = 20
+        biz_settings.save()
+        resp = client.get(reverse("public:help"))
+        content = resp.content.decode()
+        assert "08:00" in content          # cut-off card
+        assert "45 minutes" in content     # payment card (eft_hold_minutes)
+        assert "20-minute" in content      # collecting card (slot_minutes)
+
+    def test_policies_link_present(self, client, biz_settings) -> None:
+        resp = client.get(reverse("public:help"))
+        assert reverse("public:policies").encode() in resp.content
+
+
 class TestFooterLinks:
     def test_footer_present_on_home(self, client, biz_settings) -> None:
         resp = client.get(reverse("public:home"))
