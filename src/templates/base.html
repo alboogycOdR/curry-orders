@@ -251,10 +251,67 @@
         text-decoration: none;
         -webkit-tap-highlight-color: transparent;
       }
-      .mobile-bottom-nav a[aria-current="page"] {
+      .mobile-bottom-nav a[aria-current="page"],
+      .mobile-bottom-nav button[aria-current="page"] {
         color: var(--color-accent-2);
         background: color-mix(in srgb, var(--color-accent-2) 12%, transparent);
       }
+      /* More tab is a button, not an <a> */
+      .mobile-bottom-nav button {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        min-height: 56px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        border: none;
+        background: none;
+        border-radius: var(--radius-btn, 12px);
+        color: var(--color-muted, var(--color-neutral-600));
+        font-family: var(--font-ui, var(--font-body));
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        padding: 0;
+      }
+      /* More sheet */
+      #mobile-more-backdrop {
+        position: fixed; inset: 0; z-index: 60;
+        background: rgba(0,0,0,0.35);
+        animation: moreBackdropIn 180ms ease;
+      }
+      #mobile-more-panel {
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 61;
+        background: var(--color-bg);
+        border-radius: 20px 20px 0 0;
+        padding: 8px 0 calc(env(safe-area-inset-bottom) + 80px);
+        animation: morePanelIn 220ms cubic-bezier(.32,1,.4,1);
+      }
+      #mobile-more-panel a {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 15px 24px;
+        font-size: 16px;
+        color: var(--color-text);
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #mobile-more-panel a:active { background: var(--color-surface); }
+      #mobile-more-panel svg { width: 22px; height: 22px; flex: none; color: var(--color-muted, var(--color-neutral-600)); }
+      #mobile-more-panel .more-sheet-staff-link {
+        margin-top: 8px;
+        border-top: 1px solid var(--color-divider);
+        color: var(--color-accent);
+        font-weight: 600;
+      }
+      #mobile-more-panel .more-sheet-staff-link svg { color: var(--color-accent); }
+      #mobile-more-sheet[hidden] { display: none; }
+      @keyframes moreBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes morePanelIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
       .mobile-bottom-nav svg {
         width: 22px;
         height: 22px;
@@ -475,14 +532,36 @@ screen readers.
     </svg>
     <span class="mobile-nav-label">Account</span>
   </a>
-  <a href="{% url 'public:help' %}"
+  <button type="button" id="mobile-more-btn"
+     aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-more-sheet"
      {% if request.resolver_match.url_name == 'help' or request.resolver_match.url_name == 'policies' %}aria-current="page"{% endif %}>
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle>
     </svg>
     <span class="mobile-nav-label">More</span>
-  </a>
+  </button>
 </nav>
+
+{# More sheet — shown when the More tab is tapped #}
+<div id="mobile-more-sheet" role="dialog" aria-label="More options" aria-modal="true" hidden>
+  <div id="mobile-more-backdrop"></div>
+  <div id="mobile-more-panel">
+    <a href="{% url 'public:help' %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 17v.01M12 13.5a3 3 0 1 0-3-3"></path></svg>
+      Help &amp; FAQ
+    </a>
+    <a href="{% url 'public:policies' %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M9 7h6M9 11h6M9 15h4"></path></svg>
+      Policies
+    </a>
+    {% if not request.staff_user %}
+    <a href="{% url 'manage:login' %}" class="more-sheet-staff-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12H3m0 0 4-4m-4 4 4 4"></path><path d="M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"></path></svg>
+      Kitchen staff login
+    </a>
+    {% endif %}
+  </div>
+</div>
 {% endif %}
 
 {% comment %}
@@ -510,5 +589,30 @@ them entirely.
 </footer>
 
 {% block extra_scripts %}{% endblock %}
+<script>
+(function(){
+  var btn = document.getElementById('mobile-more-btn');
+  var sheet = document.getElementById('mobile-more-sheet');
+  var backdrop = document.getElementById('mobile-more-backdrop');
+  if (!btn || !sheet) return;
+  function open() {
+    sheet.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    sheet.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+  btn.addEventListener('click', function() {
+    sheet.hidden ? open() : close();
+  });
+  if (backdrop) backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !sheet.hidden) close();
+  });
+})();
+</script>
 </body>
 </html>
