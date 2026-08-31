@@ -63,12 +63,6 @@ Any basket lines unavailable on the new day are removed with a notice.
   .op-dish-desc { font-size: 15.5px; color: var(--color-neutral-700); margin-top: 5px; max-width: 46ch; }
   .op-dish-note { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-neutral-600); margin-top: 8px; }
   .op-dish-price { font-family: var(--font-heading); font-style: italic; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
-  .op-dish-qty { display: flex; align-items: center; gap: 10px; min-width: 112px; justify-content: flex-end; }
-  .op-dish-row.is-sold-out { opacity: 0.5; }
-  .op-dish-row.is-sold-out .op-dish-name { text-decoration: line-through; }
-  .op-dish-qty .qty-count { font-family: var(--font-heading); font-size: 17px; font-variant-numeric: tabular-nums; min-width: 14px; text-align: center; }
-  .op-dish-qty .btn { min-height: 44px; min-width: 44px; }
-  .op-dish-qty .btn-add { padding-inline: 16px; min-height: 44px; }
   .op-filter-bar {
     position: sticky; top: 58px; z-index: 5;
     display: flex; gap: 8px; overflow-x: auto;
@@ -87,41 +81,52 @@ Any basket lines unavailable on the new day are removed with a notice.
   .op-filter-chip.is-selected {
     background: var(--color-accent); color: #fff; border-color: var(--color-accent);
   }
+  /* Dish cards — image right, price+button on same row, each card visually isolated */
+  .op-dish-list {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+  }
   .op-dish-row {
     display: grid;
-    grid-template-columns: 72px 1fr auto;
+    grid-template-columns: 1fr 88px;
     gap: 12px;
-    align-items: center;
-    padding: 12px 0;
-    border-top: 1px solid var(--color-divider);
+    align-items: stretch;
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border-radius: 16px;
+  }
+  .op-dish-row:nth-child(odd) { background: var(--color-surface); }
+  .op-dish-row:nth-child(even) {
+    background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+  }
+  .op-dish-body { display: flex; flex-direction: column; min-width: 0; }
+  .op-dish-bottom {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: auto; padding-top: 10px; flex-wrap: wrap;
   }
   .op-dish-photo {
-    width: 72px; height: 72px; object-fit: cover;
-    border-radius: 12px; background: var(--color-surface);
+    width: 100%; height: 100%; min-height: 80px;
+    object-fit: cover; border-radius: 12px;
+    background: var(--color-surface); display: block;
   }
   .op-dish-row.is-placeholder .op-dish-photo {
     background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface))
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%23c8a0b0' stroke-width='2.5'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Cpath d='M23 29 Q32 22 41 29' fill='none' stroke='%23c8a0b0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
       center / 36px no-repeat;
   }
+  .op-dish-row.is-sold-out { opacity: 0.55; }
+  .op-dish-row.is-sold-out .op-dish-name { text-decoration: line-through; }
   .op-dish-row.is-sold-out .op-dish-photo { opacity: 0.4; }
   .op-context { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 8px 0 0; }
-  .op-total-row.is-empty { display: none; }
 
-  /* Real 480px mobile breakpoint (replaces the 900px stopgap above) */
-  @media (max-width: 900px) {
-    .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
-    .op-dish-qty { justify-content: flex-start; }
-  }
   @media (max-width: 480px) {
     .op-wrap { padding: 0 16px; }
     .op-day-bar { gap: 6px; }
     .op-day-chip { min-height: 44px; padding: 6px 8px; }
     .op-filter-bar { gap: 6px; }
     .op-filter-chip { min-height: 44px; padding: 8px 12px; }
-    .op-dish-row { grid-template-columns: 72px 1fr; gap: 8px; padding-left: 0; }
-    .op-dish-qty { justify-content: flex-start; }
-    .op-dish-qty .btn-add { min-height: 44px; }
+    .op-dish-row { grid-template-columns: 1fr 72px; padding: 12px 14px; }
+    .op-dish-photo { min-height: 68px; }
+    .btn-add { min-height: 44px; }
   }
   .skip-link { position: absolute; left: -9999px; top: 4px; z-index: 9999; background: var(--color-bg); padding: 8px 16px; }
   .skip-link:focus { left: 4px; }
@@ -174,33 +179,35 @@ Any basket lines unavailable on the new day are removed with a notice.
         <h3 class="op-cat-name">{{ section.label }}</h3>
         <span class="op-cat-rule"></span>
       </div>
+      <div class="op-dish-list">
       {% for dish in section.dishes %}
       <div class="op-dish-row has-photo {% if dish.sold_out %}is-sold-out{% endif %}{% if not dish.photo_url %} is-placeholder{% endif %}"
            data-dish-id="{{ dish.id }}" data-item-id="{{ dish.id }}">
+        <div class="op-dish-body">
+          <div class="op-dish-name">{{ dish.name }}</div>
+          <div class="op-dish-desc">{{ dish.short_description }}</div>
+          {% if dish.portion_label %}<div class="op-dish-note">{{ dish.portion_label }}</div>{% endif %}
+          <div class="op-dish-bottom">
+            <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
+            {% if dish.sold_out %}
+            <span class="tag tag-neutral">Sold out</span>
+            {% else %}
+            <button type="button" class="btn btn-secondary btn-add" data-action="open-sheet"
+                    aria-label="Add {{ dish.name }}">+</button>
+            {% endif %}
+          </div>
+        </div>
         {% if dish.photo_url %}
         <img class="op-dish-photo" src="{{ dish.photo_url }}" alt=""
              onerror="this.removeAttribute('src'); this.closest('.has-photo')?.classList.add('is-placeholder')">
         {% else %}
         <div class="op-dish-photo" aria-hidden="true"></div>
         {% endif %}
-        <div>
-          <div class="op-dish-name">{{ dish.name }}</div>
-          <div class="op-dish-desc">{{ dish.short_description }}</div>
-          {% if dish.portion_label %}<div class="op-dish-note">{{ dish.portion_label }}</div>{% endif %}
-          <div class="op-dish-price">{{ dish.price_cents|cents }}</div>
-        </div>
-        {% if dish.sold_out %}
-        <div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>
-        {% else %}
-        <div class="op-dish-qty">
-          <button type="button" class="btn btn-secondary btn-add" data-action="open-sheet"
-                  aria-label="Add {{ dish.name }}">+</button>
-        </div>
-        {% endif %}
       </div>
       {% empty %}
       <p class="op-sheet-empty">Nothing in this section this week.</p>
       {% endfor %}
+      </div>
     </div>
     {% endfor %}
   </div>

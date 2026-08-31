@@ -53,21 +53,24 @@
     var portionEl = dish.portion_label
       ? '<div class="op-dish-note">' + escapeHtml(dish.portion_label) + "</div>"
       : "";
-    var qtyEl = soldOut
-      ? '<div class="op-dish-qty"><span class="tag tag-neutral">Sold out</span></div>'
-      : '<div class="op-dish-qty"><button type="button" class="btn btn-secondary btn-add"' +
-        ' data-action="open-sheet" aria-label="Add ' + escapeHtml(dish.name) + '">+</button></div>';
+    var bottomEl = soldOut
+      ? '<span class="tag tag-neutral">Sold out</span>'
+      : '<button type="button" class="btn btn-secondary btn-add"' +
+        ' data-action="open-sheet" aria-label="Add ' + escapeHtml(dish.name) + '">+</button>';
 
+    // Card layout: text body left, photo right — mirrors order.html's new structure.
     return '<div class="' + rowClass + '"' +
       ' data-dish-id="' + dish.id + '" data-item-id="' + dish.id + '">' +
-      photoEl +
-      '<div>' +
+      '<div class="op-dish-body">' +
       '<div class="op-dish-name">' + escapeHtml(dish.name) + "</div>" +
       '<div class="op-dish-desc">' + escapeHtml(dish.short_description || "") + "</div>" +
       portionEl +
+      '<div class="op-dish-bottom">' +
       '<div class="op-dish-price">' + formatCents(dish.price_cents) + "</div>" +
+      bottomEl +
       "</div>" +
-      qtyEl +
+      "</div>" +
+      photoEl +
       "</div>";
   }
 
@@ -80,16 +83,16 @@
       var dish = dishesById[id];
       if (dish) cardsHtml += buildDishCardHtml(dish);
     });
-    if (!cardsHtml) {
-      cardsHtml = '<p class="op-sheet-empty">Nothing in this section this week.</p>';
-    }
+    var listEl = cardsHtml
+      ? '<div class="op-dish-list">' + cardsHtml + "</div>"
+      : '<p class="op-sheet-empty">Nothing in this section this week.</p>';
     return '<div class="op-section" id="section-' + escapeHtml(section.id) + '"' +
       (isFirst ? "" : " hidden") + ">" +
       '<div class="op-cat-head">' +
       '<h3 class="op-cat-name">' + escapeHtml(section.label) + "</h3>" +
       '<span class="op-cat-rule"></span>' +
       "</div>" +
-      cardsHtml +
+      listEl +
       "</div>";
   }
 
