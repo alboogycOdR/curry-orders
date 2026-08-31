@@ -44,38 +44,54 @@ _DEV_STAFF = [
 # Copy kept verbatim from the design handoff's own sample MENU (README §2)
 # — placeholder pending the real dish list (spec §23, still Outstanding).
 # `options` is `[(option_name, required, [(value_name, delta_cents), ...])]`.
+# PR 4: Spice on all roti/gatsby/curry dishes; Extra roti +1200 and
+# Chips -500 only on chip-including dishes (masala roti rolls and
+# gatsbys). Curry-only plates get Spice only. Full House: Spice +
+# Chips/Extra roti added (was Spice-only before). Lasagne: no options.
+_SPICE = ("Spice", True, [("Mild", 0), ("Medium", 0), ("Hot", 0)])
+_EXTRA_ROTI = ("Extra roti", False, [("No", 0), ("Yes", 1200)])
+_CHIPS_OPT  = ("Chips", False, [("With chips", 0), ("No chips", -500)])
+
 _DEV_DISHES = [
     {"category": "Roti & Curry", "slug": "chicken-curry-roti", "name": "Chicken Curry & Roti",
      "desc": "Slow-simmered chicken curry, mopped up with a soft roti.", "price": 8500,
-     "portion": "Serves 1"},
+     "portion": "Serves 1",
+     "options": [_SPICE]},
     {"category": "Roti & Curry", "slug": "steak-curry-roti", "name": "Steak Curry & Roti",
      "desc": "Beef steak curry, rich and slow-cooked, served with roti.", "price": 9500,
-     "portion": "Serves 1"},
+     "portion": "Serves 1",
+     "options": [_SPICE]},
     {"category": "Masala Roti Rolls", "slug": "chicken-masala-roti-roll",
      "name": "Chicken Masala Roti Roll", "desc": "Chips, masala chicken and roti, rolled tight.",
-     "price": 6500, "portion": "Serves 1"},
+     "price": 6500, "portion": "Serves 1",
+     "options": [_SPICE, _EXTRA_ROTI, _CHIPS_OPT]},
     {"category": "Masala Roti Rolls", "slug": "steak-masala-roti-roll",
      "name": "Steak Masala Roti Roll", "desc": "Chips, masala steak and roti, rolled tight.",
-     "price": 7000, "portion": "Serves 1"},
+     "price": 7000, "portion": "Serves 1",
+     "options": [_SPICE, _EXTRA_ROTI, _CHIPS_OPT]},
     {"category": "Roti & Gatsby, Large", "slug": "chicken-masala-roti-gatsby",
      "name": "Chicken Masala Roti & Gatsby",
      "desc": "A large gatsby loaded with masala chicken, plus roti on the side.",
-     "price": 11000, "portion": "Serves 4"},
+     "price": 11000, "portion": "Serves 4",
+     "options": [_SPICE, _EXTRA_ROTI, _CHIPS_OPT]},
     {"category": "Roti & Gatsby, Large", "slug": "masala-steak-roti-gatsby",
      "name": "Masala Steak Roti & Gatsby",
      "desc": "A large gatsby loaded with masala steak, plus roti on the side.",
-     "price": 11500, "portion": "Serves 4"},
+     "price": 11500, "portion": "Serves 4",
+     "options": [_SPICE, _EXTRA_ROTI, _CHIPS_OPT]},
     {"category": "Gatsby", "slug": "chicken-masala-gatsby", "name": "Chicken Masala Gatsby",
      "desc": "The Cape classic — masala chicken, chips and all the trimmings in a full loaf.",
-     "price": 9500, "portion": "Serves 4"},
+     "price": 9500, "portion": "Serves 4",
+     "options": [_SPICE, _CHIPS_OPT]},
     {"category": "Gatsby", "slug": "steak-masala-gatsby", "name": "Steak Masala Gatsby",
      "desc": "Masala steak, chips and all the trimmings in a full loaf.",
-     "price": 10000, "portion": "Serves 4"},
+     "price": 10000, "portion": "Serves 4",
+     "options": [_SPICE, _CHIPS_OPT]},
     {"category": "Gatsby", "slug": "full-house-masala-steak-gatsby",
      "name": "Full House Masala Steak Gatsby",
      "desc": "Masala steak loaded with egg and cheese. The full house, no shortcuts.",
      "price": 13000, "portion": "Serves 4 — portion to confirm",
-     "options": [("Spice", True, [("Mild", 0), ("Medium", 0), ("Hot", 0)])]},
+     "options": [_SPICE, _CHIPS_OPT, _EXTRA_ROTI]},
     {"category": "Italian Lasagne", "slug": "beef-lasagne", "name": "Beef Lasagne",
      "desc": "Layered beef lasagne, baked to order.", "price": 9000, "portion": "Serves 1"},
 ]

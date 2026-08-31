@@ -91,24 +91,24 @@ Status values: `todo` · `in_progress` · `done` · `blocked`
 
 ## Task 4 — PR 4: Item sheet overlay + cart v2
 
-- **Status:** todo
+- **Status:** done
 - **Depends on:** Task 3
 - **Verify:** `py -3 -m pytest tests/integration/test_checkout_api.py tests/integration/test_reorder.py tests/integration/test_screens.py tests/integration/test_seed_dev.py tests/unit/test_ordering.py -q`
 - **Browser:** `/order/` open sheet, change extras, add, sticky bar
 
 ### Work items
 
-- [ ] `_item_sheet.html` + `item-sheet.js` bottom sheet; hide tab bar while open
-- [ ] `#menu-data` via `_menu_catalog_payload` (options + `photo_url`)
-- [ ] DB group stays **Spice**; sheet copy **Heat**; default Medium
-- [ ] Seed Spice on roti/gatsby/curry; Extra roti +1200 / Chips −500 only on chip dishes; Full House still one required group
-- [ ] Cart v2 in `rc_cart_v2` only: `getLines` / `upsertLine` / `updateLine` / `totals`; remove map `getCart`/`setCart`/`setLine`/`bump`/`getDay`/`setDay`
-- [ ] Migrate `bk_cart_v1` on read; persist `dayIso`
-- [ ] Port `order.js` + `checkout.js` off `getDay()` index onto `getDayIso()`
-- [ ] `cartToLines` sends `kitchen_note`; reorder writes v2 via `setState`
-- [ ] `+` and whole row open sheet; toast Added; no auto-jump to basket
-- [ ] Go-live sheet note: production needs Spice/extras/photos
-- [ ] POST `/api/checkout` still `{dish_id, option_value_ids, kitchen_note}` after v1→v2
+- [x] `_item_sheet.html` + `item-sheet.js` bottom sheet; hide tab bar while open
+- [x] `#menu-data` via `_menu_catalog_payload` (options + `photo_url`)
+- [x] DB group stays **Spice**; sheet copy **Heat**; default Medium
+- [x] Seed Spice on roti/gatsby/curry; Extra roti +1200 / Chips −500 only on chip dishes; Full House still one required group
+- [x] Cart v2 in `rc_cart_v2` only: `getLines` / `upsertLine` / `updateLine` / `totals`; remove map `getCart`/`setCart`/`setLine`/`bump`/`getDay`/`setDay`
+- [x] Migrate `bk_cart_v1` on read; persist `dayIso`
+- [x] Port `order.js` + `checkout.js` off `getDay()` index onto `getDayIso()`
+- [x] `cartToLines` sends `kitchen_note`; reorder writes v2 via `setState`
+- [x] `+` and whole row open sheet; toast Added; no auto-jump to basket
+- [x] Go-live sheet note: production needs Spice/extras/photos
+- [x] POST `/api/checkout` still `{dish_id, option_value_ids, kitchen_note}` after v1→v2
 
 ---
 
@@ -185,6 +185,7 @@ Status values: `todo` · `in_progress` · `done` · `blocked`
 ### Work items
 
 - [ ] **No** SMS OTP / Send code chrome
+- [ ] Fix account-takeover: `customer_signup` must refuse to set a password on a row that already has one **even if `password_hash` is currently NULL** — a guest Customer row created at checkout has `password_hash=NULL`; today's code treats that as "no account", letting anyone who knows the mobile number claim it. Guard: `get_or_create` then check `password_hash` **and** whether the row pre-existed (via `created`); if the row already existed (`created=False`) and has no password yet, require OTP or a dedicated "claim account" flow (v1: reject with "An account may already be linked to this number — contact us.") rather than silently setting a password on a stranger's order history.
 - [ ] Logged-out: mobile + password + Log in / Sign up + guest lookup
 - [ ] Logged-in: Hi {name}, last collected order, Repeat → `/basket/` slot unselected
 - [ ] Home Repeat module when history exists

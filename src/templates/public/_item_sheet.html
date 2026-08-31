@@ -1,0 +1,216 @@
+{% comment %}
+Item sheet overlay — PR 4 (KD-8). Included by order.html and (PR 5)
+basket.html. The host page must emit `#menu-data` via `json_script` and
+load item-sheet.js after cart.js.
+
+The sheet is opened by:
+  item-sheet.js open(itemId) — triggered by clicking any .op-dish-row
+  or its .btn-add button on the menu, or from basket.js in edit mode.
+
+Two modes:
+  add  — "Add · R{live}"   — upserts a new line or increments qty
+  edit — "Update · R{live}" — called from Basket with the existing
+         line id; replaces that line in place (BKCart.updateLine).
+
+The tab bar is hidden while the sheet is open via body.sheet-open
+(see item-sheet.js + base.html <style>).
+{% endcomment %}
+<div id="item-sheet" class="is-wrap" hidden aria-modal="true" role="dialog" aria-labelledby="is-title">
+  <div class="is-backdrop" id="is-backdrop"></div>
+  <div class="is-panel" id="is-panel" tabindex="-1">
+    <div class="is-drag-handle" aria-hidden="true"></div>
+
+    <div class="is-scroll">
+      <div class="is-header">
+        <h2 class="is-title" id="is-title"></h2>
+        <button type="button" class="is-close btn btn-ghost btn-icon" id="is-close"
+                aria-label="Close">✕</button>
+      </div>
+
+      <div class="is-photo-wrap" id="is-photo-wrap">
+        <img class="is-photo" id="is-photo" src="" alt=""
+             onerror="document.getElementById('is-photo-wrap').classList.add('is-placeholder')">
+      </div>
+
+      <div class="is-meta">
+        <span class="is-price" id="is-price"></span>
+        <span class="is-portion" id="is-portion"></span>
+      </div>
+      <p class="is-desc" id="is-desc"></p>
+
+      {# Heat (Spice in DB) — always required when present #}
+      <div class="is-group" id="is-group-heat" hidden>
+        <div class="is-group-label">Heat <span class="is-group-req">Required</span></div>
+        <div class="is-chips" id="is-heat-chips"></div>
+      </div>
+
+      {# Dynamic optional modifier groups (extras, chips) #}
+      <div id="is-extras-groups"></div>
+
+      {# Notes #}
+      <div class="is-group">
+        <label class="is-group-label" for="is-notes">Notes</label>
+        <textarea class="input is-notes" id="is-notes" maxlength="80"
+                  placeholder="e.g. chilli on the side" rows="2"></textarea>
+        <div class="is-notes-count" id="is-notes-count">0 / 80</div>
+      </div>
+
+      {# Qty row — only in edit/basket mode #}
+      <div class="is-qty-row" id="is-qty-row" hidden>
+        <button type="button" class="btn btn-secondary btn-icon" id="is-qty-dec"
+                aria-label="One fewer">−</button>
+        <span class="is-qty-count" id="is-qty-count">1</span>
+        <button type="button" class="btn btn-primary btn-icon" id="is-qty-inc"
+                aria-label="One more">+</button>
+      </div>
+    </div>{# end .is-scroll #}
+
+    {# Pinned add/update bar #}
+    <div class="is-action-bar">
+      <button type="button" class="btn btn-primary is-add-btn" id="is-add-btn" disabled>
+        Add · —
+      </button>
+    </div>
+  </div>{# end .is-panel #}
+</div>
+
+<style>
+  /* ── sheet wrapper & backdrop ──────────────────────────────────────── */
+  .is-wrap {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: flex-end;
+  }
+  .is-wrap[hidden] { display: none; }
+  .is-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.45);
+    animation: is-fade-in 160ms ease;
+  }
+  @keyframes is-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ── panel ──────────────────────────────────────────────────────────── */
+  .is-panel {
+    position: relative; z-index: 1;
+    width: 100%; max-height: 92dvh;
+    background: var(--color-surface);
+    border-radius: var(--radius-card, 16px) var(--radius-card, 16px) 0 0;
+    display: flex; flex-direction: column;
+    animation: is-slide-up 220ms cubic-bezier(.32,.72,0,1);
+    outline: none;
+  }
+  @keyframes is-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  .is-drag-handle {
+    width: 40px; height: 4px; border-radius: 2px;
+    background: var(--color-divider);
+    margin: 12px auto 0;
+    flex-shrink: 0;
+  }
+
+  /* ── scrollable body ────────────────────────────────────────────────── */
+  .is-scroll {
+    overflow-y: auto; flex: 1;
+    padding: 0 20px 12px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .is-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 16px 0 8px;
+  }
+  .is-title {
+    flex: 1; font-family: var(--font-heading); font-size: 22px;
+    font-weight: 600; margin: 0; line-height: 1.2;
+  }
+  .is-close { color: var(--color-muted, var(--color-neutral-600)); flex-shrink: 0; }
+
+  .is-photo-wrap {
+    width: 100%; border-radius: var(--radius-card, 16px);
+    background: var(--color-surface);
+    overflow: hidden; margin-bottom: 12px;
+    aspect-ratio: 3/2;
+  }
+  .is-photo-wrap.is-placeholder {
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+  }
+  .is-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .is-photo-wrap:not(.has-photo) .is-photo { display: none; }
+
+  .is-meta { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .is-price { font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+               font-variant-numeric: tabular-nums; }
+  .is-portion { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); }
+  .is-desc { font-size: 15px; color: var(--color-neutral-700); margin: 0 0 16px;
+              line-height: 1.5; }
+
+  /* ── modifier groups ────────────────────────────────────────────────── */
+  .is-group {
+    margin-bottom: 20px; padding-top: 16px;
+    border-top: 1px solid var(--color-divider);
+  }
+  .is-group-label {
+    font-size: 15px; font-weight: 600;
+    font-family: var(--font-ui, system-ui, sans-serif);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .is-group-req {
+    font-size: 11px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--color-muted, var(--color-neutral-600));
+  }
+  .is-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .is-chip {
+    flex: 0 1 auto;
+    min-height: 44px; padding: 8px 18px;
+    border-radius: var(--radius-pill, 999px);
+    border: 1.5px solid var(--color-divider);
+    background: var(--color-bg); color: var(--color-text);
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    white-space: nowrap;
+  }
+  .is-chip.is-selected {
+    background: var(--color-accent-2, #9B1B4A);
+    border-color: var(--color-accent-2, #9B1B4A);
+    color: #fff;
+  }
+  .is-chip-delta {
+    font-size: 12px; opacity: .75; margin-left: 4px;
+  }
+
+  /* ── notes ────────────────────────────────────────────────────────── */
+  .is-notes { width: 100%; resize: none; }
+  .is-notes-count {
+    font-size: 11px; color: var(--color-muted, var(--color-neutral-600));
+    text-align: right; margin-top: 3px;
+  }
+
+  /* ── qty row (edit mode) ─────────────────────────────────────────── */
+  .is-qty-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 0; border-top: 1px solid var(--color-divider);
+    margin-bottom: 4px;
+  }
+  .is-qty-count {
+    font-family: var(--font-heading); font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    min-width: 24px; text-align: center;
+  }
+
+  /* ── add/update bar ──────────────────────────────────────────────── */
+  .is-action-bar {
+    flex-shrink: 0; padding: 12px 20px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-divider);
+    background: var(--color-surface);
+  }
+  .is-add-btn {
+    width: 100%; min-height: 52px; font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── hide tab bar when sheet is open (toggled on body by item-sheet.js) ── */
+  body.sheet-open .mobile-bottom-nav { display: none !important; }
+  body.sheet-open #sticky-basket-bar { display: none !important; }
+</style>

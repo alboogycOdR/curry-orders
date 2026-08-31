@@ -368,6 +368,41 @@ def dish_detail(request: HttpRequest, slug: str) -> HttpResponse:
     })
 
 
+def _menu_catalog_payload(dishes: list) -> list[dict]:
+    """Serialise MenuDish list to the JSON shape consumed by item-sheet.js.
+
+    Each entry: {id, slug, name, short_description, price_cents, portion_label,
+    photo_url, sold_out, options:[{id, name, required, values:[{id, name,
+    price_delta_cents}]}]}.  Used by order() and (PR 5) basket().
+    """
+    result = []
+    for d in dishes:
+        options = []
+        for opt in (d.options or []):
+            options.append({
+                "id": opt.id,
+                "name": opt.name,
+                "required": opt.required,
+                "values": [
+                    {"id": v.id, "name": v.name, "price_delta_cents": v.price_delta_cents}
+                    for v in (opt.values or [])
+                    if v.is_available
+                ],
+            })
+        result.append({
+            "id": d.id,
+            "slug": d.slug,
+            "name": d.name,
+            "short_description": d.short_description,
+            "price_cents": d.price_cents,
+            "portion_label": d.portion_label,
+            "photo_url": d.photo_url,
+            "sold_out": d.sold_out,
+            "options": options,
+        })
+    return result
+
+
 def order(request: HttpRequest) -> HttpResponse:
     settings = Settings.current()
     today = now_sast().date()
@@ -384,6 +419,7 @@ def order(request: HttpRequest) -> HttpResponse:
     return render(request, "public/order.html", {
         "categories": categories,
         "chip_sections": _menu_chip_sections(dishes, featured_slug),
+        "menu_catalog_json": json.dumps(_menu_catalog_payload(dishes)).replace("</", "<\\/"),
         "days": days,
         "slots": slots,
         "eft_hold_minutes": settings.eft_hold_minutes,
@@ -608,7 +644,8 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
         messages.error(request, "Only a collected order can be reordered.")
         return redirect("public:order_status", public_token=public_token)
 
-    kept: dict[str, dict[str, object]] = {}
+    # Build v2 lines keyed by composite id so duplicate order lines merge.
+    kept_v2: dict[str, dict[str, object]] = {}
     dropped: list[str] = []
     for line in order.lines.all():
         dish = line.dish
@@ -635,23 +672,52 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
         name_suffix = (
             " (" + ", ".join(v.name for v in matched_values) + ")" if matched_values else ""
         )
+        # Find heat label: scan the options_snapshot for Spice group entries
+        # whose value matched.  matched_values is from a fresh queryset and
+        # does NOT have .option pre-loaded, so we use the snapshot dict.
+        matched_value_names = {v.name for v in matched_values}
+        heat = ""
+        extras = []
+        for selection in line.options_snapshot:
+            if selection.get("value") not in matched_value_names:
+                continue
+            if selection.get("option") == "Spice":
+                heat = selection.get("value", "")
+            else:
+                # Find the matched DishOptionValue for price delta
+                for v in matched_values:
+                    if v.name == selection.get("value") and v.price_delta_cents != 0:
+                        extras.append({
+                            "optionValueId": v.pk,
+                            "name": v.name,
+                            "deltaCents": v.price_delta_cents,
+                        })
 
-        entry = kept.setdefault(composite_id, {
-            "name": dish.name + name_suffix, "price": unit_price_cents, "qty": 0,
+        entry = kept_v2.setdefault(composite_id, {
+            "id": composite_id,
+            "itemId": dish.pk,
+            "name": dish.name + name_suffix,
+            "heat": heat,
+            "extras": extras,
+            "notes": "",
+            "qty": 0,
+            "unitPrice": unit_price_cents,
+            "lineTotal": 0,
+            "photoUrl": "",
+            "optionValueIds": option_ids,
         })
         entry["qty"] = int(entry["qty"]) + line.quantity
+        entry["lineTotal"] = entry["unitPrice"] * entry["qty"]
 
-    if not kept:
+    if not kept_v2:
         messages.error(request, "None of this order's dishes are still available to reorder.")
         return redirect("public:order_status", public_token=public_token)
 
+    lines_json = json.dumps(list(kept_v2.values())).replace("</", "<\\/")
     return render(request, "public/reorder.html", {
         "order": order,
         "dropped": dropped,
-        # `</script>`-safe: a dish name is manager-entered, not
-        # untrusted, but there's no reason to trust it not to contain
-        # that literal substring either.
-        "cart_json": json.dumps(kept).replace("</", "<\\/"),
+        "lines_json": lines_json,
     })
 
 

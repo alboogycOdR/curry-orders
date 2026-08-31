@@ -21,6 +21,11 @@ Name, price, portion size, any options (e.g. spice level, sides), allergen text 
 
 > _Answer:_
 
+### 🔴 Dish option groups (Spice / extras) — Blocking
+Each item that needs a heat level (Mild / Medium / Hot) must have a **Spice** option group added in the staff menu editor (`/manage/menu/`). Items that include chips (masala roti rolls, gatsbys) should also have **Extra roti** (+R12) and **Chips** (−R5) optional groups added. Dev seed (`manage.py seed_dev`) sets these up automatically for local testing — production dishes must be configured manually before launch.
+
+> _Answer (note when done):_
+
 ### 🔴 Dish photos — Blocking
 One photo per dish, landscape orientation preferred. Phone photos are fine — they'll be resized for the menu and dish pages.
 

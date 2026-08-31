@@ -240,12 +240,16 @@ being scheduled.
   </div>
 </div>
 
+{% include "public/_item_sheet.html" %}
+
 {{ days|json_script:"days-data" }}
 {{ eft_hold_minutes|json_script:"eft-hold-minutes-data" }}
+<script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
 <script>
   window.BK_ORDER_URLS = {
     api_availability: "{% url 'public:api_availability' %}",
   };
 </script>
 <script src="{% static 'js/order.js' %}" defer></script>
+<script src="{% static 'js/item-sheet.js' %}" defer></script>
 {% endblock %}

@@ -50,7 +50,14 @@ payment are chosen afresh on `/order/` → `/checkout/`.
 <script>
   (function () {
     try {
-      window.BKCart.setCart({{ cart_json|safe }});
+      // PR 4: seed cart v2 via setState; clears day/slot so the
+      // customer picks fresh on /basket/ (PR 5) or /order/ (until then).
+      window.BKCart.setState({
+        lines: {{ lines_json|safe }},
+        slotId: null,
+        slotLabel: null,
+        dayIso: null,
+      });
     } catch (e) { /* localStorage unavailable — /order/ still works, just starts empty */ }
   })();
 </script>
