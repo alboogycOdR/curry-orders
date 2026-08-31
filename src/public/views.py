@@ -35,6 +35,7 @@ import datetime as dt
 import json
 
 from django.contrib import messages
+from django.contrib.auth.hashers import check_password, make_password
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
@@ -42,8 +43,19 @@ from core import lookup as lookup_service
 from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
-from core.models import DishOptionValue, Order, OrderStatus, PaymentMethod, Settings, TradingDay
+from core.models import (
+    Customer,
+    DishOptionValue,
+    Order,
+    OrderStatus,
+    PaymentMethod,
+    Settings,
+    TradingDay,
+)
+from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import coerce_time, now_sast, orderable_dates
+
+from . import customer_sessions
 
 # §9.1's own note under the customer-copy table: "Collection address and
 # instructions render only on confirmed_prep, cash_due, in_kitchen,
@@ -388,6 +400,66 @@ def lookup(request: HttpRequest) -> HttpResponse:
         "error": error,
         "order_number": order_number_input,
     })
+
+
+def account(request: HttpRequest) -> HttpResponse:
+    return render(request, "public/account.html")
+
+
+def customer_login(request: HttpRequest) -> HttpResponse:
+    error = None
+    if request.method == "POST":
+        try:
+            mobile = normalize_sa_mobile(str(request.POST.get("mobile", "")))
+        except InvalidPhoneNumber:
+            mobile = ""
+        password = str(request.POST.get("password", ""))
+        customer = Customer.objects.filter(mobile_e164=mobile, anonymised_at__isnull=True).first()
+        if (
+            not customer
+            or not customer.password_hash
+            or not check_password(password, customer.password_hash)
+        ):
+            error = "We couldn't sign you in. Check your mobile number and password."
+        else:
+            customer_sessions.log_in(request, customer)
+            return redirect("public:account")
+    return render(request, "public/customer_login.html", {"error": error})
+
+
+def customer_signup(request: HttpRequest) -> HttpResponse:
+    error = None
+    if request.method == "POST":
+        name = str(request.POST.get("name", "")).strip()
+        raw_mobile = str(request.POST.get("mobile", ""))
+        password = str(request.POST.get("password", ""))
+        try:
+            mobile = normalize_sa_mobile(raw_mobile)
+        except InvalidPhoneNumber:
+            mobile = ""
+            error = "Enter a valid South African mobile number."
+        if not error and len(name) < 2:
+            error = "Enter your name."
+        if not error and len(password) < 8:
+            error = "Use at least 8 characters for your password."
+        if not error:
+            customer, _ = Customer.objects.get_or_create(
+                mobile_e164=mobile, defaults={"full_name": name}
+            )
+            if customer.password_hash:
+                error = "An account already exists for that mobile number."
+            else:
+                customer.full_name = name
+                customer.password_hash = make_password(password)
+                customer.save(update_fields=["full_name", "password_hash"])
+                customer_sessions.log_in(request, customer)
+                return redirect("public:account")
+    return render(request, "public/customer_signup.html", {"error": error})
+
+
+def customer_logout(request: HttpRequest) -> HttpResponse:
+    customer_sessions.log_out(request)
+    return redirect("public:account")
 
 
 # ---------------------------------------------------------------- reorder (§11.11)

@@ -33,6 +33,10 @@ urlpatterns = [
     path("orders/<str:public_token>/", views.order_status, name="order_status"),
     # §11.10/§11.11 (milestone 9).
     path("lookup/", views.lookup, name="lookup"),
+    path("account/", views.account, name="account"),
+    path("account/login/", views.customer_login, name="customer_login"),
+    path("account/signup/", views.customer_signup, name="customer_signup"),
+    path("account/logout/", views.customer_logout, name="customer_logout"),
     path("orders/<str:public_token>/reorder/", views.reorder, name="reorder"),
     # §6.1/§11.12 (milestone 10, Phase 1's own narrow slice of it — see
     # docs/DECISIONS.md).

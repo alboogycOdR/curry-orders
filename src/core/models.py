@@ -633,6 +633,9 @@ class DayDishAvailability(models.Model):
 class Customer(models.Model):
     full_name = models.CharField(max_length=80)
     mobile_e164 = models.CharField(max_length=15, unique=True)
+    # Customer accounts use the existing mobile identity.  Nullable keeps
+    # historic/order-only customers valid until they choose to sign up.
+    password_hash = models.TextField(null=True, blank=True)
     first_seen_at = models.DateTimeField(auto_now_add=True)
     last_order_at = models.DateTimeField(null=True, blank=True)
     order_count = models.IntegerField(default=0)

@@ -43,6 +43,39 @@ class TestUrlNames:
         assert reverse("public:order_status", args=["tok123"]) == "/orders/tok123/"
 
 
+class TestMobileApplicationShell:
+    def test_public_pages_render_five_item_mobile_navigation(self, client) -> None:
+        resp = client.get(reverse("public:home"))
+        content = resp.content.decode()
+
+        assert 'class="mobile-bottom-nav"' in content
+        assert content.count('class="mobile-nav-label"') == 5
+        for label in ("Home", "Menu", "Basket", "Account", "More"):
+            assert f'class="mobile-nav-label">{label}</span>' in content
+        assert f'href="{reverse("public:menu")}"' in content
+        assert f'href="{reverse("public:checkout")}" id="mobile-nav-basket-link"' in content
+        assert 'data-cart-badge hidden' in content
+
+    def test_active_mobile_destination_tracks_public_route(self, client) -> None:
+        home = client.get(reverse("public:home")).content.decode()
+        checkout = client.get(reverse("public:checkout")).content.decode()
+        help_page = client.get(reverse("public:help")).content.decode()
+
+        assert f'href="{reverse("public:home")}"\n     aria-current="page"' in home
+        assert (
+            'id="mobile-nav-basket-link"\n     aria-label="Basket" aria-current="page"'
+            in checkout
+        )
+        assert f'href="{reverse("public:help")}"\n     aria-current="page"' in help_page
+
+    def test_staff_login_does_not_render_customer_mobile_shell(self, client) -> None:
+        resp = client.get(reverse("manage:login"))
+        content = resp.content.decode()
+
+        assert 'class="mobile-bottom-nav"' not in content
+        assert '<body class="route-manage">' in content
+
+
 class TestHome:
     def test_renders_with_no_settings_row(self, client) -> None:
         # Pre-seed: Settings.current() falls back to the model's own field
@@ -73,6 +106,23 @@ class TestHome:
         # No dishes at all yet — home() must not 500 on an empty picks list.
         resp = client.get(reverse("public:home"))
         assert resp.status_code == 200
+
+    def test_mobile_home_is_compact_discovery_surface(self, client) -> None:
+        _make_dish("full-house-masala-steak-gatsby", "Full House Masala Steak Gatsby", "Gatsby")
+        resp = client.get(reverse("public:home"))
+        content = resp.content.decode()
+
+        assert 'class="mobile-home"' in content
+        assert 'class="mh-promo"' in content
+        assert "Search the menu" in content
+        assert "Already ordered with us?" in content
+        assert "Find my order" in content
+        assert "What are you hungry for?" in content
+        assert "Our menu" in content
+        assert "Today&rsquo;s picks" in content
+        # The existing editorial home remains available above the mobile breakpoint.
+        assert 'class="desktop-home"' in content
+        assert "How collection works" in content
 
 
 class TestOrder:

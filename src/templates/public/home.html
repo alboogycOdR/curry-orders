@@ -15,7 +15,7 @@ the shared SVG filter defs `print-plates.js` injects (base.html loads it
 already) — no page-specific JS needed for them.
 {% endcomment %}
 
-{% block title %}Brandon's Kitchen — home kitchen, collection only{% endblock %}
+{% block title %}Roti Connect — home kitchen, collection only{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -95,16 +95,344 @@ already) — no page-specific JS needed for them.
   .fp-footer-cta { margin-left: auto; font-size: 14px; }
   .fp-footer-note { font-size: 12.5px; color: var(--color-neutral-600); max-width: 66ch; margin: 18px 0 0; }
 
+  .mobile-home { display: none; }
+
   @media (max-width: 860px) {
     .fp-hero-grid, .fp-how { grid-template-columns: 1fr; }
     .fp-picks-grid { grid-template-columns: 1fr; gap: 28px; }
     .fp-picks-grid > div { padding: 0 !important; border-left: none !important; }
     .fp-how-steps { grid-template-columns: 1fr; gap: 28px; }
   }
+
+  @media (max-width: 760px) {
+    .desktop-home { display: none; }
+    .mobile-home {
+      display: block;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 18px 16px 34px;
+    }
+    .mh-context {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 11px;
+      border: 1px solid var(--color-divider);
+      border-radius: 999px;
+      color: var(--color-neutral-700);
+      font-size: 12px;
+      line-height: 1;
+    }
+    .mh-context::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-100);
+    }
+    .mh-search {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 50px;
+      margin-top: 14px;
+      padding: 0 16px;
+      border: 1px solid var(--color-divider);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-neutral-700);
+      font-size: 15px;
+      text-decoration: none;
+    }
+    .mh-search svg { width: 21px; height: 21px; flex: none; color: var(--color-text); }
+    .mh-promo {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      min-height: 0;
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 20px 20px 6px 20px;
+      background: var(--color-neutral-900);
+      color: var(--color-bg);
+      box-shadow: var(--shadow-md);
+    }
+    .mh-promo img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #071321;
+    }
+    .mh-promo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 28%, rgba(22, 13, 12, .86) 100%);
+    }
+    .mh-promo-copy {
+      position: absolute;
+      z-index: 1;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: end;
+    }
+    .mh-promo-kicker {
+      display: block;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .mh-promo-title {
+      max-width: 12ch;
+      margin: 5px 0 0;
+      color: #fff;
+      font-size: clamp(27px, 8vw, 36px);
+      line-height: .98;
+      text-wrap: balance;
+    }
+    .mh-promo-price {
+      display: block;
+      margin-top: 8px;
+      color: #fff;
+      font-size: 16px;
+      font-style: italic;
+    }
+    .mh-promo-cta {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .mh-returning {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 18px;
+      padding: 16px 2px;
+      border-bottom: 1px solid var(--color-divider);
+    }
+    .mh-returning-copy {
+      flex: 1;
+      margin: 0;
+      color: var(--color-neutral-800);
+      font-size: 14px;
+      line-height: 1.35;
+      text-align: right;
+    }
+    .mh-returning-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 1px solid var(--color-text);
+      border-radius: 999px;
+      color: var(--color-text);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .mh-section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 24px 0 12px;
+    }
+    .mh-section-head h2 {
+      margin: 0;
+      font-size: 21px;
+    }
+    .mh-section-head a {
+      color: var(--color-accent-700);
+      font-size: 13px;
+    }
+    .mh-discovery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .mh-discovery-card {
+      position: relative;
+      display: flex;
+      min-height: 176px;
+      overflow: hidden;
+      align-items: center;
+      padding: 15px;
+      border-radius: 16px 16px 4px 16px;
+      color: #fff;
+      text-decoration: none;
+    }
+    .mh-discovery-card:first-child { background: var(--color-accent-800); }
+    .mh-discovery-card:last-child { background: var(--color-accent-2-800); }
+    .mh-discovery-card::before {
+      content: "";
+      position: absolute;
+      width: 112px;
+      height: 112px;
+      top: -32px;
+      right: -26px;
+      border: 1px solid rgba(255, 255, 255, .28);
+      border-radius: 50%;
+      box-shadow: 0 0 0 18px rgba(255, 255, 255, .05), 0 0 0 38px rgba(255, 255, 255, .035);
+    }
+    .mh-discovery-label {
+      position: relative;
+      z-index: 1;
+      max-width: 9ch;
+      color: #fff;
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 650;
+      line-height: 1.05;
+    }
+    .mh-picks {
+      display: flex;
+      gap: 10px;
+      margin: 0 -16px;
+      padding: 0 16px 8px;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      scrollbar-width: none;
+    }
+    .mh-picks::-webkit-scrollbar { display: none; }
+    .mh-pick {
+      flex: 0 0 min(76vw, 280px);
+      min-height: 126px;
+      padding: 16px;
+      border: 1px solid var(--color-divider);
+      border-radius: 14px 14px 4px 14px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      text-decoration: none;
+      scroll-snap-align: start;
+    }
+    .mh-pick-portion {
+      color: var(--color-accent-2-700);
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .mh-pick-name {
+      margin: 8px 0 0;
+      font-size: 19px;
+      line-height: 1.08;
+    }
+    .mh-pick-price {
+      display: block;
+      margin-top: 12px;
+      color: var(--color-neutral-800);
+      font-size: 15px;
+      font-style: italic;
+    }
+    .mh-owner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--color-divider);
+    }
+    .mh-owner img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 16px 16px 4px 16px;
+      background: var(--color-neutral-900);
+    }
+    .mh-owner-kicker {
+      color: var(--color-accent-2-700);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .mh-owner h2 {
+      margin: 7px 0 0;
+      font-family: var(--font-heading);
+      font-size: 24px;
+      line-height: 1.02;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+<main class="mobile-home">
+  <div class="mh-context">Collection only · {{ collection_window }}</div>
+
+  <a href="{% url 'public:menu' %}" class="mh-search" aria-label="Search the menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4.5 4.5"></path>
+    </svg>
+    <span>Search the menu</span>
+  </a>
+
+  <section class="mh-promo" aria-label="Chicken roti special">
+    <img src="{% static 'img/roti-connect-advert.jpg' %}" alt="Chicken roti special for R45, available Friday 4 September">
+    <div class="mh-promo-copy">
+      <a href="{% url 'public:menu' %}" class="mh-promo-cta">Order now</a>
+    </div>
+  </section>
+
+  <section class="mh-returning" aria-label="Find an existing order">
+    <p class="mh-returning-copy">Already ordered with us?</p>
+    <a href="{% url 'public:lookup' %}" class="mh-returning-link">Find my order</a>
+  </section>
+
+  <div class="mh-section-head">
+    <h2>What are you hungry for?</h2>
+  </div>
+  <div class="mh-discovery-grid">
+    <a href="{% url 'public:menu' %}" class="mh-discovery-card"><span class="mh-discovery-label">Our menu</span></a>
+    <a href="{% url 'public:order' %}" class="mh-discovery-card"><span class="mh-discovery-label">Start an order</span></a>
+  </div>
+
+  {% if picks %}
+  <div class="mh-section-head">
+    <h2>Today&rsquo;s picks</h2>
+    <a href="{% url 'public:menu' %}">See all</a>
+  </div>
+  <div class="mh-picks" aria-label="Featured dishes">
+    {% for pick in picks %}
+    <a href="{% url 'public:dish_detail' pick.dish.slug %}" class="mh-pick">
+      <span class="mh-pick-portion">{{ pick.portion }}</span>
+      <h3 class="mh-pick-name">{{ pick.dish.name }}</h3>
+      <span class="mh-pick-price">{{ pick.dish.price_cents|cents }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <section class="mh-owner" aria-labelledby="mh-owner-title">
+    <img src="{% static 'img/roti-connect-owner.jpg' %}" alt="The owner of Roti Connect">
+    <div>
+      <span class="mh-owner-kicker">From our kitchen</span>
+      <h2 id="mh-owner-title">Made with a little more heart.</h2>
+    </div>
+  </section>
+</main>
+
+<div class="desktop-home">
 <div class="fp-wrap">
 
   <div class="fp-dateline-thick"></div>
@@ -118,17 +446,17 @@ already) — no page-specific JS needed for them.
   <div class="fp-dateline-thin"></div>
 
   <h1 class="cmyk-head fp-masthead">
-    <span class="paper">Brandon's Kitchen</span>
-    <span class="plate plate-c" aria-hidden="true">Brandon's Kitchen</span>
-    <span class="plate plate-m" aria-hidden="true">Brandon's Kitchen</span>
-    <span class="plate plate-y" aria-hidden="true">Brandon's Kitchen</span>
+    <span class="paper">Roti Connect</span>
+    <span class="plate plate-c" aria-hidden="true">Roti Connect</span>
+    <span class="plate plate-m" aria-hidden="true">Roti Connect</span>
+    <span class="plate plate-y" aria-hidden="true">Roti Connect</span>
   </h1>
 
   <div class="fp-hero-grid">
     <div class="fp-hero-left">
       <span class="fp-eyebrow">The kitchen</span>
       <h2>Roti, curry and Gatsby &mdash; cooked to order, from a home kitchen.</h2>
-      <p class="fp-lead">Brandon's Kitchen serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
+      <p class="fp-lead">Roti Connect serves roti and curry, stacked Gatsbys, and a proper beef lasagne. Choose a collection slot, pay ahead, and collect at the door &mdash; no restaurant, no queue.</p>
       <div class="fp-cta-row">
         <a href="{% url 'public:menu' %}" class="btn btn-primary">View the menu</a>
         {% comment %}
@@ -231,11 +559,12 @@ already) — no page-specific JS needed for them.
 
   <div class="fp-footer">
     <div class="fp-footer-row">
-      <span class="fp-footer-brand">Brandon's Kitchen</span>
+      <span class="fp-footer-brand">Roti Connect</span>
       <span class="fp-footer-loc">Cape Town, South Africa &mdash; collection only</span>
       <a href="{% url 'public:order' %}" class="btn btn-ghost fp-footer-cta">Start an order</a>
     </div>
     <p class="fp-footer-note">Prototype for internal review. Menu, portions and pricing shown here are placeholders and will be finalised with Brandon before this goes live.</p>
   </div>
+</div>
 </div>
 {% endblock %}

@@ -91,6 +91,7 @@ MIDDLEWARE = [
     # docs/DECISIONS.md D-33 for why staff auth doesn't use
     # django.contrib.auth at all. Must come after SessionMiddleware.
     "staff.middleware.StaffSessionMiddleware",
+    "public.customer_middleware.CustomerSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # CSP + Permissions-Policy (config/security_headers.py) — the two

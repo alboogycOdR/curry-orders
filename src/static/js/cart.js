@@ -139,19 +139,31 @@
     // itself carries the count too, not just the badge text, so a
     // screen reader user gets "Checkout, 2 items" rather than just
     // "Checkout" with a visually-only number.
-    var badgeEl = document.getElementById("nav-cart-badge");
+    var badgeEls = Array.prototype.slice.call(
+      document.querySelectorAll("#nav-cart-badge, [data-cart-badge]")
+    );
     var checkoutLink = document.getElementById("nav-checkout-link");
-    if (badgeEl) {
+    var mobileBasketLink = document.getElementById("mobile-nav-basket-link");
+    if (badgeEls.length) {
       if (t.count === 0) {
-        badgeEl.hidden = true;
+        badgeEls.forEach(function (badgeEl) { badgeEl.hidden = true; });
         if (checkoutLink) checkoutLink.setAttribute("aria-label", "Checkout");
+        if (mobileBasketLink) mobileBasketLink.setAttribute("aria-label", "Basket");
       } else {
-        badgeEl.hidden = false;
-        badgeEl.textContent = t.count > 99 ? "99+" : String(t.count);
+        badgeEls.forEach(function (badgeEl) {
+          badgeEl.hidden = false;
+          badgeEl.textContent = t.count > 99 ? "99+" : String(t.count);
+        });
         if (checkoutLink) {
           checkoutLink.setAttribute(
             "aria-label",
             "Checkout, " + t.count + (t.count === 1 ? " item" : " items")
+          );
+        }
+        if (mobileBasketLink) {
+          mobileBasketLink.setAttribute(
+            "aria-label",
+            "Basket, " + t.count + (t.count === 1 ? " item" : " items")
           );
         }
       }
