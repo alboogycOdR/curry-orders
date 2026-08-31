@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Roti Connect{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
-  <script src="{% static 'js/print-plates.js' %}" defer></script>
   <script src="{% static 'js/cart.js' %}" defer></script>
   {% if request.staff_user %}
   <script src="{% static 'js/staff-menu.js' %}" defer></script>
@@ -510,5 +509,6 @@ them entirely.
   {% endif %}
 </footer>
 
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>

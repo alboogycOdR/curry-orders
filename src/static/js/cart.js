@@ -122,14 +122,32 @@
     return { version: 2, lines: [], dayIso: null, slotLabel: null, slotId: null, pay: "eft" };
   }
 
+  // Validate and coerce values read from storage so corrupt/stale data
+  // can never propagate into the cart logic.
+  function _validateState(s) {
+    // lines must be an array
+    if (!Array.isArray(s.lines)) s.lines = [];
+    // dayIso must be a YYYY-MM-DD string or null
+    if (s.dayIso !== null && s.dayIso !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s.dayIso))) s.dayIso = null;
+    }
+    // slotId must be a positive integer or null
+    if (s.slotId !== null && s.slotId !== undefined) {
+      var sid = parseInt(String(s.slotId), 10);
+      if (isNaN(sid) || sid <= 0) s.slotId = null;
+      else s.slotId = sid;
+    }
+    return s;
+  }
+
   function getState() {
     if (_state) return _state;
     var stored = readJSON(V2_KEY, null);
     if (stored && stored.version === 2) {
-      _state = stored;
+      _state = _validateState(stored);
     } else {
       // Attempt v1 migration; fall back to empty
-      _state = _migrateV1() || _empty();
+      _state = _validateState(_migrateV1() || _empty());
       writeJSON(V2_KEY, _state);
     }
     return _state;
@@ -325,6 +343,17 @@
       }
     }
   }
+
+  // ---------------------------------------------------------------- cross-tab sync
+  // When another tab writes to the same storage key, reset _state so the
+  // next getState() re-reads from storage, then refresh the header badges.
+
+  window.addEventListener("storage", function (e) {
+    if (e.key === V2_KEY) {
+      _state = null; // force re-read on next getState()
+      refreshHeader();
+    }
+  });
 
   // ---------------------------------------------------------------- public API
 

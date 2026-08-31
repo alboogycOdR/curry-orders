@@ -257,3 +257,7 @@ Collection chip never includes a street address (D-23).
   })();
 </script>
 {% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/print-plates.js' %}" defer></script>
+{% endblock %}
