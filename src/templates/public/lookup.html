@@ -59,7 +59,9 @@ account-enumeration leak) — see public/views.py::lookup docstring.
     {% csrf_token %}
     <div class="lk-field">
       <label class="lk-label" for="lk-mobile">Mobile number</label>
-      <input class="input" type="tel" id="lk-mobile" name="mobile" placeholder="082 123 4567" required autocomplete="tel">
+      <input class="input" type="tel" id="lk-mobile" name="mobile"
+             placeholder="082 123 4567" required autocomplete="tel"
+             value="{{ prefill_mobile }}">
     </div>
     <div class="lk-field">
       <label class="lk-label" for="lk-order-number">

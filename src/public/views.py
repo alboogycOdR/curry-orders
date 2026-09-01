@@ -659,6 +659,11 @@ def lookup(request: HttpRequest) -> HttpResponse:
     order_number_input = ""
     orders = None  # populated for mobile-only lookup (list of Order)
 
+    # Pre-fill mobile from the logged-in customer so they can click straight through.
+    prefill_mobile = ""
+    if request.customer_user:
+        prefill_mobile = request.customer_user.mobile_e164 or ""
+
     if request.method == "POST":
         order_number_input = str(request.POST.get("order_number", "")).strip()
         mobile_input = str(request.POST.get("mobile", ""))
@@ -700,6 +705,7 @@ def lookup(request: HttpRequest) -> HttpResponse:
         "error": error,
         "order_number": order_number_input,
         "orders": orders,
+        "prefill_mobile": prefill_mobile,
     })
     # Set 24h auth cookies for every order in the list so clicking
     # "View" goes straight to the tracker without re-authenticating.
