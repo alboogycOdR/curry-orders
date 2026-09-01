@@ -101,8 +101,13 @@ brief message and a "Browse the menu" link; no Total R0.00, no Place order.
   {% comment %}Empty state — basket.js toggles this and bk-content.{% endcomment %}
   <div id="bk-empty" hidden>
     <div class="bk-empty-content">
+      {% if request.customer_user %}
+      <h2 class="bk-empty-heading">Hi, {{ request.customer_user.full_name.split.0 }} — your basket is empty</h2>
+      <p class="bk-empty-hint">Head to the menu and add something to get started.</p>
+      {% else %}
       <h2 class="bk-empty-heading">Your basket is empty</h2>
       <p class="bk-empty-hint">Browse the menu and add something to get started.</p>
+      {% endif %}
       <a href="{% url 'public:order' %}" class="btn btn-primary">Browse the menu</a>
     </div>
   </div>
