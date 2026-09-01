@@ -1,5 +1,5 @@
-{# Task 9: shared one-liner used on Home and Checkout screens.
-   Renders a compact "Collection only · Kraaifontein · how it works" note.
-   Include as: {% include "public/_help_oneliner.html" %}
-   No extra context variables required. #}
+{% comment %}Task 9: shared one-liner used on Home and Checkout screens.
+Renders a compact "Collection only · Kraaifontein · how it works" note.
+Include as: {% include "public/_help_oneliner.html" %}
+No extra context variables required.{% endcomment %}
 <p class="rc-oneliner">Collection only &mdash; Kraaifontein. <a href="{% url 'public:help' %}">How it works →</a></p>
