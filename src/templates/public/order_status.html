@@ -15,10 +15,10 @@ yet — a `payment_review` order here just says "we're checking it".
 {% block extra_head %}
 <meta name="robots" content="noindex, nofollow">
 {% if not is_terminal %}
-{# Task 7: soft 30s refresh while order is not in a terminal state.
-   Keeps the status copy current without requiring the customer to reload.
-   The meta refresh fires only on non-terminal statuses so a collected /
-   expired / cancelled page does not keep reloading pointlessly. #}
+{% comment %}Task 7: soft 30s refresh while order is not in a terminal state.
+Keeps the status copy current without requiring the customer to reload.
+The meta refresh fires only on non-terminal statuses so a collected /
+expired / cancelled page does not keep reloading pointlessly.{% endcomment %}
 <meta http-equiv="refresh" content="30">
 {% endif %}
 <style>
