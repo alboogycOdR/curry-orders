@@ -102,6 +102,23 @@ def record_lookup_attempt(ip: str, order_number: str) -> None:
     )
 
 
+def find_orders_by_mobile(mobile_raw: str, limit: int = 5) -> list[Order]:
+    """Return the `limit` most-recent orders whose stored E.164 mobile
+    ends with the last 9 digits of `mobile_raw`. Returns [] when mobile
+    is blank or nothing matches — callers cannot distinguish "no orders"
+    from "invalid mobile", preserving the same no-enumeration guarantee
+    as `find_order`.
+    """
+    wanted = last9_digits(mobile_raw)
+    if not wanted:
+        return []
+    return list(
+        Order.objects.filter(customer_mobile_snapshot__endswith=wanted)
+        .select_related("trading_day")
+        .order_by("-created_at")[:limit]
+    )
+
+
 def find_order(order_number: str, mobile_raw: str) -> Order | None:
     """`None` on any mismatch — order-not-found and mobile-not-matching
     are indistinguishable to the caller, by design (§11.10's own

@@ -648,18 +648,19 @@ _LOOKUP_GENERIC_ERROR = (
 
 
 def lookup(request: HttpRequest) -> HttpResponse:
-    """§11.10: order number (`CT-…`, case-insensitive) + mobile (any
-    accepted format, matched on the last 9 digits of the stored E.164
-    number). Throttled 10/hour/IP and 10/hour/order number
-    (`core.lookup`, reusing M7's `throttle_events` table); every failure
-    — throttled, no such order, wrong mobile — renders the exact same
-    generic message, so this page can never be used to enumerate real
-    order numbers or confirm a guessed mobile number against one.
+    """§11.10: order number (`CT-…`) + mobile, throttled 10/hour/IP and
+    10/hour/order-number.  Order number is now optional — if blank, the
+    view returns the 5 most-recent orders for that mobile instead of
+    redirecting to a single tracker page.  Every failure (throttled, no
+    match, blank mobile) renders the same generic message so this page
+    cannot enumerate order numbers or confirm a mobile.
     """
     error = None
     order_number_input = ""
+    orders = None  # populated for mobile-only lookup (list of Order)
+
     if request.method == "POST":
-        order_number_input = str(request.POST.get("order_number", ""))
+        order_number_input = str(request.POST.get("order_number", "")).strip()
         mobile_input = str(request.POST.get("mobile", ""))
         ip = request.META.get("REMOTE_ADDR") or "unknown"
 
@@ -668,27 +669,51 @@ def lookup(request: HttpRequest) -> HttpResponse:
         except lookup_service.LookupError:
             error = _LOOKUP_GENERIC_ERROR
         else:
-            order = lookup_service.find_order(order_number_input, mobile_input)
-            lookup_service.record_lookup_attempt(ip, order_number_input)
-            if order is None:
-                error = _LOOKUP_GENERIC_ERROR
+            if order_number_input:
+                # Specific order lookup — redirect to tracker on match.
+                order = lookup_service.find_order(order_number_input, mobile_input)
+                lookup_service.record_lookup_attempt(ip, order_number_input)
+                if order is None:
+                    error = _LOOKUP_GENERIC_ERROR
+                else:
+                    response = redirect("public:order_status", public_token=order.public_token)
+                    # §11.10: "set a 24h httpOnly cookie scoped to that token".
+                    response.set_cookie(
+                        f"order_auth_{order.public_token}",
+                        "1",
+                        max_age=24 * 60 * 60,
+                        httponly=True,
+                        samesite="Lax",
+                        secure=request.is_secure(),
+                    )
+                    return response
             else:
-                response = redirect("public:order_status", public_token=order.public_token)
-                # §11.10: "set a 24h httpOnly cookie scoped to that token".
-                response.set_cookie(
-                    f"order_auth_{order.public_token}",
-                    "1",
-                    max_age=24 * 60 * 60,
-                    httponly=True,
-                    samesite="Lax",
-                    secure=request.is_secure(),
-                )
-                return response
+                # Mobile-only — return up to 5 recent orders as a list.
+                lookup_service.record_lookup_attempt(ip, "")
+                found = lookup_service.find_orders_by_mobile(mobile_input, limit=5)
+                if not found:
+                    error = _LOOKUP_GENERIC_ERROR
+                else:
+                    orders = found
 
-    return render(request, "public/lookup.html", {
+    response = render(request, "public/lookup.html", {
         "error": error,
         "order_number": order_number_input,
+        "orders": orders,
     })
+    # Set 24h auth cookies for every order in the list so clicking
+    # "View" goes straight to the tracker without re-authenticating.
+    if orders:
+        for o in orders:
+            response.set_cookie(
+                f"order_auth_{o.public_token}",
+                "1",
+                max_age=24 * 60 * 60,
+                httponly=True,
+                samesite="Lax",
+                secure=request.is_secure(),
+            )
+    return response
 
 
 def account(request: HttpRequest) -> HttpResponse:

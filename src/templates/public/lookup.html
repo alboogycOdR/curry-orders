@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load moneyfmt %}
 
 {% comment %}
-Order lookup — spec §11.10. Order number + mobile, throttled
-(`core.lookup`); every failure renders the exact same generic message
-(no account-enumeration leak) — see `public/views.py::lookup`'s
-docstring.
+Order lookup — spec §11.10. Mobile required; order number optional.
+Without an order number the view returns up to 5 recent orders for
+that mobile. Every failure renders the same generic message (no
+account-enumeration leak) — see public/views.py::lookup docstring.
 {% endcomment %}
 
 {% block title %}Find your order — Roti Connect{% endblock %}
@@ -17,30 +18,83 @@ docstring.
   .lk-intro { font-size: 15px; color: var(--color-neutral-700); margin: 0 0 30px; }
   .lk-field { margin-bottom: 18px; }
   .lk-label { display: block; font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
+  .lk-label-hint { font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--color-muted, var(--color-neutral-600)); margin-left: 6px; }
   .lk-error { font-size: 14px; color: #b3261e; margin: 0 0 20px; }
   .lk-links { margin-top: 26px; font-size: 14px; }
+
+  /* Results list (mobile-only lookup) */
+  .lk-results { margin-top: 32px; }
+  .lk-results-label { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin: 0 0 12px; }
+  .lk-order-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; margin-bottom: 8px;
+    background: var(--color-surface);
+    border-radius: 16px; text-decoration: none; color: inherit;
+  }
+  .lk-order-card:hover { background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface)); }
+  .lk-order-main { flex: 1; min-width: 0; }
+  .lk-order-num { font-family: var(--font-heading); font-size: 16px; font-weight: 600; }
+  .lk-order-meta { font-size: 13px; color: var(--color-muted, var(--color-neutral-600)); margin-top: 2px; }
+  .lk-order-total { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .lk-order-arrow { color: var(--color-muted, var(--color-neutral-600)); font-size: 18px; }
+
+  /* Status badge */
+  .lk-status { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 999px; margin-left: 6px;
+    vertical-align: middle; }
+  .lk-status--active { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-accent); }
+  .lk-status--done   { background: color-mix(in srgb, #2e7d32 12%, transparent); color: #2e7d32; }
+  .lk-status--grey   { background: var(--color-surface); color: var(--color-neutral-600); border: 1px solid var(--color-divider); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="lk-wrap">
   <h1 class="lk-heading">Find your order</h1>
-  <p class="lk-intro">Enter your order number and the mobile number you ordered with.</p>
+  <p class="lk-intro">Enter the mobile number you ordered with. Add your order number to jump straight to that order.</p>
 
-  {% if error %}<p class="lk-error">{{ error }}</p>{% endif %}
+  {% if error %}<p class="lk-error" role="alert">{{ error }}</p>{% endif %}
 
   <form method="post">
     {% csrf_token %}
     <div class="lk-field">
-      <label class="lk-label" for="lk-order-number">Order number</label>
-      <input class="input" type="text" id="lk-order-number" name="order_number" placeholder="CT-260901-0001" value="{{ order_number }}" required>
+      <label class="lk-label" for="lk-mobile">Mobile number</label>
+      <input class="input" type="tel" id="lk-mobile" name="mobile" placeholder="082 123 4567" required autocomplete="tel">
     </div>
     <div class="lk-field">
-      <label class="lk-label" for="lk-mobile">Mobile number</label>
-      <input class="input" type="tel" id="lk-mobile" name="mobile" placeholder="082 123 4567" required>
+      <label class="lk-label" for="lk-order-number">
+        Order number <span class="lk-label-hint">(optional)</span>
+      </label>
+      <input class="input" type="text" id="lk-order-number" name="order_number"
+             placeholder="CT-260901-0001" value="{{ order_number }}" autocomplete="off">
     </div>
     <button type="submit" class="btn btn-primary">Find my order</button>
   </form>
+
+  {% if orders %}
+  <div class="lk-results">
+    <p class="lk-results-label">{{ orders|length }} order{{ orders|length|pluralize }} found — most recent first:</p>
+    {% for order in orders %}
+    <a class="lk-order-card" href="{% url 'public:order_status' public_token=order.public_token %}">
+      <div class="lk-order-main">
+        <div class="lk-order-num">
+          {{ order.order_number }}
+          {% if order.status == 'awaiting_eft' or order.status == 'accepted' or order.status == 'ready' %}
+            <span class="lk-status lk-status--active">{{ order.get_status_display }}</span>
+          {% elif order.status == 'collected' or order.status == 'collected_cash' %}
+            <span class="lk-status lk-status--done">Collected</span>
+          {% elif order.status == 'cancelled' %}
+            <span class="lk-status lk-status--grey">Cancelled</span>
+          {% endif %}
+        </div>
+        <div class="lk-order-meta">{{ order.created_at|date:"d M Y" }} · Collection {{ order.trading_day.date|date:"D d M" }}</div>
+      </div>
+      <div class="lk-order-total">{{ order.total_cents|cents }}</div>
+      <span class="lk-order-arrow" aria-hidden="true">›</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <p class="lk-links"><a href="{% url 'public:help' %}">Need help?</a></p>
 </div>
