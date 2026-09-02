@@ -382,7 +382,15 @@
       var slotId = safeGetSlotId();
       var lines = cartToLines();
       // Safety guard: do not submit if state is no longer valid.
-      if (!slotId || !lines.length) return;
+      // day is null when dayIso was never persisted to localStorage (old carts
+      // that pre-date the basket.js seed fix). Show a friendly redirect message
+      // rather than a cryptic "Some fields need attention" server error.
+      if (!day || !slotId || !lines.length) {
+        if (!day) {
+          showErrors("Please go back to your basket and choose a collection day before placing your order.", {});
+        }
+        return;
+      }
 
       var payload = {
         name:            nameInput.value.trim(),

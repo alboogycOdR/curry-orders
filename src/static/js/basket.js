@@ -73,6 +73,13 @@
       slotId:   window.BKCart.getSlotId(),
     };
 
+    // Seed localStorage with the default day if the user hasn't picked one yet.
+    // Without this, checkout.js reads getDayIso() → null and the date field
+    // fails validation even though the first day chip looks selected on screen.
+    if (!storedDayIso && state.dayIso) {
+      window.BKCart.setDayIso(state.dayIso);
+    }
+
     var loadRequestId = 0;
 
     // ---- render helpers ----
