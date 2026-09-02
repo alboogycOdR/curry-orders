@@ -67,6 +67,14 @@ a "Move all to…" picker per closing slot.
     </span>
   </div>
 
+  {% if messages %}
+  <ul style="list-style:none;padding:0;margin:20px 0 0;">
+    {% for message in messages %}
+    <li style="padding:12px 16px;border-radius:var(--radius-md);font-size:14px;margin-bottom:8px;{% if 'error' in message.tags or 'warning' in message.tags %}background:#fff3cd;color:#856404;border:1px solid #ffc107;{% else %}background:#d4edda;color:#155724;border:1px solid #c3e6cb;{% endif %}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
   {% if errors %}
   <div class="dc-errors">
     {% for e in errors %}<p>{{ e }}</p>{% endfor %}
@@ -138,10 +146,14 @@ a "Move all to…" picker per closing slot.
           {% for row in slot_rows %}
           <tr>
             <td>{{ row.slot.start_at|time:"H:i" }}&ndash;{{ row.slot.end_at|time:"H:i" }}</td>
-            <td><input class="input" type="number" min="0" name="slot_capacity_{{ row.slot.pk }}" value="{{ row.capacity }}"></td>
+            <td><input class="input" type="number" min="{{ row.occupying }}" name="slot_capacity_{{ row.slot.pk }}" value="{{ row.capacity }}">
+              <span style="font-size:11px;color:var(--color-neutral-500);">min&nbsp;{{ row.occupying }}</span>
+            </td>
             <td><input type="checkbox" name="slot_closed_{{ row.slot.pk }}" {% if row.closed %}checked{% endif %}></td>
             <td class="num">{{ row.occupying }}</td>
           </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:var(--color-neutral-600);font-size:14px;">No slots defined for this day — configure slots in Settings.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -159,6 +171,8 @@ a "Move all to…" picker per closing slot.
             <td><input class="input" type="number" min="0" name="dish_max_units_{{ row.dish.pk }}" value="{{ row.max_units|default_if_none:'' }}" placeholder="Uncapped"></td>
             <td class="num">{{ row.used_units }}</td>
           </tr>
+          {% empty %}
+          <tr><td colspan="4" style="color:var(--color-neutral-600);font-size:14px;">No active dishes — add dishes in the <a href="{% url 'manage:menu_list' %}">Menu Editor</a>.</td></tr>
           {% endfor %}
         </tbody>
       </table>

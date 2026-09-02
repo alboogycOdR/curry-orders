@@ -6,6 +6,12 @@ repeating this markup per section.
 {% endcomment %}
 <section class="ib-section">
   <h2 class="ib-section-title">{{ title }} <span class="ib-count">{{ orders|length }}</span></h2>
+  {% if section_hint %}
+  <p class="ib-section-hint" style="font-size:13px;color:var(--color-neutral-600);margin:4px 0 0;">
+    {{ section_hint }}
+    {% if section_hint_url %}<a href="{% url section_hint_url %}">→</a>{% endif %}
+  </p>
+  {% endif %}
   {% if not orders %}
   <p class="ib-empty">{{ empty_text }}</p>
   {% else %}
@@ -22,7 +28,9 @@ repeating this markup per section.
           </td>
           <td>
             {{ order.customer_name_snapshot }}<br>
+            {% if order.customer_mobile_snapshot %}
             <a class="ib-wa" href="https://wa.me/{{ order.customer_mobile_snapshot|cut:'+' }}?text=Hi%20{{ order.customer_name_snapshot|urlencode }}%2C%20about%20order%20{{ order.order_number }}" target="_blank" rel="noopener">WhatsApp</a>
+            {% else %}<span class="ib-wa" style="color:var(--color-neutral-500);">No mobile on file</span>{% endif %}
           </td>
           <td>{{ order.trading_day.date|date:"D j M" }} {{ order.slot.start_at|time:"H:i" }}</td>
           <td>
@@ -52,7 +60,7 @@ repeating this markup per section.
               {% endif %}
               {% endwith %}
             </div>
-            <p class="ib-row-error" hidden></p>
+            <p class="ib-row-error" hidden>Action failed — reload the page to check this order's current status.</p>
           </td>
         </tr>
         {% endfor %}

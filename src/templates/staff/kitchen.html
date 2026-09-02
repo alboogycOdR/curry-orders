@@ -77,7 +77,7 @@ statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
   </div>
 
   {% if not trading_day %}
-  <p class="kd-empty">No trading day exists for this date yet.</p>
+  <p class="kd-empty">No trading day exists for this date yet. <a href="{% url 'manage:daily_controls' %}">Set one up in Daily Controls →</a></p>
   {% else %}
   <div class="kd-meters">
     <div>
@@ -100,13 +100,13 @@ statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
     Summary
     <span class="kd-section-hint">dish &rarr; option &rarr; total units</span>
     {% if trading_day.kitchen_locked_at %}
-      <span class="kd-section-hint">Locked {{ trading_day.kitchen_locked_at|time:"H:i" }}</span>
+      <span class="kd-section-hint" title="Any orders confirmed after this time appear in 'Added after lock' below.">Locked {{ trading_day.kitchen_locked_at|time:"H:i" }}</span>
     {% else %}
-      <button type="button" class="kd-lock-btn" id="kd-lock-btn">Lock prep list</button>
+      <button type="button" class="kd-lock-btn" id="kd-lock-btn" title="Stamps a lock time so late additions are flagged separately. Cannot be unlocked.">Lock prep list</button>
     {% endif %}
   </h3>
   {% if not summary %}
-  <p class="kd-empty">Nothing on the kitchen board yet.</p>
+  <p class="kd-empty">Nothing on the kitchen board yet. Orders appear here once EFT payment is verified or a cash order is accepted.</p>
   {% else %}
   <div class="kd-table-wrap">
     <table class="table kd-table">
@@ -148,6 +148,7 @@ statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
 
   {% if added_after_lock %}
   <h3 class="kd-section-title">Added after lock</h3>
+  <p class="kd-empty" style="margin-bottom:8px;">These orders arrived after the prep list was locked — verify the kitchen team is aware before service starts.</p>
   <div class="kd-table-wrap">
     <table class="table kd-table">
       <thead><tr><th>Order</th><th>Confirmed</th></tr></thead>
@@ -162,11 +163,11 @@ statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
 
   <h3 class="kd-section-title">Today's run</h3>
   {% if not tickets %}
-  <p class="kd-empty">Nothing on the kitchen board yet.</p>
+  <p class="kd-empty">Nothing on the kitchen board yet. Orders appear here once EFT payment is verified or a cash order is accepted.</p>
   {% else %}
   <div class="kd-bulk-row">
-    <button type="button" id="kd-bulk-start">Start kitchen (all confirmed)</button>
-    <button type="button" id="kd-bulk-ready">Mark ready (all in kitchen)</button>
+    <button type="button" id="kd-bulk-start" onclick="return confirm('Start kitchen for all confirmed orders?')">Start kitchen (all confirmed)</button>
+    <button type="button" id="kd-bulk-ready" onclick="return confirm('Mark all in-kitchen orders as ready?')">Mark ready (all in kitchen)</button>
   </div>
   <div class="kd-table-wrap">
     <table class="table kd-table">
@@ -190,7 +191,7 @@ statuses (`staff.views.KITCHEN_BOARD_STATUSES`) — never
               <button type="button" data-action="mark_ready">Mark ready</button>
               {% endif %}
             </div>
-            <p class="kd-row-error" hidden></p>
+            <p class="kd-row-error" hidden>Action failed — reload the page to check this order's current status.</p>
           </td>
         </tr>
         {% endfor %}

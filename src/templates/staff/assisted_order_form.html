@@ -57,6 +57,14 @@ row, parsed server-side from raw POST keys.
     </span>
   </div>
 
+  {% if messages %}
+  <ul style="list-style:none;padding:0;margin:20px 0 0;">
+    {% for message in messages %}
+    <li style="padding:12px 16px;font-size:14px;margin-bottom:8px;{% if 'error' in message.tags or 'warning' in message.tags %}background:#fff3cd;color:#856404;border:1px solid #ffc107;{% else %}background:#d4edda;color:#155724;border:1px solid #c3e6cb;{% endif %}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
   {% if errors %}
   <div class="ao-errors">
     {% for e in errors %}<p>{{ e }}</p>{% endfor %}
@@ -129,7 +137,7 @@ row, parsed server-side from raw POST keys.
           {% endif %}
         </div>
       </div>
-      <div class="ao-field">
+      <div class="ao-field" id="ao-eft-section">
         <label>EFT status</label>
         <div class="ao-radio-row">
           <label><input type="radio" name="eft_mode" value="hold" checked> Awaiting EFT (default)</label>
@@ -137,7 +145,7 @@ row, parsed server-side from raw POST keys.
           <label><input type="radio" name="eft_mode" value="confirmed_prep"> Staff saw the funds</label>
         </div>
       </div>
-      <div class="ao-field ao-field-wide">
+      <div class="ao-field ao-field-wide" id="ao-eft-reason-section">
         <label for="ao-eft-confirm-reason">Reason (required for "Staff saw the funds" — D-18)</label>
         <input class="input" type="text" id="ao-eft-confirm-reason" name="eft_confirm_reason">
       </div>
@@ -180,4 +188,19 @@ row, parsed server-side from raw POST keys.
     <button type="submit" class="btn btn-primary ao-save">Create order</button>
   </form>
 </div>
+<script>
+(function() {
+  var paymentRadios = document.querySelectorAll('input[name="payment_method"]');
+  var eftSection = document.getElementById('ao-eft-section');
+  var eftReasonSection = document.getElementById('ao-eft-reason-section');
+  function toggleEft() {
+    var selected = document.querySelector('input[name="payment_method"]:checked');
+    var isCash = selected && selected.value === 'cash';
+    if (eftSection) eftSection.style.display = isCash ? 'none' : '';
+    if (eftReasonSection) eftReasonSection.style.display = isCash ? 'none' : '';
+  }
+  paymentRadios.forEach(function(r) { r.addEventListener('change', toggleEft); });
+  toggleEft();
+})();
+</script>
 {% endblock %}

@@ -20,9 +20,13 @@ occupying the dish, a typed/ticked confirmation once there is.
   .df-back { font-size: 13px; }
   .df-messages { list-style: none; margin: var(--space-4) 0; padding: 0; }
   .df-messages li {
-    background: var(--color-accent-100); color: var(--color-accent-800);
     border-radius: var(--radius-md); padding: var(--space-3); font-size: 14px;
     margin-bottom: var(--space-2);
+    background: #d4edda; color: #155724; border: 1px solid #c3e6cb;
+  }
+  .df-messages li.is-error,
+  .df-messages li.is-warning {
+    background: #fff3cd; color: #856404; border: 1px solid #ffc107;
   }
   .df-field { margin-bottom: var(--space-4); }
   .df-field label { display: block; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 6px; }
@@ -50,7 +54,7 @@ occupying the dish, a typed/ticked confirmation once there is.
 
   {% if messages %}
   <ul class="df-messages">
-    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+    {% for message in messages %}<li class="{% if 'error' in message.tags or 'warning' in message.tags %}is-error{% endif %}">{{ message }}</li>{% endfor %}
   </ul>
   {% endif %}
 
@@ -99,7 +103,7 @@ occupying the dish, a typed/ticked confirmation once there is.
         {% csrf_token %}
         <input type="hidden" name="action" value="delete_option">
         <input type="hidden" name="option_id" value="{{ option.pk }}">
-        <button type="submit" class="btn">Delete option</button>
+        <button type="submit" class="btn" onclick="return confirm('Delete option &quot;{{ option.name }}&quot; and all its values? This cannot be undone.')">Delete option</button>
       </form>
       <table class="table df-values-table">
         <thead><tr><th>Value</th><th>Price delta</th><th>Sort</th><th>Available</th><th></th></tr></thead>
@@ -122,7 +126,7 @@ occupying the dish, a typed/ticked confirmation once there is.
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_value">
                 <input type="hidden" name="value_id" value="{{ value.pk }}">
-                <button type="submit" class="btn">Delete</button>
+                <button type="submit" class="btn" onclick="return confirm('Delete value &quot;{{ value.name }}&quot;? This cannot be undone.')">Delete</button>
               </form>
             </td>
           </tr>
@@ -140,7 +144,7 @@ occupying the dish, a typed/ticked confirmation once there is.
       </form>
     </div>
   {% empty %}
-    <p class="df-slug-note">No options yet.</p>
+    <p class="df-slug-note">No options yet. Add an option below to let customers choose e.g. spice level, size, or extras. Options marked "required" must be selected before the dish can be added to a cart.</p>
   {% endfor %}
 
   <form method="post" class="df-inline-form">
@@ -166,10 +170,10 @@ occupying the dish, a typed/ticked confirmation once there is.
         <button type="submit" class="btn" style="margin-top:10px;">Archive dish</button>
       </form>
     {% else %}
-      <p>No occupying orders reference this dish.</p>
+      <p>No occupying orders reference this dish. Archiving removes it from the live menu immediately.</p>
       <form method="post" action="{% url 'manage:dish_archive' dish.pk %}">
         {% csrf_token %}
-        <button type="submit" class="btn">Archive dish</button>
+        <button type="submit" class="btn" onclick="return confirm('Archive this dish? It will be removed from the public menu immediately.')">Archive dish</button>
       </form>
     {% endif %}
   </div>

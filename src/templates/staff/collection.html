@@ -69,11 +69,11 @@ time order, current slot highlighted; `mark_ready`/`mark_collected`/
   </div>
 
   {% if not trading_day %}
-  <p class="cb-empty">No trading day exists for this date yet.</p>
+  <p class="cb-empty">No trading day exists for this date yet. <a href="{% url 'manage:daily_controls' %}">Set one up in Daily Controls →</a></p>
   {% else %}
 
   {% if not slots and not uncollected %}
-  <p class="cb-empty">Nothing on the collection board yet.</p>
+  <p class="cb-empty">Nothing on the collection board yet. Orders appear here once they are ready for collection or in the kitchen.</p>
   {% endif %}
 
   {% for group in slots %}
@@ -97,6 +97,7 @@ time order, current slot highlighted; `mark_ready`/`mark_collected`/
             <span class="tag tag-accent">PAID</span>
           {% endif %}
           {% if order.status == "ready" %}<span class="tag tag-accent-2">Ready</span>{% endif %}
+          {% if order.status == "in_kitchen" %}<span class="tag" style="opacity:0.65;">Not ready</span>{% endif %}
         </div>
         <div class="cb-ticket-actions">
           {% if order.status == "in_kitchen" %}
@@ -117,6 +118,7 @@ time order, current slot highlighted; `mark_ready`/`mark_collected`/
   {% if uncollected %}
   <div class="cb-slot-group">
     <div class="cb-slot-head"><h3>Uncollected</h3></div>
+    <p class="cb-empty" style="margin-bottom:10px;">These orders are past the collection window and were not picked up. Use "No-show" to formally close each one, or contact the customer first.</p>
     <div class="cb-tickets">
       {% for order in uncollected %}
       <div class="cb-ticket" data-order-id="{{ order.pk }}" data-status="{{ order.status }}">
@@ -127,7 +129,7 @@ time order, current slot highlighted; `mark_ready`/`mark_collected`/
           {% if order.payment_method == "cash" %}<span class="tag tag-outline">CASH {{ order.total_cents|cents }}</span>{% else %}<span class="tag tag-accent">PAID</span>{% endif %}
         </div>
         <div class="cb-ticket-actions">
-          <button type="button" data-action="close_out_no_show">No-show</button>
+          <button type="button" data-action="close_out_no_show" onclick="return confirm('Mark this order as a no-show? This cannot be undone.')">No-show</button>
         </div>
         <p class="cb-row-error" hidden></p>
       </div>
@@ -139,8 +141,15 @@ time order, current slot highlighted; `mark_ready`/`mark_collected`/
   {% if past_deadline and not closed_out %}
   <div class="cb-close-out">
     <h3>Close out day</h3>
-    <p>The collection window plus grace period has passed. Closing out marks every remaining <strong>ready</strong> order as a no-show.</p>
+    <p>The collection window plus grace period has passed.
+    {% if uncollected %}Closing out will mark the <strong>{{ uncollected|length }} remaining ready order{{ uncollected|length|pluralize }}</strong> as no-shows.{% else %}No orders are left to close out.{% endif %}
+    This cannot be undone.</p>
+    {% if uncollected %}
+    <button type="button" class="cb-close-out-btn" id="cb-close-out-btn"
+            onclick="return confirm('Close out the day? This will mark {{ uncollected|length }} order{{ uncollected|length|pluralize }} as no-shows and cannot be undone.')">Close out day</button>
+    {% else %}
     <button type="button" class="cb-close-out-btn" id="cb-close-out-btn">Close out day</button>
+    {% endif %}
   </div>
   {% endif %}
 

@@ -45,6 +45,14 @@ warnings at >=80% of max_units. Each card taps through to
   <div class="cal-dateline-thick"></div>
   <div class="cal-dateline-row"><span>Preorder calendar</span></div>
 
+  <div style="display:flex;gap:16px;align-items:center;margin-top:16px;font-size:12px;color:var(--color-neutral-700);">
+    <span>Slot heat:</span>
+    <span><span style="display:inline-block;width:8px;height:14px;background:var(--color-neutral-200);vertical-align:middle;margin-right:4px;"></span>Empty</span>
+    <span><span style="display:inline-block;width:8px;height:14px;background:var(--color-accent-100,#d7ecd9);vertical-align:middle;margin-right:4px;"></span>&lt;50%</span>
+    <span><span style="display:inline-block;width:8px;height:14px;background:#f4d35e;vertical-align:middle;margin-right:4px;"></span>50–89%</span>
+    <span><span style="display:inline-block;width:8px;height:14px;background:#e07a5f;vertical-align:middle;margin-right:4px;"></span>&ge;90%</span>
+    <span style="margin-left:8px;color:var(--color-neutral-500);">Hover a cell for slot detail · Click a card to adjust in Daily Controls</span>
+  </div>
   <div class="cal-grid">
     {% for day in days %}
     <a class="cal-card {% if not day.trading_day.is_open %}is-closed{% endif %}" href="{% url 'manage:daily_controls' day.date|date:'Y-m-d' %}">
@@ -62,7 +70,7 @@ warnings at >=80% of max_units. Each card taps through to
       {% if day.dish_warnings %}
       <ul class="cal-warnings">
         {% for w in day.dish_warnings %}
-        <li>{{ w.dish.name }}: {{ w.used }}/{{ w.max_units }}</li>
+        <li>⚠ {{ w.dish.name }}: {{ w.used }}/{{ w.max_units }} — cap or mark unavailable</li>
         {% endfor %}
       </ul>
       {% endif %}

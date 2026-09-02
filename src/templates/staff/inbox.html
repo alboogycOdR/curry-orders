@@ -51,11 +51,25 @@ open, assign, contact (wa.me), change slot — see
     <span class="push">{{ now_label }} SAST</span>
   </div>
 
-  {% include "staff/_inbox_section.html" with title="Cash requests" orders=cash_orders show_cash_actions=True empty_text="No cash requests waiting." %}
-  {% include "staff/_inbox_section.html" with title="Hold lapsed / SLA breached" orders=hold_lapsed|add:sla_breached empty_text="Nothing waiting past its hold or review window." %}
-  {% include "staff/_inbox_section.html" with title="Orders with notes" orders=notes empty_text="No open orders carry a customer note." %}
-  {% include "staff/_inbox_section.html" with title="Recent assisted" orders=recent_assisted empty_text="No assisted orders yet." %}
-  {% include "staff/_inbox_section.html" with title="Recently expired" orders=recently_expired show_reinstate=True empty_text="Nothing expired in the last 48 hours." %}
+  {% if messages %}
+  <ul class="ib-messages" style="list-style:none;padding:0;margin:20px 0 0;">
+    {% for message in messages %}
+    <li class="ib-message ib-message--{{ message.tags }}" style="padding:12px 16px;border-radius:var(--radius-md);font-size:14px;margin-bottom:8px;{% if 'error' in message.tags or 'warning' in message.tags %}background:#fff3cd;color:#856404;{% else %}background:#d4edda;color:#155724;{% endif %}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if not cash_orders and not hold_lapsed and not sla_breached and not notes and not recent_assisted and not recently_expired %}
+  <p class="ib-empty" style="margin-top:32px;font-size:16px;">&#10003; Inbox is clear — nothing needs attention right now.</p>
+  {% else %}
+
+  {% include "staff/_inbox_section.html" with title="Cash requests" orders=cash_orders show_cash_actions=True empty_text="No cash requests waiting." section_hint="Accept → cash_due (kitchen board) · Reject → cancelled and slot freed." %}
+  {% include "staff/_inbox_section.html" with title="Hold lapsed / SLA breached" orders=hold_lapsed|add:sla_breached section_hint="Extend or expire these holds on the Payments queue →" section_hint_url="manage:payments" empty_text="Nothing waiting past its hold or review window." %}
+  {% include "staff/_inbox_section.html" with title="Orders with notes" orders=notes section_hint="Review dietary requirements or special requests before the order reaches the kitchen." empty_text="No open orders carry a customer note." %}
+  {% include "staff/_inbox_section.html" with title="Recent assisted" orders=recent_assisted section_hint="Orders placed by staff on behalf of customers — shown for reference and follow-up." empty_text="No assisted orders in the last 24 hours." %}
+  {% include "staff/_inbox_section.html" with title="Recently expired" orders=recently_expired show_reinstate=True section_hint="Reinstating creates a new EFT hold so the customer can pay again." empty_text="Nothing expired in the last 48 hours." %}
+
+  {% endif %}
 </div>
 
 <script src="{% static 'js/inbox.js' %}" defer></script>

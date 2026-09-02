@@ -71,7 +71,7 @@ staff roles qualify — nothing above manager exists per §4).
         <td><a href="{% url 'manage:dish_edit' row.dish.pk %}">Edit</a></td>
       </tr>
       {% empty %}
-      <tr><td colspan="8">No dishes yet.</td></tr>
+      <tr><td colspan="8" style="padding:24px 10px;color:var(--color-neutral-600);">No dishes yet. <a href="{% url 'manage:dish_create' %}">Create your first dish →</a></td></tr>
       {% endfor %}
     </tbody>
   </table>

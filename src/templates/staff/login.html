@@ -28,7 +28,9 @@ functional form styled with the design system's existing `.input`/`.btn`/
 <div class="auth-wrap">
   <h1>Staff login</h1>
 
-  {% if error %}<p class="auth-error">{{ error }}</p>{% endif %}
+  {% if error %}
+  <p class="auth-error">{{ error }}</p>
+  {% endif %}
 
   <form method="post" novalidate>
     {% csrf_token %}

@@ -56,7 +56,7 @@ exists and is tested.
   </div>
 
   {% if not rows %}
-  <p class="pq-empty">Nothing awaiting EFT payment or verification right now.</p>
+  <p class="pq-empty">Nothing awaiting EFT payment or verification right now. Cash requests are handled in <a href="{% url 'manage:cash_requests' %}">Cash requests →</a></p>
   {% else %}
   <div class="pq-table-wrap">
     <table class="table pq-table">
@@ -79,9 +79,9 @@ exists and is tested.
           <td>{{ row.order.customer_name_snapshot }}</td>
           <td class="value">{{ row.order.total_cents|cents }}</td>
           <td>{{ row.order.slot.start_at|time:"H:i" }}&ndash;{{ row.order.slot.end_at|time:"H:i" }}</td>
-          <td class="hold {% if row.lapsed %}is-lapsed{% endif %}">
+          <td class="hold {% if row.lapsed %}is-lapsed{% endif %}" data-seconds="{% if row.remaining_seconds is not None and not row.lapsed %}{{ row.remaining_seconds|floatformat:0 }}{% endif %}">
             {% if row.remaining_seconds is None %}&mdash;
-            {% elif row.lapsed %}Lapsed
+            {% elif row.lapsed %}Lapsed — hold expired
             {% else %}{{ row.remaining_seconds|floatformat:0 }}s
             {% endif %}
           </td>
@@ -97,7 +97,7 @@ exists and is tested.
               <button type="button" data-action="verify_eft" data-needs-reason="1">Verify (seen in bank app)</button>
               <button type="button" data-action="expire_hold_now">Expire now</button>
               {% endif %}
-              <button type="button" data-action="extend_hold">Extend hold</button>
+              <button type="button" data-action="extend_hold" title="Extends the hold by the default EFT window (usually 2 hours) — use when the customer says payment is on its way">Extend hold</button>
             </div>
             <p class="pq-row-error" hidden></p>
           </td>
@@ -110,5 +110,15 @@ exists and is tested.
   <p class="pq-note">Actions here call the real transitions engine (core.transitions.apply) — a row disappears once its order moves to confirmed_prep/cash_due/awaiting_eft/payment_expired and off this board's two statuses. Reload to see other staff's changes; this page doesn't poll yet.</p>
 </div>
 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  document.querySelectorAll(".pq-table td.hold[data-seconds]").forEach(function(td) {
+    var s = parseInt(td.dataset.seconds, 10);
+    if (isNaN(s) || s <= 0) return;
+    var m = Math.floor(s / 60), rem = s % 60;
+    td.textContent = m + "m " + rem + "s";
+  });
+});
+</script>
 <script src="{% static 'js/payments.js' %}" defer></script>
 {% endblock %}

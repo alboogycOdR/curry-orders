@@ -145,7 +145,7 @@ def login(request: HttpRequest) -> HttpResponse:
             # which emails have staff accounts.
             error = "Incorrect email or password."
         elif is_locked_out(user, now):
-            error = "This account is locked after too many failed attempts. Try again shortly."
+            error = "This account is locked for 15 minutes after too many failed attempts. Contact the owner if you need immediate access."
         elif not verify_password(password, user.password_hash):
             register_failed_login(user, now)
             error = "Incorrect email or password."

@@ -48,8 +48,9 @@ Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
   </div>
 
   {% if not orders %}
-  <p class="cr-empty">No cash requests waiting right now.</p>
+  <p class="cr-empty">No cash requests waiting right now. Cash orders appear here as soon as a customer submits one.</p>
   {% else %}
+  <p style="font-size:13.5px;color:var(--color-neutral-700);margin:20px 0 0;"><strong>Accept</strong> moves the order to the kitchen board as cash-due. <strong>Reject</strong> cancels the order and frees slot capacity.</p>
   <div class="cr-table-wrap">
     <table class="table cr-table">
       <thead>
@@ -66,7 +67,7 @@ Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
           <td>
             <div class="cr-actions">
               <button type="button" data-action="accept_cash">Accept</button>
-              <button type="button" data-action="reject_cash">Reject</button>
+              <button type="button" data-action="reject_cash" onclick="return confirm('Reject this cash order? It will be cancelled and the slot freed.')">Reject</button>
             </div>
             <p class="cr-row-error" hidden></p>
           </td>
