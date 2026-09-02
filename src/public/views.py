@@ -701,7 +701,13 @@ def lookup(request: HttpRequest) -> HttpResponse:
                 cu = request.customer_user
                 cu_digits = (cu.mobile_e164 or "")[-9:] if cu and cu.mobile_e164 else ""
                 submitted_digits = lookup_service.last9_digits(mobile_input)
-                if not cu or not cu_digits or submitted_digits != cu_digits:
+                if not cu:
+                    error = (
+                        "To view all your orders by mobile number, please "
+                        "sign in to your account first — or add your order "
+                        "number above to look up a specific order."
+                    )
+                elif not cu_digits or submitted_digits != cu_digits:
                     error = _LOOKUP_GENERIC_ERROR
                 else:
                     lookup_service.record_lookup_attempt(ip, "")

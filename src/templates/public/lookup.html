@@ -51,7 +51,11 @@ account-enumeration leak) — see public/views.py::lookup docstring.
 {% block content %}
 <div class="lk-wrap">
   <h1 class="lk-heading">Find your order</h1>
-  <p class="lk-intro">Enter the mobile number you ordered with. Add your order number to jump straight to that order.</p>
+  {% if request.customer_user %}
+  <p class="lk-intro">Enter your mobile number to see your recent orders, or add an order number to jump straight to it.</p>
+  {% else %}
+  <p class="lk-intro">Enter your order number and the mobile number you ordered with. <a href="{% url 'public:customer_login' %}">Sign in</a> to browse all your orders by mobile alone.</p>
+  {% endif %}
 
   {% if error %}<p class="lk-error" role="alert">{{ error }}</p>{% endif %}
 
