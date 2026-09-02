@@ -231,3 +231,25 @@ LOGGING = {
 SMS_PROVIDER = env("SMS_PROVIDER", default="")
 SMS_API_KEY = env("SMS_API_KEY", default="")
 SMS_SENDER_ID = env("SMS_SENDER_ID", default="")
+
+# --- Social auth (Google OAuth2, D-35) -------------------------------------
+# Credentials from Google Cloud Console. Set to empty string in dev/test
+# to disable social login (the login page still shows the button but
+# the redirect returns an error from Google, not a server crash).
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+# Bootstrap admin email — added to StaffAllowlist with role=admin on
+# first deploy via: python manage.py bootstrap_admin
+ADMIN_EMAIL = env("ADMIN_EMAIL", default="")
+
+# --- Email backend (magic links, D-36) ------------------------------------
+# Dev default: console (prints to stdout). Prod: SMTP via .env.
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")
+# Magic link token lifetime in minutes (D-36).
+MAGIC_LINK_EXPIRY_MINUTES = env.int("MAGIC_LINK_EXPIRY_MINUTES", default=15)

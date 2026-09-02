@@ -41,6 +41,9 @@ urlpatterns = [
     path("account/login/", views.customer_login, name="customer_login"),
     path("account/signup/", views.customer_signup, name="customer_signup"),
     path("account/logout/", views.customer_logout, name="customer_logout"),
+    path("account/auth/google/", views.customer_google_begin, name="customer_google_begin"),
+    path("account/auth/google/callback/", views.customer_google_callback, name="customer_google_callback"),
+    path("account/setup/", views.account_setup, name="account_setup"),
     path("orders/<str:public_token>/reorder/", views.reorder, name="reorder"),
     # §6.1/§11.12 (milestone 10, Phase 1's own narrow slice of it — see
     # docs/DECISIONS.md).

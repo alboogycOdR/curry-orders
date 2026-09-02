@@ -46,6 +46,7 @@ from core import menu as menu_queries
 from core.capacity import OCCUPYING_STATUSES
 from core.materialise import materialise_days
 from core.menu import dish_photo_url
+from core import google_auth
 from core.models import (
     Customer,
     Dish,
@@ -54,6 +55,7 @@ from core.models import (
     OrderStatus,
     PaymentMethod,
     Settings,
+    SocialIdentity,
     ThrottleEvent,
     TradingDay,
 )
@@ -840,6 +842,99 @@ def customer_signup(request: HttpRequest) -> HttpResponse:
 def customer_logout(request: HttpRequest) -> HttpResponse:
     customer_sessions.log_out(request)
     return redirect("public:account")
+
+
+# ---------------------------------------------------------------- Google OAuth (customer)
+
+CUSTOMER_GOOGLE_CALLBACK = "/account/auth/google/callback/"
+
+
+def customer_google_begin(request: HttpRequest) -> HttpResponse:
+    """Redirect customer to Google for authentication."""
+    from django.conf import settings
+    if not settings.GOOGLE_CLIENT_ID:
+        return redirect("public:customer_login")
+    from django.http import HttpResponseRedirect
+    url = google_auth.begin_google_login(request, CUSTOMER_GOOGLE_CALLBACK)
+    return HttpResponseRedirect(url)
+
+
+def customer_google_callback(request: HttpRequest) -> HttpResponse:
+    """Google OAuth callback for customers."""
+    error_param = request.GET.get("error")
+    if error_param:
+        return redirect("public:customer_login")
+    try:
+        info = google_auth.get_verified_google_user(request, CUSTOMER_GOOGLE_CALLBACK)
+    except Exception:
+        return redirect("public:customer_login")
+    if info is None:
+        return redirect("public:customer_login")
+
+    uid = info["sub"]
+    email = info["email"]
+    name = info.get("name", "")
+
+    # Find existing social identity
+    try:
+        identity = SocialIdentity.objects.select_related("customer").get(provider="google", uid=uid)
+    except SocialIdentity.DoesNotExist:
+        identity = SocialIdentity.objects.create(
+            provider="google", uid=uid, email=email, customer=None
+        )
+
+    if identity.customer and identity.customer.anonymised_at is None:
+        customer_sessions.log_in(request, identity.customer)
+        return redirect("public:account")
+
+    # No linked customer yet — store identity pk in session and ask for mobile
+    request.session["_social_identity_pk"] = identity.pk
+    request.session["_social_name"] = name
+    request.session["_social_email"] = email
+    return redirect("public:account_setup")
+
+
+def account_setup(request: HttpRequest) -> HttpResponse:
+    """Collect mobile number after Google sign-in to link/create Customer."""
+    identity_pk = request.session.get("_social_identity_pk")
+    if not identity_pk:
+        return redirect("public:customer_login")
+
+    error = None
+    if request.method == "POST":
+        raw_mobile = (request.POST.get("mobile") or "").strip()
+        name = (request.POST.get("name") or request.session.get("_social_name", "")).strip()
+        try:
+            mobile_e164 = normalize_sa_mobile(raw_mobile)
+        except InvalidPhoneNumber:
+            error = "Please enter a valid South African mobile number (e.g. 082 555 1234)."
+        else:
+            # Find or create Customer for this mobile
+            try:
+                customer = Customer.objects.get(mobile_e164=mobile_e164)
+            except Customer.DoesNotExist:
+                customer = Customer.objects.create(
+                    full_name=name or "Customer",
+                    mobile_e164=mobile_e164,
+                )
+            # Link identity
+            try:
+                identity = SocialIdentity.objects.get(pk=identity_pk)
+                identity.customer = customer
+                identity.save(update_fields=["customer"])
+            except SocialIdentity.DoesNotExist:
+                pass
+            # Clean up session setup keys
+            for k in ("_social_identity_pk", "_social_name", "_social_email"):
+                request.session.pop(k, None)
+            customer_sessions.log_in(request, customer)
+            return redirect("public:account")
+
+    return render(request, "public/account_setup.html", {
+        "name": request.session.get("_social_name", ""),
+        "email": request.session.get("_social_email", ""),
+        "error": error,
+    })
 
 
 # ---------------------------------------------------------------- reorder (§11.11)

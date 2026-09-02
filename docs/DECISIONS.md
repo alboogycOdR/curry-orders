@@ -65,3 +65,10 @@ relying on any of these numbers again if meaningful time has passed:
 - Existing tenants that must not be disturbed: `skulcozm_*`,
   `lekkerswot_*`, `oracle_postgres`, `grafana`, `uptime_kuma`,
   `opensandbox-server`, host `ollama`.
+
+---
+**D-35 — Social auth implementation**
+Google OAuth2 is implemented directly via urllib/httpx rather than django-allauth. The existing custom session layers (staff.sessions, public.customer_sessions) are preserved; Google auth only provides identity verification, not session management. Staff are controlled via StaffAllowlist (admin-managed). Customers link their Google identity to a Customer row after providing their SA mobile number.
+
+**D-36 — Email magic links**
+LoginToken model (core.models) with a 15-minute expiry provides passwordless email login for staff. Does not replace password login; offered as an alternative on the login page. Uses Django's built-in email backend (console in dev, SMTP in prod).

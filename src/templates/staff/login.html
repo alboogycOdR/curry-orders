@@ -32,6 +32,9 @@ functional form styled with the design system's existing `.input`/`.btn`/
   <p class="auth-error">{{ error }}</p>
   {% endif %}
 
+  <a href="{% url 'manage:google_login_begin' %}" class="btn" style="width:100%;text-align:center;display:block;margin-bottom:16px;">Sign in with Google</a>
+  <p style="text-align:center;font-size:13px;color:var(--color-neutral-600);margin:0 0 16px;">— or use email + password —</p>
+
   <form method="post" novalidate>
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
@@ -47,5 +50,7 @@ functional form styled with the design system's existing `.input`/`.btn`/
     </div>
     <button type="submit" class="btn btn-primary btn-block auth-submit">Log in</button>
   </form>
+
+  <p style="text-align:center;font-size:13px;margin:12px 0;"><a href="{% url 'manage:magic_link_begin' %}">Sign in by email link instead</a></p>
 </div>
 {% endblock %}

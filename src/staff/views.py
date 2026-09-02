@@ -34,6 +34,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+import httpx
+
 from core.auth import (
     hash_password,
     is_locked_out,
@@ -41,6 +43,9 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
+from core.models import SocialIdentity, StaffAllowlist
+
+from . import google_auth
 from core.capacity import (
     OCCUPYING_STATUSES,
     CapacityError,
@@ -172,6 +177,161 @@ def logout(request: HttpRequest) -> HttpResponse:
     return redirect("manage:login")
 
 
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+
+STAFF_GOOGLE_CALLBACK = "/manage/auth/google/callback/"
+
+
+def google_login_begin(request: HttpRequest) -> HttpResponse:
+    """Redirect staff member to Google for authentication."""
+    from django.conf import settings as conf_settings
+    if not getattr(conf_settings, "GOOGLE_CLIENT_ID", None):
+        messages.error(request, "Google sign-in is not configured on this server.")
+        return redirect("manage:login")
+    url = google_auth.begin_google_login(request, STAFF_GOOGLE_CALLBACK)
+    from django.http import HttpResponseRedirect
+    return HttpResponseRedirect(url)
+
+
+def google_login_callback(request: HttpRequest) -> HttpResponse:
+    """Google OAuth callback for staff. Validates identity against StaffAllowlist."""
+    error_param = request.GET.get("error")
+    if error_param:
+        messages.error(request, "Google sign-in was cancelled or denied.")
+        return redirect("manage:login")
+    try:
+        info = google_auth.get_verified_google_user(request, STAFF_GOOGLE_CALLBACK)
+    except Exception:
+        messages.error(request, "Google sign-in failed — please try again.")
+        return redirect("manage:login")
+    if info is None:
+        messages.error(request, "Invalid OAuth state — please try again.")
+        return redirect("manage:login")
+
+    email = info["email"].lower()
+    now = timezone.now()
+
+    # Check allowlist
+    try:
+        entry = StaffAllowlist.objects.get(email=email)
+    except StaffAllowlist.DoesNotExist:
+        messages.error(request, "Your Google account is not authorised as staff. Contact the owner.")
+        return redirect("manage:login")
+
+    # Find or create the core.User for this email
+    from core.models import User as CoreUser
+    user, created = CoreUser.objects.get_or_create(
+        email=email,
+        defaults={
+            "name": info.get("name", email),
+            "role": entry.role,
+            "password_hash": "",
+            "must_change_password": False,
+            "active": True,
+        },
+    )
+    if not user.active:
+        messages.error(request, "Your staff account is inactive. Contact the owner.")
+        return redirect("manage:login")
+
+    # Keep role in sync with allowlist
+    if user.role != entry.role:
+        user.role = entry.role
+        user.save(update_fields=["role"])
+
+    # Record the social identity
+    SocialIdentity.objects.get_or_create(
+        provider="google", uid=info["sub"],
+        defaults={"email": email, "staff_user": user},
+    )
+
+    from staff.sessions import log_in as staff_log_in
+    staff_log_in(request, user, now)
+    return redirect("manage:inbox")
+
+
+# ── Team management (admin only) ──────────────────────────────────────────────
+
+def _require_admin(func):
+    """Decorator: redirect non-admin staff to inbox with an error."""
+    import functools
+    @functools.wraps(func)
+    def wrapper(request, *args, **kwargs):
+        if not request.staff_user or request.staff_user.role != "admin":
+            messages.error(request, "Team management requires admin access.")
+            return redirect("manage:inbox")
+        return func(request, *args, **kwargs)
+    return wrapper
+
+
+@_require_admin
+def team(request: HttpRequest) -> HttpResponse:
+    """Admin-only: manage staff allowlist (invite / remove / change role)."""
+    from core.models import User as CoreUser
+    error = None
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "invite":
+            email = (request.POST.get("email") or "").strip().lower()
+            role = request.POST.get("role", "manager")
+            if not email:
+                error = "Email is required."
+            elif role not in ("admin", "owner", "manager"):
+                error = "Invalid role."
+            else:
+                _, created = StaffAllowlist.objects.get_or_create(
+                    email=email,
+                    defaults={"role": role, "invited_by": request.staff_user},
+                )
+                if created:
+                    messages.success(request, f"Added {email} ({role}) to the team allowlist.")
+                else:
+                    messages.info(request, f"{email} is already on the allowlist.")
+                return redirect("manage:team")
+        elif action == "remove":
+            entry_id = request.POST.get("entry_id")
+            try:
+                entry = StaffAllowlist.objects.get(pk=entry_id)
+                if entry.email == request.staff_user.email:
+                    error = "You cannot remove yourself from the allowlist."
+                else:
+                    entry.delete()
+                    messages.success(request, f"Removed {entry.email} from the team.")
+                    return redirect("manage:team")
+            except StaffAllowlist.DoesNotExist:
+                error = "Entry not found."
+        elif action == "change_role":
+            entry_id = request.POST.get("entry_id")
+            new_role = request.POST.get("role")
+            try:
+                entry = StaffAllowlist.objects.get(pk=entry_id)
+                if new_role in ("admin", "owner", "manager"):
+                    entry.role = new_role
+                    entry.save()
+                    # Sync live user if they exist
+                    CoreUser.objects.filter(email=entry.email).update(role=new_role)
+                    messages.success(request, f"Updated {entry.email} to {new_role}.")
+                return redirect("manage:team")
+            except StaffAllowlist.DoesNotExist:
+                error = "Entry not found."
+
+    allowlist = StaffAllowlist.objects.select_related("invited_by").order_by("email")
+    live_users = {u.email.lower(): u for u in CoreUser.objects.filter(active=True)}
+    rows = [
+        {
+            "entry": e,
+            "user": live_users.get(e.email.lower()),
+            "has_social": SocialIdentity.objects.filter(provider="google", email=e.email).exists(),
+        }
+        for e in allowlist
+    ]
+    return render(request, "staff/team.html", {
+        "rows": rows,
+        "error": error,
+        "roles": [("admin", "Admin"), ("owner", "Owner"), ("manager", "Manager")],
+    })
+
+
 @staff_login_required
 def change_password(request: HttpRequest) -> HttpResponse:
     # Scope note: `must_change_password` is enforced at the moment of
@@ -206,6 +366,50 @@ def change_password(request: HttpRequest) -> HttpResponse:
         # different framing in the template.
         "forced": user.must_change_password,
     })
+
+
+def magic_link_begin(request: HttpRequest) -> HttpResponse:
+    """Staff: request a magic-link sign-in email."""
+    if request.method != "POST":
+        return render(request, "staff/magic_link_request.html", {})
+    email = (request.POST.get("email") or "").strip().lower()
+    if not email:
+        return render(request, "staff/magic_link_request.html", {"error": "Please enter your email address."})
+    from core.models import StaffAllowlist
+    if not StaffAllowlist.objects.filter(email=email).exists():
+        # Don't reveal whether email is in the allowlist — show success regardless
+        return render(request, "staff/magic_link_sent.html", {"email": email})
+    from core.magic_link import send_magic_link
+    from django.conf import settings as django_settings
+    try:
+        send_magic_link(email, "staff", django_settings.SITE_URL, "/manage/auth/email/callback/")
+    except Exception:
+        pass  # Don't leak errors
+    return render(request, "staff/magic_link_sent.html", {"email": email})
+
+
+def magic_link_callback(request: HttpRequest) -> HttpResponse:
+    """Staff: validate magic-link token and create staff session."""
+    token_str = request.GET.get("t", "")
+    try:
+        from core.magic_link import consume_token
+        tok = consume_token(token_str, "staff")
+    except ValueError as e:
+        return render(request, "staff/magic_link_error.html", {"error": str(e)})
+    from core.models import StaffAllowlist, User as CoreUser
+    try:
+        entry = StaffAllowlist.objects.get(email=tok.email)
+    except StaffAllowlist.DoesNotExist:
+        return render(request, "staff/magic_link_error.html", {"error": "Email is not authorised as staff."})
+    user, _ = CoreUser.objects.get_or_create(
+        email=tok.email,
+        defaults={"name": tok.email, "role": entry.role, "password_hash": "", "must_change_password": False, "active": True},
+    )
+    if not user.active:
+        return render(request, "staff/magic_link_error.html", {"error": "This account is inactive."})
+    from staff.sessions import log_in as staff_log_in
+    staff_log_in(request, user, timezone.now())
+    return redirect("manage:inbox")
 
 
 # ---------------------------------------------------------------- settings (owner-only)

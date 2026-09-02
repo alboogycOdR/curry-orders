@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% comment %}
+Team management — admin-only screen. Manages the StaffAllowlist: who
+can sign in as staff via Google OAuth, and at what role. Follows the
+dateline-thick / dateline-row layout established by inbox.html and
+collection.html.
+{% endcomment %}
+
+{% block title %}Team — Roti Connect{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tm-wrap { max-width: 960px; margin: 0 auto; padding: 0 32px 60px; }
+  .tm-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .tm-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .tm-dateline-row .push { margin-left: auto; }
+
+  .tm-section { margin-top: 40px; }
+  .tm-section-title {
+    font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--color-neutral-800); border-bottom: 1px solid var(--color-text);
+    padding-bottom: 8px; margin-bottom: 16px;
+  }
+
+  .tm-table-wrap { overflow-x: auto; }
+  .tm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tm-table th {
+    text-align: left; font-size: 11.5px; letter-spacing: 0.10em;
+    text-transform: uppercase; color: var(--color-neutral-600);
+    padding: 0 12px 8px 0; border-bottom: 1px solid var(--color-neutral-300);
+    white-space: nowrap;
+  }
+  .tm-table td {
+    padding: 10px 12px 10px 0; border-bottom: 1px solid var(--color-neutral-200);
+    vertical-align: middle;
+  }
+  .tm-table tr:last-child td { border-bottom: none; }
+  .tm-email { font-weight: 500; }
+  .tm-badge {
+    display: inline-block; font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 2px 7px;
+    border: 1px solid var(--color-text); border-radius: 3px;
+  }
+  .tm-badge--admin { background: var(--color-text); color: var(--color-bg); }
+  .tm-badge--owner { background: var(--color-neutral-200); }
+  .tm-tick { color: #2d8a4e; font-size: 16px; }
+  .tm-dash { color: var(--color-neutral-400); }
+  .tm-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tm-actions form { margin: 0; }
+  .tm-role-select {
+    font-family: var(--font-body); font-size: 12px; padding: 4px 6px;
+    border: 1px solid var(--color-neutral-400); background: var(--color-bg);
+    color: var(--color-text); cursor: pointer;
+  }
+  .tm-btn {
+    font-family: var(--font-body); font-size: 12px; padding: 5px 10px;
+    border: 1px solid var(--color-text); background: none; cursor: pointer;
+    color: var(--color-text);
+  }
+  .tm-btn:hover { background: var(--color-text); color: var(--color-bg); }
+  .tm-btn--danger { border-color: #b3261e; color: #b3261e; }
+  .tm-btn--danger:hover { background: #b3261e; color: #fff; }
+
+  .tm-add-form {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    margin-top: 8px;
+  }
+  .tm-add-form .tm-field { display: flex; flex-direction: column; gap: 4px; }
+  .tm-add-form label { font-size: 12px; color: var(--color-neutral-600); }
+  .tm-add-form input[type="email"],
+  .tm-add-form select {
+    font-family: var(--font-body); font-size: 14px; padding: 7px 10px;
+    border: 1px solid var(--color-neutral-400); background: var(--color-bg);
+    color: var(--color-text); min-width: 220px;
+  }
+  .tm-add-form input[type="email"] { min-width: 280px; }
+  .tm-add-btn {
+    font-family: var(--font-body); font-size: 14px; padding: 7px 18px;
+    border: 1px solid var(--color-text); background: var(--color-text);
+    color: var(--color-bg); cursor: pointer;
+  }
+  .tm-add-btn:hover { opacity: 0.85; }
+
+  .tm-error {
+    background: #fff0ee; color: #b3261e; border-radius: var(--radius-md);
+    padding: 10px 14px; font-size: 14px; margin-bottom: 16px;
+  }
+  .tm-message {
+    padding: 10px 14px; border-radius: var(--radius-md);
+    font-size: 14px; margin-bottom: 8px;
+  }
+  .tm-message--success { background: #d4edda; color: #155724; }
+  .tm-message--error,
+  .tm-message--warning { background: #fff3cd; color: #856404; }
+  .tm-message--info { background: #d1ecf1; color: #0c5460; }
+  .tm-empty { color: var(--color-neutral-600); font-size: 14px; margin: 12px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tm-wrap">
+  <div class="tm-dateline-thick"></div>
+  <div class="tm-dateline-row">
+    <span>Team</span>
+    <span class="push">Staff allowlist</span>
+  </div>
+
+  {% if messages %}
+  <ul style="list-style:none;padding:0;margin:20px 0 0;">
+    {% for message in messages %}
+    <li class="tm-message tm-message--{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if error %}
+  <p class="tm-error" style="margin-top:20px;">{{ error }}</p>
+  {% endif %}
+
+  <div class="tm-section">
+    <p class="tm-section-title">Current allowlist</p>
+    {% if rows %}
+    <div class="tm-table-wrap">
+      <table class="tm-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Signed in via Google</th>
+            <th>Invited by</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="tm-email">{{ row.entry.email }}</td>
+            <td>
+              <span class="tm-badge {% if row.entry.role == 'admin' %}tm-badge--admin{% else %}tm-badge--owner{% endif %}">
+                {{ row.entry.role }}
+              </span>
+            </td>
+            <td>
+              {% if row.has_social %}
+              <span class="tm-tick" title="Has signed in via Google">&#10003;</span>
+              {% else %}
+              <span class="tm-dash" title="Not yet signed in via Google">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.entry.invited_by %}
+                {{ row.entry.invited_by.name|default:row.entry.invited_by.email }}
+              {% else %}
+                <span class="tm-dash">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="tm-actions">
+                {# Change role #}
+                <form method="post" style="display:flex;gap:4px;align-items:center;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="change_role">
+                  <input type="hidden" name="entry_id" value="{{ row.entry.pk }}">
+                  <select name="role" class="tm-role-select" aria-label="Change role for {{ row.entry.email }}">
+                    {% for value, label in roles %}
+                    <option value="{{ value }}"{% if value == row.entry.role %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="tm-btn">Save</button>
+                </form>
+                {# Remove #}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="remove">
+                  <input type="hidden" name="entry_id" value="{{ row.entry.pk }}">
+                  <button type="submit" class="tm-btn tm-btn--danger"
+                    onclick="return confirm('Remove this person from the team? They will not be able to sign in as staff.')">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="tm-empty">No one is on the allowlist yet. Add a team member below.</p>
+    {% endif %}
+  </div>
+
+  <div class="tm-section">
+    <p class="tm-section-title">Add team member</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="invite">
+      <div class="tm-add-form">
+        <div class="tm-field">
+          <label for="tm-email">Email address</label>
+          <input type="email" id="tm-email" name="email" placeholder="staff@example.com" required>
+        </div>
+        <div class="tm-field">
+          <label for="tm-role">Role</label>
+          <select id="tm-role" name="role">
+            {% for value, label in roles %}
+            <option value="{{ value }}"{% if value == "manager" %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="tm-add-btn">Add to team</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

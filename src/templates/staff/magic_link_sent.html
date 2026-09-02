@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Check your email — Roti Connect{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-wrap { max-width: 420px; margin: 64px auto 0; padding: 0 32px; }
+  .auth-wrap h1 { font-size: 28px; margin-bottom: var(--space-4); }
+  .auth-notice {
+    background: var(--color-accent-1-50, #f0faf4); color: var(--color-accent-1-800, #166534);
+    border-radius: var(--radius-md); padding: var(--space-4);
+    font-size: 14px; line-height: 1.6;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <h1>Check your email</h1>
+  <div class="auth-notice">
+    <p>We sent a sign-in link to <strong>{{ email }}</strong>.</p>
+    <p>Check your inbox (and spam folder). The link expires in 15 minutes.</p>
+  </div>
+</div>
+{% endblock %}

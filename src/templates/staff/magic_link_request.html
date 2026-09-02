@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in by email — Roti Connect{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-wrap { max-width: 420px; margin: 64px auto 0; padding: 0 32px; }
+  .auth-wrap h1 { font-size: 28px; margin-bottom: var(--space-4); }
+  .auth-error {
+    background: var(--color-accent-2-100); color: var(--color-accent-2-800);
+    border-radius: var(--radius-md); padding: var(--space-3);
+    font-size: 14px; margin-bottom: var(--space-4);
+  }
+  .auth-wrap .field { margin-bottom: var(--space-4); }
+  .auth-submit { margin-top: var(--space-2); }
+  .auth-back { display: block; text-align: center; font-size: 13px; margin-top: var(--space-4); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <h1>Sign in by email</h1>
+
+  {% if error %}
+  <p class="auth-error">{{ error }}</p>
+  {% endif %}
+
+  <p style="font-size:14px;margin-bottom:var(--space-4);">
+    Enter your staff email address and we'll send you a sign-in link.
+  </p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="field">
+      <label for="id_email">Email address</label>
+      <input type="email" id="id_email" name="email" class="input" autocomplete="email" autofocus required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-block auth-submit">Send link</button>
+  </form>
+
+  <a class="auth-back" href="{% url 'manage:login' %}">Back to password login</a>
+</div>
+{% endblock %}

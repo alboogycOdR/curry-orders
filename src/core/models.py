@@ -73,6 +73,7 @@ from django.db.models.expressions import RawSQL
 
 
 class UserRole(models.TextChoices):
+    ADMIN = "admin", "Admin"
     OWNER = "owner", "Owner"
     MANAGER = "manager", "Manager"
 
@@ -177,6 +178,74 @@ class User(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} <{self.email}>"
+
+
+class StaffAllowlist(models.Model):
+    """Emails permitted to sign in as staff via Google/magic-link OAuth.
+    Admin manages this via /manage/team/. An email in this list that has
+    no matching core.User yet gets one created on first social login.
+    """
+    email = CITextField(unique=True)
+    role = models.CharField(max_length=10, choices=UserRole.choices)
+    invited_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="invitations"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "staff_allowlist"
+
+    def __str__(self) -> str:
+        return f"{self.email} ({self.role})"
+
+
+class SocialIdentity(models.Model):
+    """A verified social (Google) identity. Links to exactly one of:
+    staff_user (core.User) or customer (core.Customer). Both nullable so
+    an identity can exist before the link is resolved (e.g. a new Google
+    customer who has not yet provided their mobile).
+    """
+    provider = models.CharField(max_length=20)        # "google"
+    uid = models.CharField(max_length=200)             # Google 'sub'
+    email = CITextField()
+    staff_user = models.OneToOneField(
+        User, null=True, blank=True, on_delete=models.CASCADE, related_name="social_identity"
+    )
+    customer = models.OneToOneField(
+        "Customer", null=True, blank=True, on_delete=models.SET_NULL, related_name="social_identity"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "social_identities"
+        constraints = [
+            models.UniqueConstraint(fields=["provider", "uid"], name="social_identities_provider_uid_uniq"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider}:{self.uid} ({self.email})"
+
+
+class LoginToken(models.Model):
+    """Short-lived token for email magic-link auth (15-minute window).
+    intent='staff' tokens log in core.User; intent='customer' tokens
+    log in core.Customer. Used once (used_at set on consume).
+    """
+    token = models.CharField(max_length=64, unique=True)
+    email = CITextField()
+    intent = models.CharField(max_length=10)           # 'staff' | 'customer'
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "login_tokens"
+        indexes = [
+            models.Index(fields=["token", "expires_at"], name="login_tokens_lookup_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.intent}:{self.email}"
 
 
 # ---------------------------------------------------------------- settings (§7.2, single row)

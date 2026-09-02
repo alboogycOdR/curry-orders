@@ -21,6 +21,7 @@ dependencies = [
   # does take over static serving; WhiteNoise just goes unused for that
   # path then, not conflicting with it.
   "whitenoise>=6.6",
+  "httpx>=0.27",    # for Google OAuth token exchange (replaces manual urllib usage, cleaner)
 ]
 
 [project.optional-dependencies]

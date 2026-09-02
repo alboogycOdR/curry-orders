@@ -10,6 +10,8 @@ urlpatterns = [
     path("login/", views.login, name="login"),
     path("logout/", views.logout, name="logout"),
     path("change-password/", views.change_password, name="change_password"),
+    path("auth/email/", views.magic_link_begin, name="magic_link_begin"),
+    path("auth/email/callback/", views.magic_link_callback, name="magic_link_callback"),
     path("settings/", views.settings_view, name="settings"),
     path("calendar/", views.calendar, name="calendar"),
     path("orders/new/", views.assisted_order_new, name="assisted_order_new"),
@@ -31,6 +33,9 @@ urlpatterns = [
     # §17.3's staff API contract — no trailing slash, same convention
     # public/urls.py's api_checkout uses (POST-only, so APPEND_SLASH's
     # GET/HEAD-only redirect would just 404 a slashed-vs-not mismatch).
+    path("auth/google/", views.google_login_begin, name="google_login_begin"),
+    path("auth/google/callback/", views.google_login_callback, name="google_login_callback"),
+    path("team/", views.team, name="team"),
     path("api/orders/<int:order_id>/transition", api.transition, name="api_transition"),
     path("api/orders/<int:order_id>/assign", api.assign_order, name="api_assign_order"),
     path("api/days/<str:date>/lock-kitchen", api.lock_prep_list, name="api_lock_prep_list"),
