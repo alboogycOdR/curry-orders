@@ -20,6 +20,9 @@
     var confirmEl   = document.getElementById("dd-confirm");
     var confirmText = document.getElementById("dd-confirm-text");
 
+    // #dd-add is absent on sold-out dish pages (no Add button rendered).
+    if (!addBtn) return;
+
     var qty = 1;
     var MIN_QTY = 1;
     var MAX_QTY = 20;

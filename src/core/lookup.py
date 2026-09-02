@@ -59,7 +59,7 @@ def last9_digits(raw: str) -> str:
     own stored E.164 snapshot, not a fully valid mobile number.
     """
     digits = re.sub(r"\D", "", raw or "")
-    return digits[-9:] if digits else ""
+    return digits[-9:] if len(digits) >= 9 else ""
 
 
 def check_lookup_throttle(ip: str, order_number: str, *, now: dt.datetime | None = None) -> None:
@@ -78,15 +78,17 @@ def check_lookup_throttle(ip: str, order_number: str, *, now: dt.datetime | None
             "throttled", "Too many attempts — try again in a while.",
             retry_after_seconds=int(LOOKUP_THROTTLE_WINDOW.total_seconds()),
         )
-    order_count = ThrottleEvent.objects.filter(
-        scope=LOOKUP_ORDER_SCOPE, key=normalize_order_number(order_number),
-        occurred_at__gte=window_start,
-    ).count()
-    if order_count >= LOOKUP_THROTTLE_LIMIT:
-        raise LookupError(
-            "throttled", "Too many attempts — try again in a while.",
-            retry_after_seconds=int(LOOKUP_THROTTLE_WINDOW.total_seconds()),
-        )
+    # Only check order-scope throttle when an order number was provided.
+    if order_number:
+        order_count = ThrottleEvent.objects.filter(
+            scope=LOOKUP_ORDER_SCOPE, key=normalize_order_number(order_number),
+            occurred_at__gte=window_start,
+        ).count()
+        if order_count >= LOOKUP_THROTTLE_LIMIT:
+            raise LookupError(
+                "throttled", "Too many attempts — try again in a while.",
+                retry_after_seconds=int(LOOKUP_THROTTLE_WINDOW.total_seconds()),
+            )
 
 
 def record_lookup_attempt(ip: str, order_number: str) -> None:
@@ -97,9 +99,11 @@ def record_lookup_attempt(ip: str, order_number: str) -> None:
     against a real order number is the attack this throttle exists for.
     """
     ThrottleEvent.objects.create(scope=LOOKUP_IP_SCOPE, key=ip)
-    ThrottleEvent.objects.create(
-        scope=LOOKUP_ORDER_SCOPE, key=normalize_order_number(order_number),
-    )
+    # Only record order-scope when an order number was provided.
+    if order_number:
+        ThrottleEvent.objects.create(
+            scope=LOOKUP_ORDER_SCOPE, key=normalize_order_number(order_number),
+        )
 
 
 def find_orders_by_mobile(mobile_raw: str, limit: int = 5) -> list[Order]:

@@ -16,10 +16,23 @@ yet — a `payment_review` order here just says "we're checking it".
 <meta name="robots" content="noindex, nofollow">
 {% if not is_terminal %}
 {% comment %}Task 7: soft 30s refresh while order is not in a terminal state.
-Keeps the status copy current without requiring the customer to reload.
-The meta refresh fires only on non-terminal statuses so a collected /
-expired / cancelled page does not keep reloading pointlessly.{% endcomment %}
-<meta http-equiv="refresh" content="30">
+Uses JS polling instead of <meta http-equiv="refresh"> so the timer pauses
+while the customer has a proof-of-payment file selected (a hard reload would
+discard that selection). Equivalent behaviour otherwise.{% endcomment %}
+<script>
+  (function () {
+    var DELAY = 30000;
+    var timer = setTimeout(function tick() {
+      // Pause if the customer has selected a proof file — a reload would discard it.
+      var fileInput = document.getElementById("os-upload-input");
+      if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        timer = setTimeout(tick, DELAY);
+        return;
+      }
+      window.location.reload();
+    }, DELAY);
+  })();
+</script>
 {% endif %}
 <style>
   .os-wrap { max-width: 760px; margin: 0 auto; padding: 0 32px; }

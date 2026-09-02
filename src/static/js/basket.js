@@ -61,9 +61,14 @@
     var storedDayIso = window.BKCart.getDayIso();
     var initialDayIndex = 0;
     if (storedDayIso) {
+      var _dayFound = false;
       for (var di = 0; di < days.length; di++) {
-        if (days[di].iso === storedDayIso) { initialDayIndex = di; break; }
+        if (days[di].iso === storedDayIso) { initialDayIndex = di; _dayFound = true; break; }
       }
+      // Stored day is no longer orderable (cutoff passed overnight) — reset to
+      // first available. Without this the customer sees the first chip highlighted
+      // while checkout.js returns null for currentDay(), creating a silent deadlock.
+      if (!_dayFound) storedDayIso = null;
     }
 
     var state = {
@@ -73,9 +78,7 @@
       slotId:   window.BKCart.getSlotId(),
     };
 
-    // Seed localStorage with the default day if the user hasn't picked one yet.
-    // Without this, checkout.js reads getDayIso() → null and the date field
-    // fails validation even though the first day chip looks selected on screen.
+    // Seed or correct localStorage day so checkout.js always reads a valid value.
     if (!storedDayIso && state.dayIso) {
       window.BKCart.setDayIso(state.dayIso);
     }
@@ -225,11 +228,18 @@
 
     // ---- day load (fetch) ----
 
-    function loadDay(dayIndex) {
+    // preserveSlot: true when called on initial load for the already-stored day
+    // (customer revisits /basket/ with a saved slot); false on an explicit day-chip
+    // click (old slot no longer relevant — clear it immediately).
+    function loadDay(dayIndex, preserveSlot) {
       var day = days[dayIndex];
       if (!day) return;
 
-      // Clear slot immediately on day change
+      // Remember the current slot so we can try to restore it after fetch
+      // (only when preserveSlot is true — i.e. initial load, not a day change).
+      var prevSlotId = preserveSlot ? state.slotId : null;
+
+      // Clear slot immediately — will be restored below if the chip is still open.
       state.slot = null;
       state.slotId = null;
       window.BKCart.setSlot(null);
@@ -254,8 +264,24 @@
         .then(function (body) {
           if (requestId !== loadRequestId) return;
 
+          var freshSlots = body.slots || [];
+
           // Rebuild slot grid from fresh data
-          slotGridEl.innerHTML = buildSlotGridHtml(body.slots || []);
+          slotGridEl.innerHTML = buildSlotGridHtml(freshSlots);
+
+          // Restore the previously selected slot if it is still open on this day.
+          if (prevSlotId) {
+            for (var si = 0; si < freshSlots.length; si++) {
+              var fs = freshSlots[si];
+              if (fs.id === prevSlotId && !fs.full) {
+                state.slot = fs.label;
+                state.slotId = fs.id;
+                window.BKCart.setSlot(fs.label);
+                window.BKCart.setSlotId(fs.id);
+                break;
+              }
+            }
+          }
 
           // Update in-memory sold-out state for catalog items on this day
           if (body.categories) {
@@ -307,7 +333,7 @@
         }
         if (!found) return;
         if (action === "increment") {
-          window.BKCart.updateLine(lineId, { qty: found.qty + 1 });
+          if (found.qty < 20) window.BKCart.updateLine(lineId, { qty: found.qty + 1 });
         } else {
           if (found.qty <= 1) {
             window.BKCart.removeLine(lineId);
@@ -378,9 +404,11 @@
     // ---- initial render ----
 
     // If the stored day is not the first orderable day, fetch its slots now.
+    // Pass preserveSlot=true: this is an initial load for the already-stored day,
+    // so try to restore the previously selected slot if it's still open.
     if (state.dayIndex !== 0) {
       renderAll();
-      loadDay(state.dayIndex);
+      loadDay(state.dayIndex, true);
     } else {
       renderAll();
     }

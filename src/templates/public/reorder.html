@@ -48,7 +48,9 @@ payment are chosen afresh on `/order/` → `/checkout/`.
 </div>
 
 <script>
-  (function () {
+  // cart.js is loaded with `defer` in base.html, so BKCart is not defined
+  // during the initial parse. Wrap in DOMContentLoaded so the module is ready.
+  document.addEventListener("DOMContentLoaded", function () {
     try {
       // PR 4: seed cart v2 via setState; clears day/slot so the
       // customer picks fresh on /basket/ (PR 5) or /order/ (until then).
@@ -59,6 +61,6 @@ payment are chosen afresh on `/order/` → `/checkout/`.
         dayIso: null,
       });
     } catch (e) { /* localStorage unavailable — /order/ still works, just starts empty */ }
-  })();
+  });
 </script>
 {% endblock %}

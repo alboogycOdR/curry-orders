@@ -81,12 +81,12 @@ account-enumeration leak) — see public/views.py::lookup docstring.
       <div class="lk-order-main">
         <div class="lk-order-num">
           {{ order.order_number }}
-          {% if order.status == 'awaiting_eft' or order.status == 'accepted' or order.status == 'ready' %}
+          {% if order.status == 'awaiting_eft' or order.status == 'payment_review' or order.status == 'confirmed_prep' or order.status == 'cash_request' or order.status == 'cash_due' or order.status == 'in_kitchen' or order.status == 'ready' %}
             <span class="lk-status lk-status--active">{{ order.get_status_display }}</span>
-          {% elif order.status == 'collected' or order.status == 'collected_cash' %}
+          {% elif order.status == 'collected' %}
             <span class="lk-status lk-status--done">Collected</span>
-          {% elif order.status == 'cancelled' %}
-            <span class="lk-status lk-status--grey">Cancelled</span>
+          {% elif order.status == 'cancelled' or order.status == 'payment_expired' %}
+            <span class="lk-status lk-status--grey">{{ order.get_status_display }}</span>
           {% endif %}
         </div>
         <div class="lk-order-meta">{{ order.created_at|date:"d M Y" }} · Collection {{ order.trading_day.date|date:"D d M" }}</div>

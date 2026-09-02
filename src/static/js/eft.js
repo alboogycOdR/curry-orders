@@ -91,6 +91,11 @@
         credentials: "same-origin",
       })
         .then(function (resp) {
+          var ct = resp.headers.get("Content-Type") || "";
+          if (ct.indexOf("application/json") === -1) {
+            // Non-JSON response (CSRF-rotated 403, proxy error page, etc.)
+            return { ok: false, body: null };
+          }
           return resp.json().then(function (body) {
             return { ok: resp.ok, body: body };
           });

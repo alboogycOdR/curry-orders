@@ -347,14 +347,17 @@ Collection chip never includes a street address (D-23).
     }
 
     // Task 8: Repeat module — show when rc_last_order_v1 exists in localStorage.
+    // Link to the order status page (not /reorder/ directly) so the customer sees
+    // their order first; the reorder button appears there once the order is collected.
+    // Linking to /reorder/ directly dead-ends with a rejection for non-collected orders.
     try {
       var stored = localStorage.getItem("rc_last_order_v1");
       if (stored) {
         var last = JSON.parse(stored);
         var mod  = document.getElementById("rc-repeat-module");
         var link = document.getElementById("rc-repeat-link");
-        if (mod && last) {
-          if (link && last.reorder_url) link.href = last.reorder_url;
+        if (mod && last && last.public_token) {
+          if (link) link.href = "/orders/" + last.public_token + "/";
           if (link && last.order_number) link.textContent = "Order " + last.order_number + " again";
           mod.hidden = false;
         }

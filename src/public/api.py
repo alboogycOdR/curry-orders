@@ -130,7 +130,8 @@ def _validate_payload(data: dict[str, object]) -> tuple[dict[str, str], _Cleaned
         errors["date"] = "Choose a collection date."
 
     slot_id = data.get("slot_id")
-    if not isinstance(slot_id, int):
+    # isinstance(True, int) is True in Python — reject booleans explicitly.
+    if not isinstance(slot_id, int) or isinstance(slot_id, bool):
         errors["slot_id"] = "Choose a collection slot."
     else:
         cleaned["slot_id"] = slot_id
@@ -156,19 +157,27 @@ def _validate_payload(data: dict[str, object]) -> tuple[dict[str, str], _Cleaned
             dish_id = raw_line.get("dish_id")
             quantity = raw_line.get("quantity")
             option_value_ids = raw_line.get("option_value_ids", [])
-            if not isinstance(dish_id, int):
+            # isinstance(True/False, int) is True in Python — reject booleans.
+            if not isinstance(dish_id, int) or isinstance(dish_id, bool):
                 errors["lines"] = f"Line {i}: missing dish."
                 break
-            if not isinstance(quantity, int) or not (1 <= quantity <= 20):
+            if (
+                not isinstance(quantity, int)
+                or isinstance(quantity, bool)
+                or not (1 <= quantity <= 20)
+            ):
                 errors["lines"] = f"Line {i}: quantity must be 1-20."
                 break
             if not isinstance(option_value_ids, list) or not all(
-                isinstance(v, int) for v in option_value_ids
+                isinstance(v, int) and not isinstance(v, bool) for v in option_value_ids
             ):
                 errors["lines"] = f"Line {i}: malformed options."
                 break
+            # Dedupe option_value_ids — duplicate values could be used to apply
+            # a price modifier (delta) multiple times.
+            deduped_ids = list(dict.fromkeys(option_value_ids))
             lines.append(CheckoutLine(
-                dish_id=dish_id, quantity=quantity, option_value_ids=option_value_ids,
+                dish_id=dish_id, quantity=quantity, option_value_ids=deduped_ids,
                 kitchen_note=str(raw_line.get("kitchen_note") or "")[:200],
             ))
         else:

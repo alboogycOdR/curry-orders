@@ -54,6 +54,7 @@ from core.models import (
     OrderStatus,
     PaymentMethod,
     Settings,
+    ThrottleEvent,
     TradingDay,
 )
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
@@ -693,13 +694,22 @@ def lookup(request: HttpRequest) -> HttpResponse:
                     )
                     return response
             else:
-                # Mobile-only — return up to 5 recent orders as a list.
-                lookup_service.record_lookup_attempt(ip, "")
-                found = lookup_service.find_orders_by_mobile(mobile_input, limit=5)
-                if not found:
+                # Mobile-only listing — restricted to authenticated customers
+                # viewing their own mobile's orders. Without this guard any
+                # visitor could enumerate a stranger's order history just by
+                # knowing (or guessing) their mobile number.
+                cu = request.customer_user
+                cu_digits = (cu.mobile_e164 or "")[-9:] if cu and cu.mobile_e164 else ""
+                submitted_digits = lookup_service.last9_digits(mobile_input)
+                if not cu or not cu_digits or submitted_digits != cu_digits:
                     error = _LOOKUP_GENERIC_ERROR
                 else:
-                    orders = found
+                    lookup_service.record_lookup_attempt(ip, "")
+                    found = lookup_service.find_orders_by_mobile(mobile_input, limit=5)
+                    if not found:
+                        error = _LOOKUP_GENERIC_ERROR
+                    else:
+                        orders = found
 
     response = render(request, "public/lookup.html", {
         "error": error,
@@ -739,9 +749,26 @@ def account(request: HttpRequest) -> HttpResponse:
     return render(request, "public/account.html", {"last_order": last_order})
 
 
+_LOGIN_THROTTLE_LIMIT = 10
+_LOGIN_THROTTLE_WINDOW_SECONDS = 3600  # 1 hour
+_LOGIN_IP_SCOPE = "login_ip"
+
+
 def customer_login(request: HttpRequest) -> HttpResponse:
     error = None
     if request.method == "POST":
+        ip = request.META.get("REMOTE_ADDR") or "unknown"
+
+        # Rate-limit failed login attempts per IP (10/hour) to block password bruteforce.
+        import datetime as _dt
+        window_start = now_sast() - _dt.timedelta(seconds=_LOGIN_THROTTLE_WINDOW_SECONDS)
+        recent_failures = ThrottleEvent.objects.filter(
+            scope=_LOGIN_IP_SCOPE, key=ip, occurred_at__gte=window_start,
+        ).count()
+        if recent_failures >= _LOGIN_THROTTLE_LIMIT:
+            error = "Too many sign-in attempts — try again in an hour."
+            return render(request, "public/customer_login.html", {"error": error})
+
         try:
             mobile = normalize_sa_mobile(str(request.POST.get("mobile", "")))
         except InvalidPhoneNumber:
@@ -753,6 +780,8 @@ def customer_login(request: HttpRequest) -> HttpResponse:
             or not customer.password_hash
             or not check_password(password, customer.password_hash)
         ):
+            # Record failure against this IP.
+            ThrottleEvent.objects.create(scope=_LOGIN_IP_SCOPE, key=ip)
             error = "We couldn't sign you in. Check your mobile number and password."
         else:
             customer_sessions.log_in(request, customer)
@@ -789,8 +818,9 @@ def customer_signup(request: HttpRequest) -> HttpResponse:
                 # stranger's order history. Reject with a contact-us message.
                 # (PLAN.md Task 8 account-takeover guard.)
                 error = (
-                    "An account may already be linked to this number — "
-                    "contact us to verify ownership."
+                    "You have already placed an order with this number. "
+                    "Use 'Find your order' to view your orders — or contact us "
+                    "if you need help setting up an account."
                 )
             else:
                 customer.full_name = name
@@ -995,8 +1025,13 @@ def public_media(request: HttpRequest, key: str) -> HttpResponse:
     Remove once Caddy/TLS is configured and S3_PUBLIC_ENDPOINT is set
     to the public CDN/Caddy address (M10).
     """
-    if not key.startswith("dish-images/"):
+    import posixpath
+
+    # Normalise to prevent path-traversal attacks (e.g. dish-images/../../curry-proofs/…).
+    safe_key = posixpath.normpath("/" + key).lstrip("/")
+    if not safe_key.startswith("dish-images/"):
         raise Http404
+    key = safe_key
 
     from django.conf import settings  # local import — avoids circular at module load
 

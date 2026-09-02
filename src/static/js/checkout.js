@@ -178,8 +178,11 @@
         p.textContent = body.message;
         recoveryEl.appendChild(p);
 
-        var alts = Array.isArray(body.alternatives) && body.alternatives.length
-          ? body.alternatives : [];
+        // capacity.py returns alternatives as {slots: [{slot_id, label, remaining}]}.
+        // Normalise to the {id, label} shape the button loop below expects.
+        var altsRaw = body.alternatives;
+        var altsSlots = (altsRaw && Array.isArray(altsRaw.slots)) ? altsRaw.slots : [];
+        var alts = altsSlots.map(function (s) { return { id: s.slot_id, label: s.label }; });
 
         if (alts.length) {
           var altsHint = document.createElement("p");
@@ -257,21 +260,12 @@
         }
       }
 
-      // ---- day_full: show next_open_date and link to change date ----
+      // ---- day_full: link back to basket to choose another date ----
+      // Note: next_open_date is not computed by capacity.py (_next_open_date_alternative
+      // returns {}), so we don't try to display it — "Invalid Date" would show otherwise.
       if (errorCode === "day_full") {
-        var nextRaw = body.next_open_date;
-        var nextFormatted = nextRaw;
-        try {
-          // Parse as local midnight to avoid UTC-offset day-shift.
-          var d = new Date(nextRaw + "T00:00:00");
-          nextFormatted = d.toLocaleDateString("en-ZA", {
-            weekday: "long", year: "numeric", month: "long", day: "numeric",
-          });
-        } catch (e) {}
-
         var p4 = document.createElement("p");
-        p4.textContent =
-          "This day is fully booked. The next available day is " + nextFormatted + ".";
+        p4.textContent = body.message || "This day is fully booked.";
         recoveryEl.appendChild(p4);
 
         var actions4 = document.createElement("div");
@@ -430,6 +424,11 @@
         .then(function (result) {
           setPlacing(false);
           if (!result.ok) {
+            // Rotate the idempotency key on every failure so a retry with a
+            // corrected payload (different name, different payment method, etc.)
+            // is never rejected as a 409 idempotency_conflict.
+            idempotencyKey = makeIdempotencyKey();
+
             if (result.nonJson) {
               // Distinct server-error state — not the same copy as the network
               // error below.
@@ -437,7 +436,17 @@
                 "Something went wrong on our end — please try again or call us."
               );
             } else if (result.body && result.body.fields) {
-              showErrors(result.body.message, result.body.fields);
+              // Surface any field error whose key isn't wired to a specific
+              // field element (lines, date, slot_id, payment_method) in the
+              // general error copy so it's never silently dropped.
+              var knownFields = Object.keys(fieldErrorEls);
+              var extraMessages = [];
+              Object.keys(result.body.fields || {}).forEach(function (k) {
+                if (knownFields.indexOf(k) === -1) extraMessages.push(result.body.fields[k]);
+              });
+              var generalMsg = result.body.message || "Some fields need attention.";
+              if (extraMessages.length) generalMsg += " " + extraMessages.join(" ");
+              showErrors(generalMsg, result.body.fields);
             } else {
               showErrors((result.body && result.body.message) ||
                 "Something went wrong placing your order — try again.");
@@ -555,11 +564,14 @@
         return '<p style="font-size:14px;color:var(--color-neutral-600);grid-column:1/-1">No slots available for this day.</p>';
       }
       return slots.map(function (s) {
-        var fullClass = s.full ? " is-full" : "";
+        // api_day_availability returns `available: bool`; api_availability returns `full: bool`.
+        // Handle both shapes so the panel works regardless of which endpoint supplied the data.
+        var isFull = s.full || (s.available === false);
+        var fullClass = isFull ? " is-full" : "";
         return '<button type="button" class="ck-slot-chip' + fullClass + '"' +
           ' data-slot-id="' + escapeHtml(String(s.id)) + '"' +
           ' data-slot="' + escapeHtml(s.label) + '"' +
-          (s.full ? " disabled" : "") + ">" +
+          (isFull ? " disabled" : "") + ">" +
           escapeHtml(s.label) + "</button>";
       }).join("");
     }
