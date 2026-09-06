@@ -32,11 +32,14 @@ def owner_required(view):
     everything [managers get] plus settings, staff admin, owner-only
     exceptions"). 403s a logged-in manager rather than redirecting them
     somewhere that doesn't exist for their role.
+
+    Admin has all Owner powers plus team management, so Admin also
+    passes this gate.
     """
     @staff_login_required
     @wraps(view)
     def wrapped(request, *args, **kwargs):
-        if request.staff_user.role != UserRole.OWNER:
+        if request.staff_user.role not in (UserRole.OWNER, UserRole.ADMIN):
             return HttpResponseForbidden("Owner access only.")
         return view(request, *args, **kwargs)
 

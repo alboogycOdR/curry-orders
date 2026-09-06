@@ -462,7 +462,9 @@ def _do_cancel(
 ) -> dict[str, object]:
     user = _require_staff(actor)
     from_status = order.status
-    if from_status in (OrderStatus.IN_KITCHEN, OrderStatus.READY) and user.role != UserRole.OWNER:
+    if from_status in (OrderStatus.IN_KITCHEN, OrderStatus.READY) and user.role not in (
+        UserRole.OWNER, UserRole.ADMIN,
+    ):
         raise TransitionError("owner_only", "Only the owner can cancel from this stage.")
 
     cancellation_reason = payload.get("cancellation_reason")
