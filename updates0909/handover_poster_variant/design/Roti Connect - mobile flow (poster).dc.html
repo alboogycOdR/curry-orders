@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0b1526;}
+body{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+a{color:#FFC400;text-decoration:none;}
+a:hover{color:#FFD95A;}
+
+.pv{
+  --poster-navy:#071124;--poster-black:#050A15;--poster-blue:#168CFF;--poster-blue-deep:#0C3679;
+  --poster-blue-panel:#102A58;--poster-gold:#FFC400;--poster-gold-soft:#FFD95A;--poster-white:#FFFFFF;
+  --poster-paper:#F7F8FA;--poster-border:#D3DDEA;--poster-muted:#56647A;--poster-muted-dark:#AEB8C9;
+  --poster-error:#D9343E;--poster-success:#55A868;
+  --shadow-gold-offset:5px 6px 0 #FFC400;--shadow-blue-offset:4px 4px 0 #0C55B0;--shadow-dark-offset:6px 7px 0 #071124;
+  --shadow-drawer:-20px 0 55px rgba(0,0,0,.35);
+  --ease-poster:cubic-bezier(0.23,1,0.32,1);
+}
+
+/* ---------- stage + phone ---------- */
+.pv-stage{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:18px;padding:32px 20px 56px;box-sizing:border-box;}
+.pv-cap{font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7d8ba1;text-align:center;}
+.pv-phone{position:relative;width:390px;height:844px;flex:none;border-radius:44px;background:#000;padding:11px;box-shadow:0 26px 60px rgba(0,0,0,.5);box-sizing:border-box;}
+.pv-screen{position:relative;width:100%;height:100%;border-radius:34px;overflow:hidden;background:var(--poster-navy);display:flex;flex-direction:column;color:var(--poster-white);}
+.pv-status{flex:none;height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:700;color:#fff;background:var(--poster-black);}
+.pv-scroll{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;}
+.pv-scroll::-webkit-scrollbar{display:none;}
+.pv-pad{padding-bottom:96px;}
+
+/* ---------- promo strip + header ---------- */
+/* §8.2 wants the strip short and compact; three items fit at 320px, four did not */
+.pv-strip{background:var(--poster-black);color:var(--poster-gold);font-size:9.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;padding:7px 14px;display:flex;gap:7px;align-items:center;white-space:nowrap;}
+.pv-strip .sep{color:var(--poster-blue);}
+.pv-strip .tel{margin-left:auto;color:#fff;letter-spacing:.06em;}
+.pv-header{position:sticky;top:0;z-index:30;background:var(--poster-navy);border-bottom:2px solid var(--poster-blue);display:flex;align-items:center;gap:10px;padding:10px 18px;}
+.pv-avatar{width:38px;height:38px;border-radius:50%;flex:none;background:var(--poster-blue-deep) center/cover no-repeat;box-shadow:0 0 0 2px var(--poster-navy),0 0 0 4px var(--poster-blue);}
+.pv-word{font-size:19px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;line-height:1;}
+.pv-word span{color:var(--poster-gold);}
+.pv-hbtn{margin-left:auto;position:relative;width:40px;height:40px;border:2px solid var(--poster-blue);background:transparent;border-radius:5px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.pv-hbtn svg{width:20px;height:20px;}
+.pv-count{position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 4px;border-radius:3px;background:var(--poster-gold);color:var(--poster-navy);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+
+/* ---------- hero ---------- */
+.pv-hero{position:relative;overflow:hidden;padding:22px 18px 26px;background:var(--poster-navy);}
+.pv-brush{position:absolute;background:var(--poster-blue);opacity:.16;transform:rotate(-24deg);border-radius:40px;pointer-events:none;}
+.pv-eyebrow{position:relative;display:inline-block;font-size:11px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:var(--poster-navy);background:var(--poster-gold);padding:5px 10px;}
+.pv-h1{position:relative;font-size:72px;font-weight:900;line-height:.8;letter-spacing:-.01em;text-transform:uppercase;margin:16px 0 0;text-shadow:3px 4px 0 rgba(12,54,121,.85);}
+.pv-script{display:block;font-family:"Brush Script MT","Segoe Script",cursive;font-weight:700;font-size:58px;text-transform:none;letter-spacing:0;color:var(--poster-gold);line-height:.95;margin-top:2px;text-shadow:none;}
+.pv-lede{position:relative;font-size:15px;font-weight:500;color:var(--poster-muted-dark);max-width:32ch;margin:14px 0 0;line-height:1.4;}
+.pv-art{position:relative;margin-top:18px;height:210px;}
+.pv-ring{position:absolute;left:0;bottom:0;width:150px;height:150px;border-radius:50%;background:var(--poster-blue-deep) center/cover no-repeat;box-shadow:0 0 0 4px var(--poster-white),0 0 0 9px var(--poster-blue);}
+.pv-plate{position:absolute;right:0;top:0;width:216px;height:180px;border:3px solid var(--poster-blue);background:var(--poster-blue-panel) center/cover no-repeat;border-radius:5px;box-shadow:var(--shadow-dark-offset);}
+.pv-sticker{position:absolute;right:6px;bottom:-6px;background:var(--poster-gold);color:var(--poster-navy);padding:6px 14px 8px;border-radius:4px;box-shadow:var(--shadow-blue-offset);transform:rotate(-4deg);}
+.pv-sticker b{display:block;font-size:40px;font-weight:900;line-height:.85;}
+.pv-sticker span{display:block;font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;}
+.pv-actions{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:26px;}
+.pv-proof{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:20px;padding-top:14px;border-top:2px solid var(--poster-blue-deep);}
+.pv-proof-k{font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-blue);}
+.pv-proof-v{font-size:14px;font-weight:700;color:#fff;margin-top:3px;line-height:1.15;}
+
+/* ---------- buttons ---------- */
+.pv-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:5px;border:2px solid transparent;font-family:inherit;font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:transform 140ms var(--ease-poster),box-shadow 140ms var(--ease-poster),background 140ms var(--ease-poster);}
+.pv-btn:active{transform:translate(2px,2px);}
+.pv-btn-primary{background:var(--poster-gold);color:var(--poster-navy);box-shadow:var(--shadow-blue-offset);}
+.pv-btn-primary:hover{background:var(--poster-gold-soft);}
+.pv-btn-primary:active{box-shadow:2px 2px 0 #0C55B0;}
+.pv-btn-dark{background:var(--poster-navy);color:var(--poster-gold);border-color:var(--poster-blue);}
+.pv-btn-outline{background:transparent;color:#fff;border-color:var(--poster-blue);}
+.pv-btn-outline.on-light{color:var(--poster-navy);}
+.pv-btn-block{width:100%;}
+.pv-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+.pv-textlink{background:none;border:none;padding:0;font-family:inherit;font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+
+/* ---------- light sections ---------- */
+.pv-light{background:var(--poster-paper);color:var(--poster-navy);padding:26px 18px;}
+.pv-num{font-size:10px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:var(--poster-blue);}
+.pv-h2{font-size:56px;font-weight:900;line-height:.82;text-transform:uppercase;margin:8px 0 0;letter-spacing:-.01em;}
+.pv-h2.on-dark{color:#fff;}
+.pv-sub{font-size:14px;font-weight:500;color:var(--poster-muted);margin:10px 0 0;max-width:42ch;line-height:1.45;}
+.pv-sub.on-dark{color:var(--poster-muted-dark);}
+
+/* collection card */
+.pv-coll{margin-top:18px;background:var(--poster-blue-panel);border:2px solid var(--poster-blue);border-radius:6px;box-shadow:var(--shadow-gold-offset);padding:18px;color:#fff;}
+.pv-coll-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(22,140,255,.35);}
+.pv-coll-row:last-of-type{border-bottom:none;}
+.pv-coll-k{font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-blue);width:88px;flex:none;padding-top:2px;}
+.pv-coll-v{font-size:15px;font-weight:700;line-height:1.25;}
+.pv-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+.pv-slot{min-height:44px;border-radius:4px;border:2px solid rgba(22,140,255,.55);background:transparent;color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:background 140ms var(--ease-poster);}
+.pv-slot.is-on{background:var(--poster-blue);border-color:var(--poster-blue);box-shadow:3px 3px 0 var(--poster-gold);}
+.pv-slot:disabled{color:var(--poster-muted-dark);border-color:rgba(174,184,201,.3);text-decoration:line-through;cursor:not-allowed;}
+/* light-surface variant — the drawer is paper-white, so the navy-card slot styling would vanish */
+.pv-drawer .pv-slot{color:var(--poster-navy);border-color:var(--poster-border);background:#fff;}
+.pv-drawer .pv-slot.is-on{background:var(--poster-blue);border-color:var(--poster-blue);color:#fff;}
+.pv-drawer .pv-slot:disabled{color:var(--poster-muted);border-color:var(--poster-border);background:transparent;}
+
+/* filters */
+.pv-filters{display:flex;gap:8px;overflow-x:auto;margin-top:16px;padding-bottom:4px;scrollbar-width:none;}
+.pv-filters::-webkit-scrollbar{display:none;}
+.pv-filter{flex:none;min-height:38px;padding:0 14px;border-radius:4px;border:2px solid var(--poster-border);background:#fff;color:var(--poster-navy);font-family:inherit;font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap;}
+.pv-filter.is-on{background:var(--poster-blue);border-color:var(--poster-blue);color:#fff;box-shadow:3px 3px 0 var(--poster-gold);}
+
+/* menu cards */
+.pv-cards{display:flex;flex-direction:column;gap:12px;margin-top:16px;}
+.pv-card{display:grid;grid-template-columns:40% 1fr;gap:12px;background:#fff;border:2px solid var(--poster-border);border-radius:5px;overflow:hidden;transition:border-color 180ms var(--ease-poster);}
+.pv-card.is-featured{border-color:var(--poster-blue);box-shadow:var(--shadow-gold-offset);}
+.pv-card.is-out{opacity:.6;}
+.pv-card-img{position:relative;min-height:126px;background:var(--poster-blue-panel) center/cover no-repeat;}
+/* §8.7 requires an image on every card; until real photography lands, no-photo
+   cards take a plate outline in the ring vocabulary of §3.3 rather than a bare panel. */
+.pv-card-img.is-placeholder{background:var(--poster-blue-panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='%23168CFF' stroke-width='2.5'%3E%3Ccircle cx='32' cy='32' r='25'/%3E%3Ccircle cx='32' cy='32' r='15' stroke-width='2'/%3E%3Cpath d='M23 29q9-7 18 0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/54px no-repeat;}
+.pv-tag{position:absolute;top:6px;left:6px;background:var(--poster-gold);color:var(--poster-navy);font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding:3px 7px;border-radius:3px;}
+.pv-card-body{padding:12px 12px 12px 0;display:flex;flex-direction:column;}
+.pv-card-cat{font-size:9.5px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--poster-blue);}
+.pv-card-name{font-size:22px;font-weight:900;line-height:.95;text-transform:uppercase;margin:5px 0 0;}
+.pv-card.is-out .pv-card-name{text-decoration:line-through;}
+.pv-card-desc{font-size:13px;font-weight:500;color:var(--poster-muted);margin:6px 0 0;line-height:1.35;}
+.pv-card-foot{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:10px;}
+.pv-card-price{font-size:26px;font-weight:900;line-height:1;color:var(--poster-navy);}
+.pv-add{margin-left:auto;min-height:38px;min-width:44px;padding:0 12px;border-radius:4px;border:none;background:var(--poster-navy);color:var(--poster-gold);font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;}
+.pv-out-tag{margin-left:auto;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-error);}
+.pv-qty{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.pv-qty button{width:38px;height:38px;border-radius:4px;border:2px solid var(--poster-navy);background:#fff;color:var(--poster-navy);font-family:inherit;font-size:18px;font-weight:900;cursor:pointer;}
+.pv-qty button.plus{background:var(--poster-navy);color:var(--poster-gold);}
+.pv-qty span{font-size:18px;font-weight:900;min-width:18px;text-align:center;}
+
+/* promise */
+.pv-promise{background:var(--poster-navy);padding:30px 18px;position:relative;overflow:hidden;}
+.pv-promise-art{width:170px;height:170px;border-radius:50%;margin:18px auto 0;background:var(--poster-blue-deep) center/cover no-repeat;box-shadow:0 0 0 5px var(--poster-white),0 0 0 12px var(--poster-blue),0 0 0 22px rgba(22,140,255,.22);}
+.pv-promise-list{margin:22px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0;}
+.pv-promise-list li{display:flex;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid rgba(22,140,255,.3);font-size:15px;font-weight:600;}
+.pv-promise-list li:last-child{border-bottom:none;}
+.pv-promise-list b{color:var(--poster-gold);font-size:13px;font-weight:900;letter-spacing:.1em;}
+
+/* steps */
+.pv-steps{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+.pv-step{background:#fff;border:2px solid var(--poster-border);border-left:6px solid var(--poster-blue);border-radius:5px;padding:14px 16px;}
+.pv-step-n{font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--poster-blue);}
+.pv-step-t{font-size:24px;font-weight:900;text-transform:uppercase;line-height:1;margin:6px 0 0;}
+.pv-step-d{font-size:13px;font-weight:500;color:var(--poster-muted);margin:6px 0 0;line-height:1.35;}
+.pv-notice{margin-top:14px;background:var(--poster-navy);color:#fff;border-radius:5px;padding:14px 16px;font-size:13px;font-weight:600;line-height:1.4;}
+.pv-notice b{color:var(--poster-gold);}
+
+/* final CTA + footer */
+.pv-cta{background:var(--poster-blue-deep);padding:34px 18px;text-align:left;}
+.pv-footer{background:var(--poster-black);padding:26px 18px 30px;color:var(--poster-muted-dark);}
+.pv-footer-brand{display:flex;align-items:center;gap:10px;}
+.pv-footer p{font-size:13px;font-weight:500;line-height:1.45;margin:12px 0 0;max-width:38ch;}
+.pv-footer-tel{display:block;font-size:28px;font-weight:900;color:var(--poster-gold);margin-top:14px;letter-spacing:.02em;}
+.pv-footer-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(22,140,255,.3);}
+.pv-footer-links button{background:none;border:none;padding:0;font-family:inherit;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#fff;cursor:pointer;}
+
+/* ---------- bottom nav (4 items) ---------- */
+.pv-nav{position:absolute;left:0;right:0;bottom:0;z-index:60;height:72px;display:grid;grid-template-columns:repeat(4,1fr);background:var(--poster-black);border-top:2px solid var(--poster-blue);}
+.pv-nav button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:44px;border:none;background:none;color:var(--poster-muted-dark);font-family:inherit;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
+.pv-nav button.is-on{color:var(--poster-gold);}
+.pv-nav button.is-on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;background:var(--poster-gold);}
+.pv-nav svg{width:22px;height:22px;}
+.pv-nav-badge{position:absolute;top:9px;left:calc(50% + 8px);min-width:18px;height:18px;padding:0 4px;border-radius:3px;background:var(--poster-gold);color:var(--poster-navy);font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+
+/* ---------- overlays ---------- */
+.pv-backdrop{position:absolute;inset:0;z-index:100;background:rgba(5,10,21,.6);animation:pvFade 180ms ease;}
+@keyframes pvFade{from{opacity:0}to{opacity:1}}
+.pv-drawer{position:absolute;top:0;right:0;bottom:0;z-index:110;width:88%;background:var(--poster-paper);color:var(--poster-navy);box-shadow:var(--shadow-drawer);display:flex;flex-direction:column;animation:pvSlide 320ms var(--ease-poster);}
+@keyframes pvSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.pv-drawer-head{flex:none;background:var(--poster-navy);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:10px;}
+.pv-drawer-head h2{font-size:26px;font-weight:900;text-transform:uppercase;margin:0;line-height:1;}
+.pv-x{margin-left:auto;width:36px;height:36px;border-radius:4px;border:2px solid var(--poster-blue);background:none;color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;}
+.pv-drawer-body{flex:1;overflow-y:auto;padding:16px 18px;}
+.pv-drawer-foot{flex:none;border-top:2px solid var(--poster-border);background:#fff;padding:14px 18px 18px;}
+.pv-bline{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--poster-border);}
+.pv-bline-name{font-size:18px;font-weight:900;text-transform:uppercase;line-height:1;}
+.pv-bline-meta{font-size:12px;font-weight:600;color:var(--poster-muted);margin-top:4px;}
+.pv-bline-right{margin-left:auto;text-align:right;}
+.pv-bline-total{font-size:17px;font-weight:900;}
+.pv-empty{text-align:center;padding:40px 0;}
+.pv-empty h3{font-size:32px;font-weight:900;text-transform:uppercase;margin:0 0 8px;line-height:.9;}
+.pv-empty p{font-size:14px;font-weight:500;color:var(--poster-muted);margin:0 0 20px;}
+.pv-totrow{display:flex;align-items:baseline;margin-top:14px;padding-top:12px;border-top:2px solid var(--poster-navy);}
+.pv-totrow span{font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--poster-muted);}
+.pv-totrow b{margin-left:auto;font-size:34px;font-weight:900;line-height:1;}
+.pv-hold{font-size:12px;font-weight:600;color:var(--poster-muted);margin:10px 0 0;line-height:1.4;}
+
+.pv-modal{position:absolute;left:18px;right:18px;top:96px;z-index:110;background:#fff;color:var(--poster-navy);border:3px solid var(--poster-blue);border-radius:6px;box-shadow:var(--shadow-gold-offset);padding:20px;animation:pvRise 300ms var(--ease-poster);}
+@keyframes pvRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.pv-modal h2{font-size:34px;font-weight:900;text-transform:uppercase;margin:12px 0 0;line-height:.9;}
+.pv-icon-block{width:46px;height:46px;border-radius:5px;background:var(--poster-navy);color:var(--poster-gold);display:flex;align-items:center;justify-content:center;}
+.pv-label{display:block;font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--poster-muted);margin:18px 0 6px;}
+.pv-input{width:100%;box-sizing:border-box;min-height:46px;padding:0 12px;border-radius:4px;border:2px solid var(--poster-border);background:#fff;color:var(--poster-navy);font-family:inherit;font-size:16px;font-weight:600;}
+.pv-input:focus{outline:2px solid var(--poster-blue);outline-offset:1px;}
+.pv-placeholder-note{font-size:12px;font-weight:600;color:var(--poster-muted);margin:14px 0 0;padding-top:12px;border-top:1px solid var(--poster-border);line-height:1.4;}
+
+/* checkout screen */
+.pv-co-note{background:var(--poster-blue-panel);border:2px solid var(--poster-blue);border-radius:5px;padding:14px 16px;font-size:13px;font-weight:600;color:#fff;line-height:1.4;margin-top:16px;}
+.pv-pay{display:flex;gap:12px;align-items:flex-start;padding:14px;border:2px solid var(--poster-border);border-radius:5px;background:#fff;cursor:pointer;margin-top:10px;}
+.pv-pay.is-on{border-color:var(--poster-blue);box-shadow:3px 3px 0 var(--poster-gold);}
+.pv-pay-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--poster-navy);flex:none;margin-top:2px;display:flex;align-items:center;justify-content:center;}
+.pv-pay.is-on .pv-pay-dot{border-color:var(--poster-blue);}
+.pv-pay.is-on .pv-pay-dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--poster-blue);}
+.pv-pay-t{display:block;font-size:19px;font-weight:900;text-transform:uppercase;line-height:1;}
+.pv-pay-d{display:block;font-size:13px;font-weight:500;color:var(--poster-muted);margin-top:5px;line-height:1.35;}
+
+/* §13: focus stays visible in gold or electric blue — never the UA default,
+   which is a 1px near-black ring and vanishes on the navy surfaces. */
+.pv :focus-visible{outline:2px solid var(--poster-gold);outline-offset:2px;}
+.pv-light :focus-visible,.pv-drawer :focus-visible,.pv-modal :focus-visible{outline-color:var(--poster-blue);}
+.pv-coll :focus-visible{outline-color:var(--poster-gold);}
+
+@media (prefers-reduced-motion:reduce){
+  .pv-drawer,.pv-modal,.pv-backdrop{animation:none;}
+  .pv-btn{transition:none;}
+}
+</style>
+</helmet>
+
+<div class="pv-stage pv">
+  <div class="pv-cap">Roti Connect &mdash; poster variant &middot; mobile flow</div>
+
+  <div class="pv-phone">
+    <div class="pv-screen">
+
+      <div class="pv-status">
+        <span>9:41</span>
+        <span style="display:flex;gap:5px;align-items:center">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect y="7" width="3" height="4" rx="1"></rect><rect x="4.5" y="5" width="3" height="6" rx="1"></rect><rect x="9" y="2.5" width="3" height="8.5" rx="1"></rect><rect x="13.5" width="3" height="11" rx="1"></rect></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none" stroke="currentColor" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3"></rect><rect x="2" y="2" width="16" height="8" rx="1.5" fill="currentColor" stroke="none"></rect><path d="M23 4v4" stroke-width="2" stroke-linecap="round"></path></svg>
+        </span>
+      </div>
+
+      <div class="pv-scroll" ref="{{ scrollRef }}">
+        <div class="pv-pad">
+
+          <div class="pv-strip">
+            <span>Friday 04/09</span><span class="sep">&bull;</span>
+            <span>Order by 03/09</span>
+            <a class="tel" href="tel:+27826023031">082&nbsp;602&nbsp;3031</a>
+          </div>
+
+          <header class="pv-header">
+            <div class="pv-avatar" style="{{ ownerBg }}" role="img" aria-label="Roti Connect owner illustration"></div>
+            <div class="pv-word">Roti<span> Connect</span></div>
+            <button type="button" class="pv-hbtn" onClick="{{ openBasket }}" aria-label="Basket">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
+              <sc-if value="{{ hasItems }}"><span class="pv-count">{{ count }}</span></sc-if>
+            </button>
+          </header>
+
+          <sc-if value="{{ isShop }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <section class="pv-hero">
+              <div class="pv-brush" style="width:300px;height:70px;top:44px;left:-90px"></div>
+              <div class="pv-brush" style="width:240px;height:44px;top:150px;left:40px"></div>
+              <span class="pv-eyebrow">Friday kitchen drop</span>
+              <h1 class="pv-h1">Mince Curry<span class="pv-script">roti.</span></h1>
+              <p class="pv-lede">R45 &mdash; a pocket of proper comfort. Mince curry, folded hot into a fresh roti, cooked in small batches in Windsor Park.</p>
+
+              <div class="pv-art">
+                <div class="pv-plate" style="{{ heroBg }}" role="img" aria-label="Mince curry roti"></div>
+                <div class="pv-ring" style="{{ ownerBg }}" role="img" aria-label="Roti Connect owner illustration"></div>
+                <div class="pv-sticker"><b>R45</b><span>Per roti</span></div>
+              </div>
+
+              <div class="pv-actions">
+                <button type="button" class="pv-btn pv-btn-primary pv-btn-block" onClick="{{ toMenu }}">Order the special</button>
+                <button type="button" class="pv-btn pv-btn-outline pv-btn-block" onClick="{{ toCollection }}">Collection details</button>
+              </div>
+
+              <div class="pv-proof">
+                <div><div class="pv-proof-k">Date</div><div class="pv-proof-v">Fri 04/09</div></div>
+                <div><div class="pv-proof-k">From</div><div class="pv-proof-v">11:00</div></div>
+                <div><div class="pv-proof-k">Collect</div><div class="pv-proof-v">Windsor Park</div></div>
+              </div>
+            </section>
+
+            <section class="pv-light" ref="{{ collRef }}">
+              <div class="pv-num">01 &mdash; Collection</div>
+              <h2 class="pv-h2">Lunch or dinner. Same big flavour.</h2>
+              <p class="pv-sub">Collection only, from Windsor Park in Kraaifontein. Pick a window when you order &mdash; we hold it for 30 minutes.</p>
+
+              <div class="pv-coll">
+                <div class="pv-coll-row"><div class="pv-coll-k">Available</div><div class="pv-coll-v">Friday 04/09, from 11:00</div></div>
+                <div class="pv-coll-row"><div class="pv-coll-k">Where</div><div class="pv-coll-v">Windsor Park, Kraaifontein</div></div>
+                <div class="pv-coll-row"><div class="pv-coll-k">Method</div><div class="pv-coll-v">Direct collection &middot; Uber Courier on request</div></div>
+                <div style="margin-top:14px">
+                  <div class="pv-coll-k" style="width:auto">Pick your window</div>
+                  <div class="pv-slots">
+                    <sc-for list="{{ slots }}" as="s" hint-placeholder-count="6">
+                      <button type="button" class="{{ s.cls }}" onClick="{{ s.pick }}" disabled="{{ s.full }}" aria-pressed="{{ s.on }}">{{ s.label }}</button>
+                    </sc-for>
+                  </div>
+                  <p style="font-size:12px;font-weight:600;color:#AEB8C9;margin:12px 0 0">{{ slotNote }}</p>
+                </div>
+              </div>
+
+              <button type="button" class="pv-textlink" style="margin-top:16px" onClick="{{ toMenu }}">See the full menu &rarr;</button>
+            </section>
+
+            <section class="pv-light" ref="{{ menuRef }}" style="padding-top:8px">
+              <div class="pv-num">02 &mdash; Menu</div>
+              <h2 class="pv-h2">Order the good stuff.</h2>
+              <p class="pv-sub">Cooked in limited batches every Friday. When it's gone, it's gone.</p>
+
+              <div class="pv-filters" role="tablist" aria-label="Menu categories">
+                <sc-for list="{{ cats }}" as="c" hint-placeholder-count="5">
+                  <button type="button" class="{{ c.cls }}" onClick="{{ c.pick }}" aria-selected="{{ c.on }}" role="tab">{{ c.label }}</button>
+                </sc-for>
+              </div>
+
+              <div class="pv-cards">
+                <sc-for list="{{ dishes }}" as="d" hint-placeholder-count="5">
+                  <article class="{{ d.cardCls }}">
+                    <div class="{{ d.imgCls }}" style="{{ d.imgStyle }}">
+                      <sc-if value="{{ d.hasTag }}"><span class="pv-tag">{{ d.tag }}</span></sc-if>
+                    </div>
+                    <div class="pv-card-body">
+                      <div class="pv-card-cat">{{ d.cat }}</div>
+                      <h3 class="pv-card-name">{{ d.name }}</h3>
+                      <p class="pv-card-desc">{{ d.desc }}</p>
+                      <div class="pv-card-foot">
+                        <span class="pv-card-price">{{ d.priceStr }}</span>
+                        <sc-if value="{{ d.soldOut }}"><span class="pv-out-tag">Sold out</span></sc-if>
+                        <sc-if value="{{ d.showAdd }}" hint-placeholder-val="{{ true }}">
+                          <button type="button" class="pv-add" onClick="{{ d.inc }}" aria-label="Add">+</button>
+                        </sc-if>
+                        <sc-if value="{{ d.showQty }}">
+                          <div class="pv-qty">
+                            <button type="button" onClick="{{ d.dec }}" aria-label="One fewer">&minus;</button>
+                            <span>{{ d.qty }}</span>
+                            <button type="button" class="plus" onClick="{{ d.inc }}" aria-label="One more">+</button>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </article>
+                </sc-for>
+              </div>
+            </section>
+
+            <section class="pv-promise">
+              <div class="pv-num">03 &mdash; The kitchen</div>
+              <h2 class="pv-h2 on-dark">Experience the taste.</h2>
+              <div class="pv-promise-art" style="{{ ownerBg }}" role="img" aria-label="Roti Connect owner illustration"></div>
+              <ul class="pv-promise-list">
+                <li><b>01</b> Small batches, cooked the morning of collection.</li>
+                <li><b>02</b> Generous portions at a fair price. No shortcuts.</li>
+                <li><b>03</b> A family recipe, cooked the way it was taught.</li>
+              </ul>
+            </section>
+
+            <section class="pv-light">
+              <div class="pv-num">04 &mdash; How it works</div>
+              <h2 class="pv-h2">From click to curry.</h2>
+              <div class="pv-steps">
+                <div class="pv-step"><div class="pv-step-n">Step one</div><div class="pv-step-t">Pick your food</div><div class="pv-step-d">Choose your dishes and a collection window before the 03/09 deadline.</div></div>
+                <div class="pv-step"><div class="pv-step-n">Step two</div><div class="pv-step-t">Confirm and pay</div><div class="pv-step-d">Pay by EFT and send your proof, or arrange cash on collection.</div></div>
+                <div class="pv-step"><div class="pv-step-n">Step three</div><div class="pv-step-t">Collect happy</div><div class="pv-step-d">Text when you arrive in Windsor Park and we bring it out to you.</div></div>
+              </div>
+              <p class="pv-notice">EFT orders hold your slot for <b>30 minutes</b>. Cash on collection is same-day only and capped each day.</p>
+            </section>
+
+            <section class="pv-cta">
+              <h2 class="pv-h2 on-dark">Bring the appetite. We'll bring the roti.</h2>
+              <p class="pv-sub on-dark">Orders for Friday 04/09 close on 03/09.</p>
+              <button type="button" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:20px" onClick="{{ toMenu }}">Start my order</button>
+            </section>
+
+            <footer class="pv-footer">
+              <div class="pv-footer-brand">
+                <div class="pv-avatar" style="{{ ownerBg }}" role="img" aria-label="Roti Connect owner illustration"></div>
+                <div class="pv-word" style="color:#fff">Roti<span> Connect</span></div>
+              </div>
+              <p>Home kitchen in Windsor Park, Kraaifontein. Collection only, cooked to order every Friday.</p>
+              <a class="pv-footer-tel" href="tel:+27826023031">082 602 3031</a>
+              <div class="pv-footer-links">
+                <button type="button" onClick="{{ toMenu }}">Menu</button>
+                <button type="button" onClick="{{ toCollection }}">Collection</button>
+                <button type="button" onClick="{{ openLookup }}">Find my order</button>
+                <button type="button" onClick="{{ noop }}">WhatsApp</button>
+              </div>
+            </footer>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isCheckout }}">
+          <section class="pv-light" style="min-height:640px">
+            <div class="pv-num">Checkout &mdash; step 2 of 2</div>
+            <h2 class="pv-h2">Confirm and pay.</h2>
+            <p class="pv-sub">Collecting {{ slotLabel }} on Friday 04/09, Windsor Park.</p>
+
+            <div style="margin-top:20px">
+              <div class="pv-num" style="color:#56647A">Your order</div>
+              <sc-for list="{{ lines }}" as="l" hint-placeholder-count="2">
+                <div class="pv-bline">
+                  <div>
+                    <div class="pv-bline-name">{{ l.name }}</div>
+                    <div class="pv-bline-meta">{{ l.qty }} &times; {{ l.priceStr }}</div>
+                  </div>
+                  <div class="pv-bline-right"><div class="pv-bline-total">{{ l.totalStr }}</div></div>
+                </div>
+              </sc-for>
+              <div class="pv-totrow"><span>Total</span><b>{{ totalStr }}</b></div>
+            </div>
+
+            <div style="margin-top:24px">
+              <div class="pv-num" style="color:#56647A">How you'll pay</div>
+              <div class="{{ eftCls }}" onClick="{{ pickEft }}" role="radio" aria-checked="{{ payEft }}" tabindex="0">
+                <span class="pv-pay-dot"></span>
+                <span><span class="pv-pay-t">EFT before cooking</span><span class="pv-pay-d">Bank details land on your order page. Your slot is held for 30 minutes while you send proof of payment.</span></span>
+              </div>
+              <div class="{{ cashCls }}" onClick="{{ pickCash }}" role="radio" aria-checked="{{ payCash }}" tabindex="0">
+                <span class="pv-pay-dot"></span>
+                <span><span class="pv-pay-t">Cash on collection</span><span class="pv-pay-d">Same-day only and capped &mdash; 3 cash orders still open for Friday.</span></span>
+              </div>
+            </div>
+
+            <div style="margin-top:24px">
+              <label class="pv-label" for="pv-name">Name</label>
+              <input class="pv-input" id="pv-name" placeholder="Who's collecting?" value="{{ name }}" onChange="{{ setName }}">
+              <label class="pv-label" for="pv-phone">Mobile number</label>
+              <input class="pv-input" id="pv-phone" placeholder="082 000 0000" value="{{ phone }}" onChange="{{ setPhone }}">
+            </div>
+
+            <p class="pv-co-note">Checkout is not connected in this prototype. Placing the order here will not reserve a slot, take payment, or create a real order number.</p>
+
+            <button type="button" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:18px" onClick="{{ noop }}" disabled="{{ cannotPlace }}">Place the order</button>
+            <button type="button" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px" onClick="{{ backToShop }}">&larr; Back to the menu</button>
+          </section>
+          </sc-if>
+
+        </div>
+      </div>
+
+      <nav class="pv-nav" aria-label="Primary">
+        <button type="button" class="{{ navHome }}" onClick="{{ toTop }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
+          <span>Home</span>
+        </button>
+        <button type="button" class="{{ navMenu }}" onClick="{{ toMenu }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
+          <span>Menu</span>
+        </button>
+        <button type="button" class="{{ navBasket }}" onClick="{{ openBasket }}" aria-label="Basket">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
+          <sc-if value="{{ hasItems }}"><span class="pv-nav-badge">{{ count }}</span></sc-if>
+          <span>Basket</span>
+        </button>
+        <button type="button" class="{{ navOrders }}" onClick="{{ openLookup }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+          <span>Orders</span>
+        </button>
+      </nav>
+
+      <sc-if value="{{ basketOpen }}">
+      <div>
+        <div class="pv-backdrop" onClick="{{ closeAll }}"></div>
+        <aside class="pv-drawer" role="dialog" aria-label="Your basket">
+          <div class="pv-drawer-head">
+            <h2>Your basket</h2>
+            <button type="button" class="pv-x" onClick="{{ closeAll }}" aria-label="Close basket">&#10005;</button>
+          </div>
+          <div class="pv-drawer-body">
+            <sc-if value="{{ isEmpty }}">
+              <div class="pv-empty">
+                <h3>Your basket is empty</h3>
+                <p>Nothing in here yet. Have a look at Friday's menu.</p>
+                <button type="button" class="pv-btn pv-btn-primary" onClick="{{ toMenuFromDrawer }}">Browse the menu</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ hasItems }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <sc-for list="{{ lines }}" as="l" hint-placeholder-count="2">
+                  <div class="pv-bline">
+                    <div>
+                      <div class="pv-bline-name">{{ l.name }}</div>
+                      <div class="pv-bline-meta">{{ l.priceStr }} each</div>
+                      <div class="pv-qty" style="margin:8px 0 0">
+                        <button type="button" onClick="{{ l.dec }}" aria-label="One fewer">&minus;</button>
+                        <span>{{ l.qty }}</span>
+                        <button type="button" class="plus" onClick="{{ l.inc }}" aria-label="One more">+</button>
+                      </div>
+                    </div>
+                    <div class="pv-bline-right"><div class="pv-bline-total">{{ l.totalStr }}</div></div>
+                  </div>
+                </sc-for>
+
+                <div style="margin-top:18px">
+                  <div class="pv-num" style="color:#56647A">Collection</div>
+                  <div class="pv-bline" style="border-bottom:none">
+                    <div>
+                      <div class="pv-bline-name">Friday 04/09</div>
+                      <div class="pv-bline-meta">Windsor Park, Kraaifontein</div>
+                    </div>
+                    <div class="pv-bline-right"><div class="pv-bline-total">{{ slotLabel }}</div></div>
+                  </div>
+                  <div class="pv-slots">
+                    <sc-for list="{{ drawerSlots }}" as="s" hint-placeholder-count="6">
+                      <button type="button" class="{{ s.cls }}" onClick="{{ s.pick }}" disabled="{{ s.full }}" aria-pressed="{{ s.on }}">{{ s.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ hasItems }}">
+          <div class="pv-drawer-foot">
+            <div class="pv-totrow" style="margin-top:0"><span>Total</span><b>{{ totalStr }}</b></div>
+            <p class="pv-hold">{{ holdNote }}</p>
+            <button type="button" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:12px" onClick="{{ goCheckout }}" disabled="{{ noSlot }}">Checkout</button>
+          </div>
+          </sc-if>
+        </aside>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ lookupOpen }}">
+      <div>
+        <div class="pv-backdrop" onClick="{{ closeAll }}"></div>
+        <div class="pv-modal" role="dialog" aria-label="Find my order">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <div class="pv-icon-block">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>
+            </div>
+            <button type="button" class="pv-x" style="border-color:#D3DDEA;color:#071124" onClick="{{ closeAll }}" aria-label="Close">&#10005;</button>
+          </div>
+          <h2>Find my order</h2>
+          <label class="pv-label" for="pv-lookup">Mobile number used to order</label>
+          <input class="pv-input" id="pv-lookup" placeholder="082 000 0000" value="{{ lookupPhone }}" onChange="{{ setLookup }}">
+          <button type="button" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:14px" onClick="{{ noop }}">Find order</button>
+          <p class="pv-placeholder-note">Order lookup is not connected in this prototype, so no order will be returned. The screen is here to show the state, not to search live data.</p>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div class="pv-cap" style="max-width:640px;letter-spacing:0;text-transform:none;font-size:13.5px;font-weight:500;line-height:1.5;color:#8d99ad">Poster tokens, Barlow Condensed, hard offset shadows and the four-item navy tab bar follow the style guide. Checkout and order lookup are deliberately left as visible placeholders &mdash; no fake order numbers or reserved slots.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:1010}}">
+// §14.5: never render the full flyer — its baked-in text duplicates live HTML.
+// Both are food-only / portrait-only crops of the supplied poster art.
+const OWNER = "assets/poster/owner-portrait.jpg";
+const ADVERT = "assets/poster/food-crop.jpg";
+const HERO = "src/static/img/hero-dish.jpg";
+
+const CATS = [
+  { id: "all", label: "Everything" },
+  { id: "specials", label: "Roti specials" },
+  { id: "rolls", label: "Roti rolls" },
+  { id: "pots", label: "Curry pots" },
+  { id: "plates", label: "Big plates" },
+];
+
+const DISHES = [
+  { id: "mince", cat: "specials", catLabel: "Roti special", name: "Mince Curry Roti", desc: "Mince curry folded hot into a fresh roti. This week's drop.", price: 4500, tag: "Friday special", photo: ADVERT, featured: true },
+  { id: "crr", cat: "rolls", catLabel: "Roti roll", name: "Chicken Masala Roti Roll", desc: "Chips, masala chicken and roti, rolled tight.", price: 6500 },
+  { id: "srr", cat: "rolls", catLabel: "Roti roll", name: "Steak Masala Roti Roll", desc: "Chips, masala steak and roti, rolled tight.", price: 7000, soldOut: true },
+  { id: "cc", cat: "pots", catLabel: "Curry pot", name: "Chicken Curry & Roti", desc: "Slow-simmered chicken curry, mopped up with a soft roti.", price: 8500 },
+  { id: "sc", cat: "pots", catLabel: "Curry pot", name: "Steak Curry & Roti", desc: "Beef steak curry, rich and slow-cooked, served with roti.", price: 9500, photo: HERO },
+  { id: "cg", cat: "plates", catLabel: "Big plate", name: "Chicken Masala Gatsby", desc: "The Cape classic — masala chicken, chips and all the trimmings.", price: 9500 },
+  { id: "sg", cat: "plates", catLabel: "Big plate", name: "Steak Masala Gatsby", desc: "Masala steak, chips and all the trimmings in a full loaf.", price: 10000 },
+  { id: "fh", cat: "plates", catLabel: "Big plate", name: "Full House Masala Steak Gatsby", desc: "Masala steak loaded with egg and cheese. No shortcuts.", price: 13000, tag: "Feeds four" },
+  { id: "bl", cat: "plates", catLabel: "Big plate", name: "Beef Lasagne", desc: "Layered beef lasagne, baked to order.", price: 9000 },
+];
+
+const SLOTS = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
+const FULL = ["12:00"];
+
+class Component extends DCLogic {
+  state = { screen: "shop", cat: "all", cart: {}, slot: null, drawer: false, lookup: false, pay: "eft", name: "", phone: "", lookupPhone: "" };
+
+  scrollEl = null; menuEl = null; collEl = null;
+
+  rands(c) { return "R" + (c / 100).toFixed(0); }
+  rands2(c) { return "R" + (c / 100).toFixed(2); }
+
+  scrollTo(el) {
+    if (!this.scrollEl || !el) return;
+    this.scrollEl.scrollTo({ top: Math.max(0, el.offsetTop - 4), behavior: "smooth" });
+  }
+
+  jump(which) {
+    if (this.state.screen !== "shop") {
+      this.setState({ screen: "shop", drawer: false, lookup: false });
+      setTimeout(() => this.scrollTo(which === "menu" ? this.menuEl : this.collEl), 60);
+      return;
+    }
+    this.setState({ drawer: false, lookup: false });
+    setTimeout(() => this.scrollTo(which === "menu" ? this.menuEl : this.collEl), 20);
+  }
+
+  bump(id, n) {
+    this.setState(s => {
+      const cart = { ...s.cart };
+      cart[id] = (cart[id] || 0) + n;
+      if (cart[id] <= 0) delete cart[id];
+      return { cart };
+    });
+  }
+
+  slotList(sel) {
+    return SLOTS.map(t => {
+      const full = FULL.indexOf(t) > -1;
+      return { label: t, full, on: sel === t,
+        cls: "pv-slot" + (sel === t ? " is-on" : ""),
+        pick: () => { if (!full) this.setState({ slot: t }); } };
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const ids = Object.keys(s.cart);
+    const count = ids.reduce((t, id) => t + s.cart[id], 0);
+    const total = ids.reduce((t, id) => t + DISHES.find(d => d.id === id).price * s.cart[id], 0);
+    const bg = url => ({ backgroundImage: "url(" + url + ")" });
+
+    return {
+      scrollRef: el => { this.scrollEl = el; },
+      menuRef: el => { this.menuEl = el; },
+      collRef: el => { this.collEl = el; },
+
+      ownerBg: bg(OWNER), heroBg: bg(ADVERT),
+
+      isShop: s.screen === "shop", isCheckout: s.screen === "checkout",
+      backToShop: () => this.setState({ screen: "shop" }),
+      goCheckout: () => { this.setState({ screen: "checkout", drawer: false }); setTimeout(() => this.scrollEl && this.scrollEl.scrollTo({ top: 0 }), 20); },
+      toTop: () => { this.setState({ screen: "shop", drawer: false, lookup: false }); setTimeout(() => this.scrollEl && this.scrollEl.scrollTo({ top: 0, behavior: "smooth" }), 20); },
+      toMenu: () => this.jump("menu"),
+      toMenuFromDrawer: () => this.jump("menu"),
+      toCollection: () => this.jump("coll"),
+      noop: () => {},
+
+      navHome: s.screen === "shop" && !s.drawer && !s.lookup ? "is-on" : "",
+      navMenu: "",
+      navBasket: s.drawer ? "is-on" : "",
+      navOrders: s.lookup ? "is-on" : "",
+
+      cats: CATS.map(c => ({ label: c.label, on: s.cat === c.id,
+        cls: "pv-filter" + (s.cat === c.id ? " is-on" : ""),
+        pick: () => this.setState({ cat: c.id }) })),
+
+      dishes: DISHES.filter(d => s.cat === "all" || d.cat === s.cat).map(d => {
+        const qty = s.cart[d.id] || 0;
+        return {
+          name: d.name, desc: d.desc, cat: d.catLabel, priceStr: this.rands(d.price),
+          tag: d.tag || "", hasTag: !!d.tag, soldOut: !!d.soldOut, qty,
+          showAdd: !d.soldOut && qty === 0, showQty: !d.soldOut && qty > 0,
+          cardCls: "pv-card" + (d.featured ? " is-featured" : "") + (d.soldOut ? " is-out" : ""),
+          imgStyle: d.photo ? bg(d.photo) : null,
+          imgCls: "pv-card-img" + (d.photo ? "" : " is-placeholder"),
+          inc: () => this.bump(d.id, 1), dec: () => this.bump(d.id, -1),
+        };
+      }),
+
+      slots: this.slotList(s.slot),
+      drawerSlots: this.slotList(s.slot),
+      slotNote: s.slot ? "Held for 30 minutes once you place the order." : "12:00 is already full for Friday.",
+      slotLabel: s.slot || "Pick a window",
+      noSlot: !s.slot,
+      holdNote: s.slot
+        ? "Collecting at " + s.slot + " on Friday 04/09. Slots are only reserved once the kitchen confirms."
+        : "Pick a collection window above to continue.",
+
+      count, hasItems: count > 0, isEmpty: count === 0,
+      totalStr: this.rands2(total),
+      lines: ids.map(id => {
+        const d = DISHES.find(x => x.id === id);
+        return { name: d.name, qty: s.cart[id], priceStr: this.rands2(d.price),
+          totalStr: this.rands2(d.price * s.cart[id]),
+          inc: () => this.bump(id, 1), dec: () => this.bump(id, -1) };
+      }),
+
+      basketOpen: s.drawer, lookupOpen: s.lookup,
+      openBasket: () => this.setState({ drawer: true, lookup: false }),
+      openLookup: () => this.setState({ lookup: true, drawer: false }),
+      closeAll: () => this.setState({ drawer: false, lookup: false }),
+
+      payEft: s.pay === "eft", payCash: s.pay === "cash",
+      eftCls: "pv-pay" + (s.pay === "eft" ? " is-on" : ""),
+      cashCls: "pv-pay" + (s.pay === "cash" ? " is-on" : ""),
+      pickEft: () => this.setState({ pay: "eft" }),
+      pickCash: () => this.setState({ pay: "cash" }),
+      name: s.name, phone: s.phone, lookupPhone: s.lookupPhone,
+      setName: e => this.setState({ name: e.target.value }),
+      setPhone: e => this.setState({ phone: e.target.value }),
+      setLookup: e => this.setState({ lookupPhone: e.target.value }),
+      cannotPlace: !(count > 0 && s.slot && s.name && s.phone),
+    };
+  }
+
+  componentDidMount() {
+    this.esc = e => { if (e.key === "Escape") this.setState({ drawer: false, lookup: false }); };
+    document.addEventListener("keydown", this.esc);
+  }
+  componentWillUnmount() { document.removeEventListener("keydown", this.esc); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="src/static/css/broadsheet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..800;1,8..60,300..700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#e7e5e2;}
+body{font-family:"Source Serif 4",Georgia,serif;-webkit-font-smoothing:antialiased;}
+a{color:var(--color-accent-2,#9B1B4A);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ---- phone shell ---- */
+.rcm-stage{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:18px;padding:32px 20px 56px;box-sizing:border-box;}
+.rcm-caption{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#6b6764;text-align:center;}
+.rcm-phone{position:relative;width:390px;height:844px;flex:none;border-radius:44px;background:#141312;padding:11px;box-shadow:0 26px 60px rgba(20,19,18,.34);box-sizing:border-box;}
+.rcm-screen{position:relative;width:100%;height:100%;border-radius:34px;overflow:hidden;background:var(--color-bg);display:flex;flex-direction:column;}
+/* repo broadsheet.css scopes the customer surface under body.route-public;
+   this render mounts inside a frame, so the same block is re-scoped here. */
+.rcm-screen.route-public{
+  --color-text: #1A1A1A;
+  --color-muted: #5C5C5C;
+  --color-neutral-600: #5C5C5C;
+  --color-accent-2: #9B1B4A;
+  --color-accent: #0E5C66;
+  --color-bg: #F6F4F1;
+  --color-surface: #FFFDF9;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --radius-btn: 12px;
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--color-text);
+}
+.is-photo-wrap:not(.has-photo) .is-photo{display:none;}
+.rcm-statusbar{flex:none;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--color-text);}
+.rcm-scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative;}
+.rcm-body{padding-bottom:calc(72px + 12px);}
+
+/* ---- base.html header, mobile form ---- */
+.site-header{position:relative;display:flex;align-items:center;justify-content:center;min-height:58px;padding:12px 18px;background:var(--color-bg);border-bottom:1px solid var(--color-divider);}
+.site-header .wordmark{margin:0;font-family:var(--font-heading);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text);text-decoration:none;}
+
+/* ---- base.html mobile tab bar (media gate dropped) ---- */
+.mobile-bottom-nav{position:absolute;z-index:50;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:66px;padding:0 6px 10px;background:color-mix(in srgb,var(--color-bg) 96%,transparent);border-top:1px solid var(--color-divider);box-shadow:0 -8px 28px color-mix(in srgb,var(--color-text) 10%,transparent);backdrop-filter:blur(16px) saturate(1.1);}
+.mobile-bottom-nav a,.mobile-bottom-nav button{position:relative;display:flex;min-width:0;min-height:56px;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;border-radius:var(--radius-btn,12px);color:var(--color-muted,var(--color-neutral-600));font-family:var(--font-ui);font-size:10px;line-height:1;text-decoration:none;padding:0;}
+.mobile-bottom-nav .is-current{color:var(--color-accent-2);background:color-mix(in srgb,var(--color-accent-2) 12%,transparent);}
+.mobile-bottom-nav svg{width:22px;height:22px;flex:none;}
+.mobile-nav-label{overflow:hidden;max-width:100%;text-overflow:ellipsis;white-space:nowrap;}
+.mobile-nav-badge{position:absolute;top:4px;left:calc(50% + 7px);min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--color-accent-2);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
+.sticky-basket-bar{position:absolute;left:12px;right:12px;bottom:78px;z-index:45;display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:var(--radius-btn,12px);background:var(--color-accent-2);color:#fff;font-family:var(--font-ui);font-size:15px;font-weight:600;text-decoration:none;box-shadow:0 8px 22px color-mix(in srgb,var(--color-text) 22%,transparent);}
+.sticky-basket-bar:hover{text-decoration:none;color:#fff;}
+
+/* ---- More sheet ---- */
+#mobile-more-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);animation:moreBackdropIn 160ms ease;}
+#mobile-more-panel{position:absolute;left:0;right:0;bottom:0;background:var(--color-bg);border-radius:16px 16px 0 0;padding:10px 12px 18px;animation:morePanelIn 220ms cubic-bezier(.32,.72,0,1);}
+#mobile-more-panel a{display:flex;align-items:center;gap:12px;padding:15px 12px;font-family:var(--font-ui);font-size:15px;color:var(--color-text);border-bottom:1px solid var(--color-divider);text-decoration:none;}
+#mobile-more-panel a:last-child{border-bottom:none;}
+#mobile-more-panel svg{width:20px;height:20px;flex:none;color:var(--color-muted);}
+@keyframes moreBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes morePanelIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* ---- home.html ---- */
+.rc-home{max-width:640px;margin:0 auto;padding:8px 16px 24px;display:flex;flex-direction:column;}
+.rc-chip{display:inline-flex;align-items:center;min-height:36px;padding:6px 14px;border-radius:var(--radius-pill,999px);background:color-mix(in srgb,var(--color-accent) 12%,transparent);color:var(--color-accent);font-family:var(--font-ui);font-size:13px;font-weight:600;border:0;cursor:pointer;text-align:left;}
+.rc-chip-sheet{margin-top:10px;padding:14px 16px;border-radius:var(--radius-card,16px);background:var(--color-surface);color:var(--color-muted);font-size:14px;line-height:1.45;}
+.rc-cutoff{margin:6px 0 8px;color:var(--color-muted);font-size:14px;}
+.rc-hero{display:block;text-decoration:none;color:inherit;background:var(--color-surface);border-radius:var(--radius-card,16px);overflow:hidden;}
+.rc-hero-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;object-position:center;background:color-mix(in srgb,var(--color-accent) 6%,var(--color-surface));}
+.rc-hero-body{padding:10px 12px 12px;}
+.rc-hero-kicker{font-family:var(--font-ui);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent);margin-bottom:4px;}
+.rc-hero-name{font-family:var(--font-heading);font-size:26px;line-height:1.1;margin:4px 0;}
+.rc-hero-meta{color:var(--color-muted);font-size:14px;margin:0 0 8px;}
+.rc-cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:var(--radius-btn,12px);background:var(--color-accent);color:#fff;font-family:var(--font-ui);font-size:15px;font-weight:600;text-decoration:none;}
+.rc-find{margin:16px 0 28px;font-size:15px;}
+.rc-find a{color:var(--color-accent-2);font-weight:600;}
+.rc-section-title{font-family:var(--font-heading);font-size:22px;margin:0 0 12px;}
+.rc-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.rc-tile{display:flex;flex-direction:column;min-height:44px;text-decoration:none;color:inherit;background:var(--color-surface);border-radius:var(--radius-card,16px);overflow:hidden;cursor:pointer;border:none;padding:0;text-align:left;font:inherit;}
+.rc-tile-photo{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--color-surface);}
+.rc-tile.is-placeholder .rc-tile-photo{min-height:88px;background:color-mix(in srgb,var(--color-accent) 8%,var(--color-surface)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23c8a0b0' stroke-width='1.5'/%3E%3Cpath d='M22 28 Q32 20 42 28' fill='none' stroke='%23c8a0b0' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center/40px no-repeat;}
+.rc-tile-body{padding:10px 12px 14px;}
+.rc-tile-name{font-weight:700;font-size:16px;}
+.rc-tile-from{color:var(--color-muted);font-size:13px;margin-top:2px;}
+.rc-how{margin-top:28px;order:10;}
+.rc-how-steps{display:flex;flex-direction:column;gap:2px;margin:12px 0 0;}
+.rc-how-step{display:flex;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--color-divider);}
+.rc-how-step:last-child{border-bottom:none;}
+.rc-how-num{font-family:var(--font-heading);font-size:22px;font-style:italic;color:var(--color-accent);min-width:28px;flex-shrink:0;line-height:1;}
+.rc-how-text{font-size:15px;color:var(--color-text);line-height:1.4;}
+.rc-how-note{display:flex;align-items:flex-start;gap:10px;margin:14px 0 12px;padding:12px 14px;background:color-mix(in srgb,var(--color-accent) 6%,var(--color-surface));border-radius:var(--radius-md,12px);font-size:13px;color:var(--color-muted);line-height:1.5;}
+.rc-how-note-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.rc-how a{display:inline-flex;align-items:center;gap:4px;color:var(--color-accent-2);font-size:14px;font-weight:600;}
+
+/* ---- order.html ---- */
+.op-wrap{max-width:1240px;margin:0 auto;padding:0 16px;}
+.op-head{display:flex;align-items:baseline;gap:20px;border-bottom:1px solid var(--color-text);padding:22px 0 10px;justify-content:center;}
+.op-head h2{font-size:30px;font-weight:600;line-height:1;margin:0;letter-spacing:-.015em;text-align:center;}
+.op-day-bar{display:flex;gap:6px;overflow-x:auto;padding:14px 0 0;scrollbar-width:none;}
+.op-day-bar::-webkit-scrollbar{display:none;}
+.op-day-chip{flex:none;cursor:pointer;padding:6px 8px;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:transparent;color:var(--color-text);font-family:var(--font-body);font-size:14px;text-align:center;line-height:1.2;min-height:44px;min-width:48px;transition:background 140ms ease,color 140ms ease;}
+.op-chip-top{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;}
+.op-chip-bottom{display:block;font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums;}
+.op-day-chip.is-selected{background:var(--color-accent);color:var(--color-bg);border-color:var(--color-accent);}
+.op-context{font-size:13px;color:var(--color-muted);margin:8px 0 0;}
+.op-filter-bar{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:10px 0 12px;background:var(--color-bg);scrollbar-width:none;}
+.op-filter-bar::-webkit-scrollbar{display:none;}
+.op-filter-chip{flex:none;min-height:44px;padding:8px 12px;border-radius:var(--radius-pill,999px);border:1px solid var(--color-divider);background:var(--color-surface);color:var(--color-text);font-family:var(--font-ui);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.op-filter-chip.is-selected{background:var(--color-accent);color:#fff;border-color:var(--color-accent);}
+.op-menu{display:flex;flex-direction:column;gap:32px;}
+.op-cat-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;}
+.op-cat-name{font-size:23px;font-weight:600;margin:0;white-space:nowrap;}
+.op-cat-rule{flex:1;height:1px;background:var(--color-divider);}
+.op-dish-list{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.op-dish-row{display:grid;grid-template-columns:1fr 96px;gap:12px;align-items:stretch;padding:12px 14px;background:var(--color-surface);border-radius:16px;cursor:pointer;}
+.op-dish-row:nth-child(even){background:color-mix(in srgb,var(--color-accent) 5%,var(--color-surface));}
+.op-dish-body{display:flex;flex-direction:column;min-width:0;}
+.op-dish-name{font-family:var(--font-heading);font-size:19px;font-weight:600;line-height:1.2;}
+.op-dish-desc{font-size:15.5px;color:var(--color-neutral-700);margin-top:5px;}
+.op-dish-note{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-top:8px;}
+.op-dish-bottom{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:10px;flex-wrap:wrap;}
+.op-dish-price{font-family:var(--font-heading);font-style:italic;font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:2px;}
+.op-dish-photo{width:100%;height:100%;min-height:88px;object-fit:cover;border-radius:12px;background:var(--color-surface);display:block;}
+.op-dish-row.is-placeholder .op-dish-photo{background:color-mix(in srgb,var(--color-accent) 10%,var(--color-surface)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%23c8a0b0' stroke-width='2.5'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Cpath d='M23 29 Q32 22 41 29' fill='none' stroke='%23c8a0b0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/36px no-repeat;}
+.op-dish-row.is-sold-out{opacity:.55;}
+.op-dish-row.is-sold-out .op-dish-name{text-decoration:line-through;}
+.btn-add{min-height:44px;}
+
+/* ---- basket.html ---- */
+.bk-wrap{max-width:1000px;margin:0 auto;padding:0 16px;}
+.bk-topbar{height:4px;background:var(--color-text);margin-top:20px;}
+.bk-step{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding:9px 0;border-bottom:1px solid var(--color-text);}
+.bk-empty-content{max-width:480px;margin:60px auto 0;text-align:center;}
+.bk-empty-heading{font-size:26px;font-weight:600;line-height:1.1;margin:0 0 14px;}
+.bk-empty-hint{font-size:16px;color:var(--color-neutral-700);margin:0 0 28px;}
+.bk-grid{display:grid;grid-template-columns:1fr;gap:34px;margin-top:24px;align-items:start;}
+.bk-lines-head{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding-bottom:10px;border-bottom:1px solid var(--color-text);}
+.bk-line{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--color-divider);}
+.bk-line-info{flex:1;min-width:0;}
+.bk-line-name{font-family:var(--font-heading);font-size:16px;font-weight:600;}
+.bk-line-opts{font-size:13px;color:var(--color-neutral-600);margin-top:2px;}
+.bk-line-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.bk-line-total{font-family:var(--font-heading);font-variant-numeric:tabular-nums;font-size:15px;white-space:nowrap;}
+.bk-stepper{display:flex;align-items:center;gap:4px;}
+.bk-stepper-btn{min-height:34px;min-width:34px;padding:0;font-size:18px;line-height:1;border-radius:var(--radius-md);}
+.bk-stepper-count{font-family:var(--font-heading);font-size:16px;font-variant-numeric:tabular-nums;min-width:22px;text-align:center;}
+.bk-total-row{display:flex;align-items:baseline;margin-top:16px;padding-top:14px;border-top:1px solid var(--color-text);}
+.bk-total-label{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);}
+.bk-total-value{margin-left:auto;font-family:var(--font-heading);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;}
+.bk-panel{position:static;}
+.bk-panel-bar{height:4px;background:var(--color-text);}
+.bk-panel-title{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding:9px 0;border-bottom:1px solid var(--color-text);}
+.bk-section-label{font-family:var(--font-heading);font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;}
+.bk-day-section{margin-top:26px;}
+.bk-day-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.bk-slot-section{margin-top:30px;}
+.bk-slot-head{display:flex;align-items:baseline;gap:12px;}
+.bk-slot-note-inline{font-size:13px;color:var(--color-neutral-600);margin-left:auto;}
+.bk-slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.bk-slot-note{font-size:13px;color:var(--color-neutral-700);margin-top:12px;}
+.bk-chip{font-family:var(--font-body);font-size:14px;cursor:pointer;padding:8px 6px;border-radius:var(--radius-md);text-align:center;line-height:1.2;transition:background 140ms ease,color 140ms ease;background:transparent;color:var(--color-text);border:1px solid var(--color-divider);}
+.bk-chip-top{display:block;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;}
+.bk-chip-bottom{display:block;font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums;}
+.bk-chip.is-selected{background:var(--color-accent);color:var(--color-bg);border-color:var(--color-accent);}
+.bk-slot-chip.is-full{color:var(--color-neutral-500);text-decoration:line-through;cursor:not-allowed;}
+.bk-ready-hint{font-size:12.5px;color:var(--color-neutral-600);margin:14px 0 0;}
+.bk-continue{min-height:48px;font-size:15px;margin-top:12px;}
+.bk-back{font-size:14px;}
+
+/* ---- checkout.html ---- */
+.ck-wrap{max-width:1000px;margin:0 auto;padding:0 16px;}
+.ck-topbar{height:4px;background:var(--color-text);margin-top:20px;}
+.ck-step{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding:9px 0;border-bottom:1px solid var(--color-text);}
+.ck-collect-block{display:flex;align-items:center;gap:16px;margin-top:20px;padding:14px 18px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-surface);}
+.ck-collect-block-info{flex:1;min-width:0;}
+.ck-collect-block-kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:4px;}
+.ck-collect-block-value{font-family:var(--font-heading);font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ck-collect-block-change{font-size:13px;white-space:nowrap;flex-shrink:0;}
+.ck-grid{display:grid;grid-template-columns:1fr;gap:34px;margin-top:26px;align-items:start;}
+.ck-grid h2{font-size:28px;font-weight:600;line-height:1.08;margin:0;}
+.ck-pay-options{display:flex;flex-direction:column;margin-top:20px;}
+.ck-pay-row{display:flex;gap:14px;align-items:flex-start;padding:18px 0;border-top:1px solid var(--color-divider);cursor:pointer;}
+.ck-pay-row .dot{margin-top:7px;flex:0 0 auto;}
+.ck-pay-title{display:block;font-family:var(--font-heading);font-size:19px;font-weight:600;}
+.ck-pay-desc{display:block;font-size:15.5px;color:var(--color-neutral-700);margin-top:4px;}
+.ck-fields{display:grid;grid-template-columns:1fr;gap:20px;margin-top:28px;padding-top:26px;border-top:1px solid var(--color-text);}
+.ck-fields label{display:block;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:8px;}
+.ck-fields .input{width:100%;box-sizing:border-box;}
+.ck-sheet-head{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding-bottom:10px;border-bottom:1px solid var(--color-text);}
+.ck-sheet-line{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--color-divider);}
+.ck-sheet-qty{font-family:var(--font-heading);font-variant-numeric:tabular-nums;color:var(--color-accent-700);width:26px;}
+.ck-sheet-name{flex:1;font-size:16px;}
+.ck-sheet-total{font-variant-numeric:tabular-nums;font-size:16px;}
+.ck-total-row{display:flex;align-items:baseline;margin-top:16px;}
+.ck-total-label{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);}
+.ck-total-value{margin-left:auto;font-family:var(--font-heading);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;}
+.ck-collect-info{margin-top:24px;font-size:15.5px;color:var(--color-neutral-800);line-height:1.5;}
+.ck-place{min-height:48px;font-size:15px;margin-top:26px;}
+.ck-back{font-size:14px;}
+.rc-oneliner{font-size:13px;color:var(--color-neutral-600);margin:18px 0 0;}
+#ck-confirmed-state{margin-top:34px;animation:ckRiseIn 520ms ease-out both;}
+@keyframes ckRiseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.ck-eyebrow{font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-2-700);}
+.ck-confirm-heading{font-size:32px;font-weight:600;line-height:1.02;margin:16px 0 0;letter-spacing:-.015em;}
+.ck-confirm-copy{font-size:19px;color:var(--color-neutral-800);margin:22px 0 0;}
+.ck-confirm-figures{display:flex;gap:34px;margin-top:34px;padding-top:24px;border-top:1px solid var(--color-text);flex-wrap:wrap;}
+.ck-figure-label{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);}
+.ck-figure-value{font-family:var(--font-heading);font-size:26px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums;}
+.ck-confirm-actions{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap;}
+.ck-confirm-actions .btn{min-height:44px;}
+
+/* ---- order_status.html ---- */
+.os-wrap{max-width:760px;margin:0 auto;padding:0 16px;}
+.os-topbar{height:4px;background:var(--color-text);margin-top:20px;}
+.os-eyebrow{font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-2-700);margin-top:22px;display:block;}
+.os-ref-row{display:flex;align-items:baseline;gap:12px;}
+.os-heading{font-size:28px;font-weight:600;line-height:1.05;margin:14px 0 0;letter-spacing:-.015em;}
+.os-status{font-size:17px;color:var(--color-neutral-800);margin:16px 0 0;}
+.os-stepper{display:flex;align-items:flex-start;margin:24px 0 0;}
+.os-step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:56px;position:relative;}
+.os-step::after{content:"";display:block;height:2px;background:var(--color-divider);position:absolute;top:8px;left:50%;right:-50%;z-index:0;}
+.os-step:last-child::after{display:none;}
+.os-step-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--color-divider);background:var(--color-bg);position:relative;z-index:1;}
+.os-step.is-filled .os-step-dot{background:var(--color-text);border-color:var(--color-text);}
+.os-step.is-active .os-step-dot{background:var(--color-accent-2);border-color:var(--color-accent-2);}
+.os-step-label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-600);text-align:center;line-height:1.25;}
+.os-step.is-active .os-step-label{color:var(--color-accent-2);font-weight:700;}
+.os-figures{display:flex;gap:28px;margin-top:28px;padding-top:20px;border-top:1px solid var(--color-text);flex-wrap:wrap;}
+.os-figure-label{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);}
+.os-figure-value{font-family:var(--font-heading);font-size:20px;font-weight:600;margin-top:6px;}
+.os-eft-panel{margin-top:26px;padding:16px;border:1px solid var(--color-text);border-radius:var(--radius-md);}
+.os-eft-head{display:flex;align-items:baseline;gap:12px;}
+.os-eft-title{font-family:var(--font-heading);font-size:19px;font-weight:600;margin:0;}
+.os-eft-countdown{margin-left:auto;font-variant-numeric:tabular-nums;font-size:15px;color:var(--color-accent-2);font-weight:600;}
+.os-bank-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-top:16px;}
+.os-bank-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-600);}
+.os-bank-value{font-family:var(--font-heading);font-size:15px;font-weight:600;margin-top:2px;}
+.os-bank-ref{color:var(--color-accent-2);}
+.os-upload{margin-top:18px;padding-top:14px;border-top:1px solid var(--color-divider);}
+.os-upload-hint{font-size:13.5px;color:var(--color-neutral-700);margin:0 0 10px;}
+.os-sheet-head{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-700);padding-bottom:10px;border-bottom:1px solid var(--color-text);margin-top:30px;}
+.os-sheet-line{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--color-divider);}
+.os-sheet-qty{font-family:var(--font-heading);font-variant-numeric:tabular-nums;color:var(--color-accent-700);width:26px;}
+.os-sheet-name{flex:1;font-size:16px;}
+.os-sheet-total{font-variant-numeric:tabular-nums;font-size:16px;}
+
+/* ---- generic stub pages ---- */
+.rcm-stub{padding:28px 16px;}
+.rcm-stub h2{font-family:var(--font-heading);font-size:28px;font-weight:600;margin:0 0 10px;}
+.rcm-stub p{font-size:15.5px;color:var(--color-neutral-700);margin:0 0 20px;line-height:1.5;}
+.rcm-stub-note{font-size:12.5px;color:var(--color-neutral-600);border-top:1px solid var(--color-divider);padding-top:14px;}
+
+/* ---- item sheet (_item_sheet.html) ---- */
+.is-wrap{position:absolute;inset:0;z-index:200;display:flex;align-items:flex-end;}
+.is-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:is-fade-in 160ms ease;}
+@keyframes is-fade-in{from{opacity:0}to{opacity:1}}
+.is-panel{position:relative;z-index:1;width:100%;max-height:92%;background:var(--color-surface);border-radius:var(--radius-card,16px) var(--radius-card,16px) 0 0;display:flex;flex-direction:column;animation:is-slide-up 220ms cubic-bezier(.32,.72,0,1);}
+@keyframes is-slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.is-drag-handle{width:40px;height:4px;border-radius:2px;background:var(--color-divider);margin:12px auto 0;flex-shrink:0;}
+.is-scroll{overflow-y:auto;flex:1;padding:0 20px 12px;overscroll-behavior:contain;}
+.is-header{display:flex;align-items:center;gap:8px;padding:16px 0 8px;}
+.is-title{flex:1;font-family:var(--font-heading);font-size:22px;font-weight:600;margin:0;line-height:1.2;}
+.is-close{color:var(--color-muted);flex-shrink:0;}
+.is-photo-wrap{width:100%;border-radius:var(--radius-card,16px);background:var(--color-surface);overflow:hidden;margin-bottom:12px;aspect-ratio:3/2;}
+.is-photo-wrap.is-placeholder{background:color-mix(in srgb,var(--color-accent) 10%,var(--color-surface)) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%23c8a0b0' stroke-width='2.5'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%23c8a0b0' stroke-width='2'/%3E%3Cpath d='M23 29 Q32 22 41 29' fill='none' stroke='%23c8a0b0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/52px no-repeat;}
+.is-photo{width:100%;height:100%;object-fit:cover;display:block;}
+.is-meta{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+.is-price{font-family:var(--font-heading);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+.is-portion{font-size:13px;color:var(--color-muted);}
+.is-desc{font-size:15px;color:var(--color-neutral-700);margin:0 0 16px;line-height:1.5;}
+.is-group{margin-bottom:20px;padding-top:16px;border-top:1px solid var(--color-divider);}
+.is-group-label{font-size:15px;font-weight:600;font-family:var(--font-ui);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.is-group-req{font-size:11px;font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted);}
+.is-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.is-chip{flex:0 1 auto;min-height:44px;padding:8px 18px;border-radius:var(--radius-pill,999px);border:1.5px solid var(--color-divider);background:var(--color-bg);color:var(--color-text);font-family:var(--font-ui);font-size:14px;font-weight:500;cursor:pointer;transition:background 120ms ease,border-color 120ms ease,color 120ms ease;white-space:nowrap;}
+.is-chip.is-selected{background:var(--color-accent-2,#9B1B4A);border-color:var(--color-accent-2,#9B1B4A);color:#fff;}
+.is-chip-delta{font-size:12px;opacity:.75;margin-left:4px;}
+.is-notes{width:100%;resize:none;box-sizing:border-box;}
+.is-notes-count{font-size:11px;color:var(--color-muted);text-align:right;margin-top:3px;}
+.is-qty-row{display:flex;align-items:center;gap:16px;padding:12px 0;border-top:1px solid var(--color-divider);margin-bottom:4px;}
+.is-qty-count{font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums;min-width:24px;text-align:center;}
+.is-action-bar{flex-shrink:0;padding:12px 20px;border-top:1px solid var(--color-divider);background:var(--color-surface);}
+.is-add-btn{width:100%;min-height:52px;font-size:16px;font-variant-numeric:tabular-nums;}
+</style>
+</helmet>
+
+<div class="rcm-stage">
+  <div class="rcm-caption">Roti Connect &mdash; customer mobile flow &middot; static render of <span style="font-variant-numeric:tabular-nums">src/templates/public/</span></div>
+
+  <div class="rcm-phone">
+    <div class="rcm-screen route-public">
+
+      <div class="rcm-statusbar">
+        <span>9:41</span>
+        <span style="display:flex;gap:5px;align-items:center">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"></rect><rect x="4.5" y="5" width="3" height="6" rx="1"></rect><rect x="9" y="2.5" width="3" height="8.5" rx="1"></rect><rect x="13.5" y="0" width="3" height="11" rx="1"></rect></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none" stroke="currentColor" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3"></rect><rect x="2" y="2" width="16" height="8" rx="1.5" fill="currentColor" stroke="none"></rect><path d="M23 4v4" stroke-width="2" stroke-linecap="round"></path></svg>
+        </span>
+      </div>
+
+      <header class="site-header"><a class="wordmark" onClick="{{ goHome }}" href="#">Roti Connect</a></header>
+
+      <div class="rcm-scroll" style="{{ scrollStyle }}">
+        <div class="rcm-body">
+
+          <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+          <main class="rc-home">
+            <button type="button" class="rc-chip" onClick="{{ toggleChip }}" aria-expanded="{{ chipOpen }}">Collection only &middot; This week &middot; 16:00&ndash;18:00</button>
+            <sc-if value="{{ chipOpen }}">
+              <div class="rc-chip-sheet">Kraaifontein &middot; 16:00&ndash;18:00. Same-day orders close at 10:00. Text on arrival. Do not hoot. Address is on your confirmation after we take the order.</div>
+            </sc-if>
+            <p class="rc-cutoff">Same-day orders close at 10:00.</p>
+
+            <a class="rc-hero" onClick="{{ goMenu }}" href="#">
+              <img class="rc-hero-photo" src="src/static/img/roti-connect-advert.jpg" alt="Full House Masala Steak Gatsby">
+              <div class="rc-hero-body">
+                <div class="rc-hero-kicker">This week</div>
+                <h1 class="rc-hero-name">Full House Masala Steak Gatsby</h1>
+                <p class="rc-hero-meta">R 130.00 &middot; Kraaifontein</p>
+                <span class="rc-cta">Order for collection</span>
+              </div>
+            </a>
+
+            <p class="rc-find">Already ordered? <a onClick="{{ goStatus }}" href="#">Find my order</a></p>
+
+            <h2 class="rc-section-title">What are you craving?</h2>
+            <div class="rc-tiles">
+              <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="4">
+                <button type="button" class="{{ t.cls }}" onClick="{{ t.go }}">
+                  <div class="rc-tile-photo" aria-hidden="true"></div>
+                  <div class="rc-tile-body">
+                    <div class="rc-tile-name">{{ t.label }}</div>
+                    <div class="rc-tile-from">from {{ t.from }}</div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+
+            <section class="rc-how">
+              <h2 class="rc-section-title">How collection works</h2>
+              <div class="rc-how-steps">
+                <div class="rc-how-step"><span class="rc-how-num">1</span><span class="rc-how-text">Choose a collection slot and place your order</span></div>
+                <div class="rc-how-step"><span class="rc-how-num">2</span><span class="rc-how-text">Pay by EFT and upload your proof &mdash; or pay cash on arrival</span></div>
+                <div class="rc-how-step"><span class="rc-how-num">3</span><span class="rc-how-text">Text when you arrive &mdash; we'll bring it out to you</span></div>
+              </div>
+              <div class="rc-how-note">
+                <span class="rc-how-note-icon">&#9201;</span>
+                <span>EFT orders: your slot is held for <strong>30 minutes</strong> &mdash; upload your proof of payment to confirm your spot.</span>
+              </div>
+              <p><a onClick="{{ goHelp }}" href="#">Read the rules &rarr;</a></p>
+            </section>
+          </main>
+          </sc-if>
+
+          <sc-if value="{{ isMenu }}">
+          <div class="op-wrap">
+            <div class="op-head"><h2>What's cooking</h2></div>
+            <div class="op-day-bar" role="group" aria-label="Collection day">
+              <sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+                <button type="button" class="{{ d.cls }}" onClick="{{ d.pick }}" aria-pressed="{{ d.on }}">
+                  <span class="op-chip-top">{{ d.dow }}</span>
+                  <span class="op-chip-bottom">{{ d.dom }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <p class="op-context">Collection &middot; This week &middot; 16:00&ndash;18:00</p>
+            <div class="op-filter-bar" role="tablist" aria-label="Menu categories">
+              <sc-for list="{{ chips }}" as="c" hint-placeholder-count="5">
+                <button type="button" class="{{ c.cls }}" onClick="{{ c.pick }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <div class="op-menu">
+              <sc-for list="{{ sections }}" as="s" hint-placeholder-count="2">
+                <div>
+                  <div class="op-cat-head"><h3 class="op-cat-name">{{ s.label }}</h3><span class="op-cat-rule"></span></div>
+                  <div class="op-dish-list">
+                    <sc-for list="{{ s.dishes }}" as="dish" hint-placeholder-count="3">
+                      <div class="{{ dish.rowCls }}" onClick="{{ dish.open }}">
+                        <div class="op-dish-body">
+                          <div class="op-dish-name">{{ dish.name }}</div>
+                          <div class="op-dish-desc">{{ dish.desc }}</div>
+                          <sc-if value="{{ dish.hasNote }}">
+                            <div class="op-dish-note">{{ dish.note }}</div>
+                          </sc-if>
+                          <div class="op-dish-bottom">
+                            <div class="op-dish-price">{{ dish.priceStr }}</div>
+                            <sc-if value="{{ dish.soldOut }}">
+                              <span class="tag tag-neutral">Sold out</span>
+                            </sc-if>
+                            <sc-if value="{{ dish.available }}" hint-placeholder-val="{{ true }}">
+                              <button type="button" class="btn btn-secondary btn-add" onClick="{{ dish.open }}" aria-label="Add">+</button>
+                            </sc-if>
+                          </div>
+                        </div>
+                        <div class="op-dish-photo" style="{{ dish.photoStyle }}" aria-hidden="true"></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isBasket }}">
+          <div class="bk-wrap">
+            <div class="bk-topbar"></div>
+            <div class="bk-step">Step 1 of 2 &mdash; items &amp; collection slot</div>
+
+            <sc-if value="{{ cartEmpty }}">
+              <div class="bk-empty-content">
+                <h2 class="bk-empty-heading">Your basket is empty</h2>
+                <p class="bk-empty-hint">Browse the menu and add something to get started.</p>
+                <button type="button" class="btn btn-primary" onClick="{{ goMenu }}">Browse the menu</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ cartFilled }}" hint-placeholder-val="{{ true }}">
+            <div class="bk-grid">
+              <div>
+                <div class="bk-lines-head">Order sheet</div>
+                <sc-for list="{{ lines }}" as="l" hint-placeholder-count="2">
+                  <div class="bk-line">
+                    <div class="bk-line-info">
+                      <div class="bk-line-name">{{ l.name }}</div>
+                      <div class="bk-line-opts">{{ l.opts }}</div>
+                    </div>
+                    <div class="bk-stepper">
+                      <button type="button" class="btn btn-secondary bk-stepper-btn" onClick="{{ l.dec }}" aria-label="One fewer">&minus;</button>
+                      <span class="bk-stepper-count">{{ l.qty }}</span>
+                      <button type="button" class="btn btn-secondary bk-stepper-btn" onClick="{{ l.inc }}" aria-label="One more">+</button>
+                    </div>
+                    <div class="bk-line-right"><span class="bk-line-total">{{ l.totalStr }}</span></div>
+                  </div>
+                </sc-for>
+                <div class="bk-total-row"><span class="bk-total-label">Total</span><span class="bk-total-value">{{ totalStr }}</span></div>
+              </div>
+
+              <div class="bk-panel">
+                <div class="bk-panel-bar"></div>
+                <div class="bk-panel-title">When to collect</div>
+                <div class="bk-day-section">
+                  <div class="bk-section-label">Day</div>
+                  <div class="bk-day-chips">
+                    <sc-for list="{{ bkDays }}" as="d" hint-placeholder-count="7">
+                      <button type="button" class="{{ d.cls }}" onClick="{{ d.pick }}" aria-pressed="{{ d.on }}">
+                        <span class="bk-chip-top">{{ d.dow }}</span>
+                        <span class="bk-chip-bottom">{{ d.dom }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div class="bk-slot-section">
+                  <div class="bk-slot-head"><div class="bk-section-label">Collection slot</div><span class="bk-slot-note-inline">15-minute windows</span></div>
+                  <div class="bk-slot-grid">
+                    <sc-for list="{{ slots }}" as="s" hint-placeholder-count="8">
+                      <button type="button" class="{{ s.cls }}" onClick="{{ s.pick }}" disabled="{{ s.full }}" aria-pressed="{{ s.on }}">{{ s.label }}</button>
+                    </sc-for>
+                  </div>
+                  <div class="bk-slot-note">{{ slotNote }}</div>
+                </div>
+                <p class="bk-ready-hint">{{ readyHint }}</p>
+                <button type="button" class="btn btn-primary btn-block bk-continue" onClick="{{ goCheckout }}" disabled="{{ notReady }}">Continue to payment</button>
+                <button type="button" class="btn btn-ghost btn-block bk-back" onClick="{{ goMenu }}">Back to the menu</button>
+              </div>
+            </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isCheckout }}">
+          <div class="ck-wrap">
+            <div class="ck-topbar"></div>
+            <div class="ck-step">Step 2 of 2 &mdash; payment &amp; details</div>
+
+            <sc-if value="{{ notConfirmed }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div class="ck-collect-block">
+                <div class="ck-collect-block-info">
+                  <div class="ck-collect-block-kicker">Collecting</div>
+                  <div class="ck-collect-block-value">{{ chosenDay }}&ensp;&middot;&ensp;{{ chosenSlot }}</div>
+                </div>
+                <button type="button" class="btn btn-ghost ck-collect-block-change" onClick="{{ goBasket }}">Change slot &rarr;</button>
+              </div>
+
+              <div class="ck-grid">
+                <div>
+                  <h2>How would you like to pay?</h2>
+                  <div class="ck-pay-options">
+                    <label class="radio ck-pay-row">
+                      <input type="radio" name="pay" checked="{{ payEft }}" onChange="{{ pickEft }}">
+                      <span class="dot"></span>
+                      <span>
+                        <span class="ck-pay-title">EFT before cooking</span>
+                        <span class="ck-pay-desc">Bank details are on your order page. Your slot is held for 30 minutes &mdash; upload your proof of payment to confirm.</span>
+                      </span>
+                    </label>
+                    <label class="radio ck-pay-row">
+                      <input type="radio" name="pay" checked="{{ payCash }}" onChange="{{ pickCash }}">
+                      <span class="dot"></span>
+                      <span>
+                        <span class="ck-pay-title">Cash on collection</span>
+                        <span class="ck-pay-desc">Same-day only, and capped &mdash; 3 cash orders still open today.</span>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div class="ck-fields">
+                    <div class="field">
+                      <label for="ck-name">Name</label>
+                      <input class="input" id="ck-name" placeholder="Who's collecting?" value="{{ name }}" onChange="{{ setName }}">
+                    </div>
+                    <div class="field">
+                      <label for="ck-phone">Mobile</label>
+                      <input class="input" id="ck-phone" placeholder="082 000 0000" value="{{ phone }}" onChange="{{ setPhone }}">
+                    </div>
+                    <div class="field">
+                      <label for="ck-note">Order note <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+                      <textarea class="input" id="ck-note" rows="2" placeholder="Anything the kitchen should know"></textarea>
+                    </div>
+                  </div>
+
+                  <label class="checkbox" style="display:flex;gap:10px;align-items:flex-start;margin-top:22px;font-size:14.5px">
+                    <input type="checkbox" checked="{{ accepted }}" onChange="{{ toggleAccept }}">
+                    <span>I accept the <a onClick="{{ goHelp }}" href="#">collection and cancellation policies</a>.</span>
+                  </label>
+                </div>
+
+                <div>
+                  <div class="ck-sheet-head">Order sheet</div>
+                  <sc-for list="{{ lines }}" as="l" hint-placeholder-count="2">
+                    <div class="ck-sheet-line">
+                      <span class="ck-sheet-qty">{{ l.qty }}&times;</span>
+                      <span class="ck-sheet-name">{{ l.name }}</span>
+                      <span class="ck-sheet-total">{{ l.totalStr }}</span>
+                    </div>
+                  </sc-for>
+                  <div class="ck-total-row"><span class="ck-total-label">Total</span><span class="ck-total-value">{{ totalStr }}</span></div>
+                  <div class="ck-collect-info">
+                    <div>Collect <strong>{{ chosenDay }}</strong></div>
+                    <div>Window <strong>{{ chosenSlot }}</strong></div>
+                  </div>
+                  <p class="bk-ready-hint">{{ placeHint }}</p>
+                  <button type="button" class="btn btn-primary btn-block ck-place" onClick="{{ placeOrder }}" disabled="{{ cannotPlace }}">Place the order</button>
+                  <button type="button" class="btn btn-ghost btn-block ck-back" onClick="{{ goBasket }}">&larr; Basket</button>
+                  <p class="rc-oneliner">Collection only &mdash; Kraaifontein. <a onClick="{{ goHelp }}" href="#">How it works &rarr;</a></p>
+                </div>
+              </div>
+            </div>
+            </sc-if>
+
+            <sc-if value="{{ confirmed }}">
+            <div id="ck-confirmed-state">
+              <span class="ck-eyebrow">Order received</span>
+              <h2 class="ck-confirm-heading">We&rsquo;ve got it.</h2>
+              <p class="ck-confirm-copy">{{ confirmCopy }}</p>
+              <div class="ck-confirm-figures">
+                <div><div class="ck-figure-label">Reference</div><div class="ck-figure-value">RC-1047</div></div>
+                <div><div class="ck-figure-label">Day</div><div class="ck-figure-value">{{ chosenDayShort }}</div></div>
+                <div><div class="ck-figure-label">Total</div><div class="ck-figure-value">{{ totalStr }}</div></div>
+              </div>
+              <div class="ck-confirm-actions">
+                <button type="button" class="btn btn-secondary" onClick="{{ goStatus }}">View my order</button>
+                <button type="button" class="btn btn-ghost" onClick="{{ reset }}">Start another order</button>
+              </div>
+            </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStatus }}">
+          <div class="os-wrap">
+            <div class="os-topbar"></div>
+            <span class="os-eyebrow">Your order</span>
+            <div class="os-ref-row"><h1 class="os-heading">RC-1047</h1></div>
+            <p class="os-status">{{ statusCopy }}</p>
+            <div class="os-stepper" aria-label="Order progress">
+              <sc-for list="{{ steps }}" as="st" hint-placeholder-count="5">
+                <div class="{{ st.cls }}"><span class="os-step-dot"></span><span class="os-step-label">{{ st.label }}</span></div>
+              </sc-for>
+            </div>
+            <div class="os-figures">
+              <div><div class="os-figure-label">Collect</div><div class="os-figure-value">{{ chosenDayShort }}</div></div>
+              <div><div class="os-figure-label">Window</div><div class="os-figure-value">{{ chosenSlot }}</div></div>
+              <div><div class="os-figure-label">Payment</div><div class="os-figure-value">{{ payLabel }}</div></div>
+            </div>
+
+            <sc-if value="{{ payEft }}" hint-placeholder-val="{{ true }}">
+            <div class="os-eft-panel">
+              <div class="os-eft-head"><h2 class="os-eft-title">Pay by EFT</h2><span class="os-eft-countdown">{{ countdown }}</span></div>
+              <p style="font-size:14.5px;color:var(--color-neutral-700);margin:14px 0 0">Your slot is held for 30 minutes &mdash; upload your proof of payment to confirm.</p>
+              <div class="os-bank-grid">
+                <div><div class="os-bank-label">Bank</div><div class="os-bank-value">Capitec</div></div>
+                <div><div class="os-bank-label">Account name</div><div class="os-bank-value">Roti Connect</div></div>
+                <div><div class="os-bank-label">Account number</div><div class="os-bank-value">1234 5678 90</div></div>
+                <div><div class="os-bank-label">Branch code</div><div class="os-bank-value">470010</div></div>
+                <div><div class="os-bank-label">Amount</div><div class="os-bank-value">{{ totalStr }}</div></div>
+                <div><div class="os-bank-label">Reference &mdash; exact text</div><div class="os-bank-value os-bank-ref">RC-1047</div></div>
+              </div>
+              <div class="os-upload">
+                <p class="os-upload-hint">Upload a screenshot or PDF of the payment (JPEG, PNG, WebP or PDF, up to 8&nbsp;MB).</p>
+                <button type="button" class="btn btn-primary" onClick="{{ uploadProof }}">Upload proof</button>
+              </div>
+            </div>
+            </sc-if>
+
+            <div class="os-sheet-head">Order sheet</div>
+            <sc-for list="{{ lines }}" as="l" hint-placeholder-count="2">
+              <div class="os-sheet-line">
+                <span class="os-sheet-qty">{{ l.qty }}&times;</span>
+                <span class="os-sheet-name">{{ l.name }}</span>
+                <span class="os-sheet-total">{{ l.totalStr }}</span>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isAccount }}">
+          <div class="rcm-stub">
+            <h2>Account</h2>
+            <p>Sign in to see past orders and reorder in one tap. Guests can still find an order by reference.</p>
+            <button type="button" class="btn btn-primary btn-block" style="min-height:48px">Sign in</button>
+            <button type="button" class="btn btn-ghost btn-block" onClick="{{ goStatus }}">Find my order</button>
+            <p class="rcm-stub-note" style="margin-top:26px">Stub &mdash; <span style="font-variant-numeric:tabular-nums">account.html</span> wasn't in the pulled file set, so this stands in for the Account tab.</p>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isHelp }}">
+          <div class="rcm-stub">
+            <h2>Help &amp; FAQ</h2>
+            <p>Collection only, from Kraaifontein. Same-day orders close at 10:00. EFT orders hold your slot for 30 minutes while you upload proof of payment; cash is same-day only and capped per day.</p>
+            <p>Text on arrival &mdash; please don't hoot. The address is on your confirmation once the order is taken.</p>
+            <p class="rcm-stub-note">Condensed from <span style="font-variant-numeric:tabular-nums">help.html</span> for the flow render.</p>
+          </div>
+          </sc-if>
+
+        </div>
+      </div>
+
+      <sc-if value="{{ showBasketBar }}">
+        <a class="sticky-basket-bar" onClick="{{ goBasket }}" href="#">View basket &middot; {{ totalStr }}</a>
+      </sc-if>
+
+      <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
+        <a href="#" onClick="{{ goHome }}" class="{{ navHome }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>
+          <span class="mobile-nav-label">Home</span>
+        </a>
+        <a href="#" onClick="{{ goMenu }}" class="{{ navMenu }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
+          <span class="mobile-nav-label">Menu</span>
+        </a>
+        <a href="#" onClick="{{ goBasket }}" class="{{ navBasket }}" aria-label="Basket">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16l-1 12H5L4 9Z"></path><path d="m8 9 4-6 4 6"></path></svg>
+          <sc-if value="{{ cartFilled }}">
+            <span class="mobile-nav-badge">{{ cartCount }}</span>
+          </sc-if>
+          <span class="mobile-nav-label">Basket</span>
+        </a>
+        <a href="#" onClick="{{ goAccount }}" class="{{ navAccount }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg>
+          <span class="mobile-nav-label">Account</span>
+        </a>
+        <button type="button" class="{{ navMore }}" onClick="{{ toggleMore }}" aria-haspopup="dialog" aria-expanded="{{ moreOpen }}">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg>
+          <span class="mobile-nav-label">More</span>
+        </button>
+      </nav>
+
+      <sc-if value="{{ moreOpen }}">
+      <div role="dialog" aria-label="More options" style="position:absolute;inset:0;z-index:120">
+        <div id="mobile-more-backdrop" onClick="{{ closeMore }}"></div>
+        <div id="mobile-more-panel">
+          <a href="#" onClick="{{ goHelp }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 17v.01M12 13.5a3 3 0 1 0-3-3"></path></svg>Help &amp; FAQ</a>
+          <a href="#" onClick="{{ goHelp }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M9 7h6M9 11h6M9 15h4"></path></svg>Policies</a>
+          <a href="#" onClick="{{ closeMore }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12H3m0 0 4-4m-4 4 4 4"></path><path d="M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"></path></svg>Kitchen staff login</a>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ sheetOpen }}">
+      <div class="is-wrap" aria-modal="true" role="dialog">
+        <div class="is-backdrop" onClick="{{ closeSheet }}"></div>
+        <div class="is-panel">
+          <div class="is-drag-handle" aria-hidden="true"></div>
+          <div class="is-scroll">
+            <div class="is-header">
+              <h2 class="is-title">{{ sheetName }}</h2>
+              <button type="button" class="is-close btn btn-ghost btn-icon" onClick="{{ closeSheet }}" aria-label="Close">&#10005;</button>
+            </div>
+            <div class="{{ sheetPhotoCls }}" style="{{ sheetPhotoStyle }}"></div>
+            <div class="is-meta"><span class="is-price">{{ sheetPriceStr }}</span><span class="is-portion">{{ sheetPortion }}</span></div>
+            <p class="is-desc">{{ sheetDesc }}</p>
+
+            <div class="is-group">
+              <div class="is-group-label">Heat <span class="is-group-req">Required</span></div>
+              <div class="is-chips">
+                <sc-for list="{{ heats }}" as="h" hint-placeholder-count="3">
+                  <button type="button" class="{{ h.cls }}" onClick="{{ h.pick }}">{{ h.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div class="is-group">
+              <div class="is-group-label">Extras</div>
+              <div class="is-chips">
+                <sc-for list="{{ extras }}" as="e" hint-placeholder-count="3">
+                  <button type="button" class="{{ e.cls }}" onClick="{{ e.pick }}">{{ e.label }}<span class="is-chip-delta">{{ e.delta }}</span></button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div class="is-group">
+              <label class="is-group-label" for="is-notes">Notes</label>
+              <textarea class="input is-notes" id="is-notes" rows="2" placeholder="e.g. chilli on the side" value="{{ sheetNote }}" onChange="{{ setSheetNote }}"></textarea>
+              <div class="is-notes-count">{{ noteCount }} / 80</div>
+            </div>
+
+            <div class="is-qty-row">
+              <button type="button" class="btn btn-secondary btn-icon" onClick="{{ sheetDec }}" aria-label="One fewer">&minus;</button>
+              <span class="is-qty-count">{{ sheetQty }}</span>
+              <button type="button" class="btn btn-primary btn-icon" onClick="{{ sheetInc }}" aria-label="One more">+</button>
+            </div>
+          </div>
+          <div class="is-action-bar">
+            <button type="button" class="btn btn-primary is-add-btn" onClick="{{ addFromSheet }}" disabled="{{ sheetBlocked }}">{{ sheetCta }}</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <div class="rcm-caption" style="max-width:640px;text-wrap:pretty;line-height:1.5;letter-spacing:0;text-transform:none;font-size:13.5px">Tokens and component classes come from the repo&rsquo;s own <span style="font-variant-numeric:tabular-nums">broadsheet.css</span>. Screen CSS is lifted from each template, with the <span style="font-variant-numeric:tabular-nums">max-width:760px</span> gates dropped &mdash; the frame is always mobile width.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:1010},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;menu&quot;,&quot;basket&quot;,&quot;checkout&quot;,&quot;status&quot;,&quot;account&quot;,&quot;help&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+const MENU = [
+  { id: "curry", label: "Roti & Curry", dishes: [
+    { id: "cc", name: "Chicken Curry & Roti", desc: "Slow-simmered chicken curry, mopped up with a soft roti.", price: 8500, portion: "Serves 1" },
+    { id: "sc", name: "Steak Curry & Roti", desc: "Beef steak curry, rich and slow-cooked, served with roti.", price: 9500, portion: "Serves 1" },
+  ]},
+  { id: "rolls", label: "Masala Roti Rolls", dishes: [
+    { id: "crr", name: "Chicken Masala Roti Roll", desc: "Chips, masala chicken and roti, rolled tight.", price: 6500, portion: "Serves 1" },
+    { id: "srr", name: "Steak Masala Roti Roll", desc: "Chips, masala steak and roti, rolled tight.", price: 7000, portion: "Serves 1", soldOut: true },
+  ]},
+  { id: "gatsby", label: "Gatsby", dishes: [
+    { id: "cg", name: "Chicken Masala Gatsby", desc: "The Cape classic — masala chicken, chips and all the trimmings in a full loaf.", price: 9500, portion: "Serves 4" },
+    { id: "sg", name: "Steak Masala Gatsby", desc: "Masala steak, chips and all the trimmings in a full loaf.", price: 10000, portion: "Serves 4" },
+    { id: "fh", name: "Full House Masala Steak Gatsby", desc: "Masala steak loaded with egg and cheese. The full house, no shortcuts.", price: 13000, portion: "Serves 4", note: "Portion to confirm", photo: "src/static/img/roti-connect-advert.jpg" },
+  ]},
+  { id: "large", label: "Roti & Gatsby, Large", dishes: [
+    { id: "cgr", name: "Chicken Masala Roti & Gatsby", desc: "A large gatsby loaded with masala chicken, plus roti on the side.", price: 11000, portion: "Serves 4" },
+    { id: "sgr", name: "Masala Steak Roti & Gatsby", desc: "A large gatsby loaded with masala steak, plus roti on the side.", price: 11500, portion: "Serves 4", photo: "src/static/img/hero-dish.jpg" },
+  ]},
+  { id: "lasagne", label: "Italian Lasagne", dishes: [
+    { id: "bl", name: "Beef Lasagne", desc: "Layered beef lasagne, baked to order.", price: 9000, portion: "Serves 1" },
+  ]},
+];
+
+const SLOTS = ["16:00", "16:15", "16:30", "16:45", "17:00", "17:15", "17:30", "17:45"];
+const FULL = ["16:30", "17:00"];
+const HEATS = ["Mild", "Medium", "Hot"];
+const EXTRAS = [{ id: "cheese", label: "Extra cheese", delta: 1500 }, { id: "egg", label: "Egg", delta: 800 }, { id: "chips", label: "Extra chips", delta: 1200 }];
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const STEPS = ["Placed", "Paid", "Cooking", "Ready", "Collected"];
+
+const ALL = MENU.flatMap(s => s.dishes);
+
+class Component extends DCLogic {
+  state = {
+    screen: this.props.startScreen || "home",
+    chipOpen: false, moreOpen: false,
+    day: 0, slot: null,
+    lines: [],
+    sheet: null, heat: "Medium", extras: [], sheetQty: 1, sheetNote: "",
+    pay: "eft", name: "", phone: "", accepted: false, confirmed: false,
+  };
+
+  rands(c) { return "R " + (c / 100).toFixed(2); }
+
+  dayList() {
+    const base = new Date(2026, 8, 9);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+      return { i, dow: i === 0 ? "Today" : DOW[d.getDay()], dom: String(d.getDate()),
+        short: DOW[d.getDay()] + " " + d.getDate() + " " + MON[d.getMonth()],
+        long: (i === 0 ? "today, " : "") + DOW[d.getDay()] + " " + d.getDate() + " " + MON[d.getMonth()] };
+    });
+  }
+
+  go(screen) { return e => { if (e && e.preventDefault) e.preventDefault(); this.setState({ screen, moreOpen: false }); }; }
+
+  lineTotal(l) {
+    const d = ALL.find(x => x.id === l.dishId);
+    const ex = l.extras.reduce((t, id) => t + EXTRAS.find(e => e.id === id).delta, 0);
+    return (d.price + ex) * l.qty;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const days = this.dayList();
+    const chosen = days[s.day];
+    const total = s.lines.reduce((t, l) => t + this.lineTotal(l), 0);
+    const count = s.lines.reduce((t, l) => t + l.qty, 0);
+    const ready = count > 0 && !!s.slot;
+    const sheetDish = s.sheet ? ALL.find(d => d.id === s.sheet) : null;
+    const sheetExtras = s.extras.reduce((t, id) => t + EXTRAS.find(e => e.id === id).delta, 0);
+    const sheetLive = sheetDish ? (sheetDish.price + sheetExtras) * s.sheetQty : 0;
+    const activeSection = this.state.chip || "all";
+
+    const sections = MENU
+      .filter(sec => activeSection === "all" || sec.id === activeSection)
+      .map(sec => ({
+        label: sec.label,
+        dishes: sec.dishes.map(d => ({
+          name: d.name, desc: d.desc, priceStr: this.rands(d.price),
+          note: d.note || "", hasNote: !!d.note,
+          soldOut: !!d.soldOut, available: !d.soldOut,
+          photoStyle: d.photo ? { backgroundImage: "url(" + d.photo + ")", backgroundSize: "cover", backgroundPosition: "center" } : null,
+          rowCls: "op-dish-row" + (d.soldOut ? " is-sold-out" : "") + (d.photo ? "" : " is-placeholder"),
+          open: () => { if (!d.soldOut) this.setState({ sheet: d.id, heat: "Medium", extras: [], sheetQty: 1, sheetNote: "" }); },
+        })),
+      }));
+
+    return {
+      scrollStyle: "",
+      isHome: s.screen === "home", isMenu: s.screen === "menu", isBasket: s.screen === "basket",
+      isCheckout: s.screen === "checkout", isStatus: s.screen === "status",
+      isAccount: s.screen === "account", isHelp: s.screen === "help",
+      goHome: this.go("home"), goMenu: this.go("menu"), goBasket: this.go("basket"),
+      goCheckout: this.go("checkout"), goStatus: this.go("status"),
+      goAccount: this.go("account"), goHelp: this.go("help"),
+
+      navHome: s.screen === "home" ? "is-current" : "",
+      navMenu: s.screen === "menu" ? "is-current" : "",
+      navBasket: s.screen === "basket" ? "is-current" : "",
+      navAccount: s.screen === "account" || s.screen === "status" ? "is-current" : "",
+      navMore: s.screen === "help" ? "is-current" : "",
+
+      chipOpen: s.chipOpen, toggleChip: () => this.setState({ chipOpen: !s.chipOpen }),
+      moreOpen: s.moreOpen, toggleMore: () => this.setState({ moreOpen: !s.moreOpen }),
+      closeMore: () => this.setState({ moreOpen: false }),
+
+      tiles: [
+        { label: "Roti & curry", from: "R 85.00", id: "curry" },
+        { label: "Roti rolls", from: "R 65.00", id: "rolls" },
+        { label: "Gatsby", from: "R 95.00", id: "gatsby" },
+        { label: "Lasagne", from: "R 90.00", id: "lasagne" },
+      ].map(t => ({ ...t, cls: "rc-tile is-placeholder",
+        go: () => this.setState({ screen: "menu", chip: t.id }) })),
+
+      days: days.map(d => ({ dow: d.dow, dom: d.dom, on: s.day === d.i,
+        cls: "op-day-chip" + (s.day === d.i ? " is-selected" : ""),
+        pick: () => this.setState({ day: d.i, slot: null }) })),
+      bkDays: days.map(d => ({ dow: d.dow, dom: d.dom, on: s.day === d.i,
+        cls: "bk-chip" + (s.day === d.i ? " is-selected" : ""),
+        pick: () => this.setState({ day: d.i, slot: null }) })),
+      chips: [{ id: "all", label: "All" }].concat(MENU.map(m => ({ id: m.id, label: m.label })))
+        .map(c => ({ label: c.label, cls: "op-filter-chip" + (activeSection === c.id ? " is-selected" : ""),
+          pick: () => this.setState({ chip: c.id }) })),
+      sections,
+
+      slots: SLOTS.map(t => {
+        const full = s.day === 0 && FULL.indexOf(t) > -1;
+        return { label: t, full, on: s.slot === t,
+          cls: "bk-chip bk-slot-chip" + (full ? " is-full" : "") + (s.slot === t ? " is-selected" : ""),
+          pick: () => { if (!full) this.setState({ slot: t }); } };
+      }),
+      slotNote: s.slot ? "Held for 30 minutes once you place the order." : "Two windows are already full for today.",
+
+      lines: s.lines.map((l, i) => {
+        const d = ALL.find(x => x.id === l.dishId);
+        const opts = [l.heat].concat(l.extras.map(id => EXTRAS.find(e => e.id === id).label))
+          .concat(l.note ? ['"' + l.note + '"'] : []).join(" · ");
+        return { name: d.name, opts, qty: l.qty, totalStr: this.rands(this.lineTotal(l)),
+          inc: () => this.setState(st => ({ lines: st.lines.map((x, j) => j === i ? { ...x, qty: x.qty + 1 } : x) })),
+          dec: () => this.setState(st => ({ lines: st.lines.flatMap((x, j) => j !== i ? [x] : (x.qty > 1 ? [{ ...x, qty: x.qty - 1 }] : [])) })) };
+      }),
+      cartEmpty: count === 0, cartFilled: count > 0, cartCount: count,
+      totalStr: this.rands(total),
+      showBasketBar: count > 0 && (s.screen === "menu" || s.screen === "home"),
+      notReady: !ready,
+      readyHint: ready ? "Slot " + s.slot + ", " + chosen.long + "." : "Pick at least one dish and a collection window.",
+
+      chosenDay: chosen.long.charAt(0).toUpperCase() + chosen.long.slice(1),
+      chosenDayShort: chosen.short,
+      chosenSlot: s.slot || "—",
+
+      payEft: s.pay === "eft", payCash: s.pay === "cash",
+      payLabel: s.pay === "eft" ? "EFT" : "Cash",
+      pickEft: () => this.setState({ pay: "eft" }), pickCash: () => this.setState({ pay: "cash" }),
+      name: s.name, phone: s.phone,
+      setName: e => this.setState({ name: e.target.value }),
+      setPhone: e => this.setState({ phone: e.target.value }),
+      accepted: s.accepted, toggleAccept: () => this.setState({ accepted: !s.accepted }),
+      cannotPlace: !(ready && s.accepted),
+      placeHint: !ready ? "Pick a collection window first." : (!s.accepted ? "Accept the collection and cancellation policies to continue." : ""),
+      placeOrder: () => this.setState({ confirmed: true }),
+      confirmed: s.confirmed, notConfirmed: !s.confirmed,
+      confirmCopy: s.pay === "cash"
+        ? "Bring " + this.rands(total) + " in cash. We start cooking once the kitchen confirms — you'll get an SMS either way."
+        : "Bank details are on your order page. Your slot is held for 30 minutes; cooking starts the moment your proof of payment is verified.",
+      reset: () => this.setState({ lines: [], slot: null, confirmed: false, accepted: false, screen: "menu" }),
+
+      statusCopy: s.pay === "cash"
+        ? "Confirmed. Bring the cash on collection — we'll have it ready in your window."
+        : "Awaiting your EFT. Upload proof of payment and we'll start cooking.",
+      steps: STEPS.map((label, i) => ({ label,
+        cls: "os-step" + (i < 1 ? " is-filled" : "") + (i === 1 ? " is-active" : "") })),
+      countdown: "27:14",
+      uploadProof: () => {},
+
+      sheetOpen: !!sheetDish,
+      sheetName: sheetDish ? sheetDish.name : "",
+      sheetDesc: sheetDish ? sheetDish.desc : "",
+      sheetPortion: sheetDish ? sheetDish.portion : "",
+      sheetPriceStr: sheetDish ? this.rands(sheetDish.price) : "",
+      sheetPhotoStyle: sheetDish && sheetDish.photo
+        ? { backgroundImage: "url(" + sheetDish.photo + ")", backgroundSize: "cover", backgroundPosition: "center" } : null,
+      sheetPhotoCls: "is-photo-wrap" + (sheetDish && sheetDish.photo ? " has-photo" : " is-placeholder"),
+      sheetQty: s.sheetQty, sheetNote: s.sheetNote, noteCount: s.sheetNote.length,
+      setSheetNote: e => this.setState({ sheetNote: e.target.value.slice(0, 80) }),
+      sheetInc: () => this.setState({ sheetQty: s.sheetQty + 1 }),
+      sheetDec: () => this.setState({ sheetQty: Math.max(1, s.sheetQty - 1) }),
+      sheetCta: "Add · " + this.rands(sheetLive),
+      sheetBlocked: !s.heat,
+      heats: HEATS.map(h => ({ label: h, cls: "is-chip" + (s.heat === h ? " is-selected" : ""),
+        pick: () => this.setState({ heat: h }) })),
+      extras: EXTRAS.map(e => ({ label: e.label, delta: "+" + this.rands(e.delta),
+        cls: "is-chip" + (s.extras.indexOf(e.id) > -1 ? " is-selected" : ""),
+        pick: () => this.setState(st => ({ extras: st.extras.indexOf(e.id) > -1 ? st.extras.filter(x => x !== e.id) : st.extras.concat(e.id) })) })),
+      closeSheet: () => this.setState({ sheet: null }),
+      // _item_sheet.html: "add — upserts a new line or increments qty"
+      addFromSheet: () => this.setState(st => {
+        const key = l => [l.dishId, l.heat, l.extras.slice().sort().join(","), l.note].join("|");
+        const next = { dishId: st.sheet, qty: st.sheetQty, heat: st.heat, extras: st.extras, note: st.sheetNote };
+        const at = st.lines.findIndex(l => key(l) === key(next));
+        return { sheet: null, lines: at > -1
+          ? st.lines.map((l, i) => i === at ? { ...l, qty: l.qty + next.qty } : l)
+          : st.lines.concat(next) };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>
