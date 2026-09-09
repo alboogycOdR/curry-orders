@@ -51,7 +51,15 @@ from core import eft
 from core import menu as menu_queries
 from core.capacity import CapacityError, CheckoutLine, ReservationRequest, reserve
 from core.materialise import materialise_days
-from core.models import ActorKind, IdempotencyKey, Order, OrderSource, PaymentMethod, Settings
+from core.models import (
+    ActorKind,
+    CollectionMethod,
+    IdempotencyKey,
+    Order,
+    OrderSource,
+    PaymentMethod,
+    Settings,
+)
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import now_sast
 from public.views import _slot_list_for_day
@@ -65,6 +73,7 @@ class _CleanedPayload(TypedDict, total=False):
     date: dt.date
     slot_id: int
     payment_method: str
+    collection_method: str
     lines: list[CheckoutLine]
 
 # Appendix C's own table: which HTTP status each error code maps to.
@@ -141,6 +150,15 @@ def _validate_payload(data: dict[str, object]) -> tuple[dict[str, str], _Cleaned
         errors["payment_method"] = "Choose a payment method."
     else:
         cleaned["payment_method"] = str(payment_method)
+
+    # Poster-variant addition (open question 2): optional, defaults to
+    # direct collection. Broadsheet checkout doesn't send this field at
+    # all, so it's validated only when present rather than required.
+    collection_method = data.get("collection_method", CollectionMethod.DIRECT)
+    if collection_method not in (CollectionMethod.DIRECT, CollectionMethod.UBER_COURIER):
+        errors["collection_method"] = "Choose how you'll collect."
+    else:
+        cleaned["collection_method"] = str(collection_method)
 
     if not data.get("accept_policies"):
         errors["accept_policies"] = "You must accept the policies to order."
@@ -250,6 +268,7 @@ def checkout(request: HttpRequest) -> JsonResponse:
         lines=cleaned["lines"],
         note=cleaned["note"],
         source=OrderSource.WEBSITE,
+        collection_method=cleaned.get("collection_method", CollectionMethod.DIRECT),
     )
 
     try:

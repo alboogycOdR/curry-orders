@@ -1,0 +1,58 @@
+{% comment %}
+Poster-variant item configurator — reuses static/js/item-sheet.js
+UNCHANGED (it only ever queries these exact element ids, never a CSS
+class) with poster-styled markup/CSS in place of the Broadsheet
+`_item_sheet.html` partial. Host page must emit `#menu-data` via
+`json_script` and load cart.js then item-sheet.js, same contract as the
+original partial's own comment.
+{% endcomment %}
+<div id="item-sheet" class="pv-is-wrap" hidden aria-modal="true" role="dialog" aria-labelledby="is-title">
+  <div class="pv-backdrop" id="is-backdrop"></div>
+  <div class="pv-is-panel" id="is-panel" tabindex="-1">
+    <div class="pv-is-drag" aria-hidden="true"></div>
+
+    <div class="pv-is-scroll">
+      <div class="pv-is-header">
+        <h2 class="pv-is-title" id="is-title"></h2>
+        <button type="button" class="pv-x" id="is-close" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="pv-is-photo-wrap" id="is-photo-wrap">
+        <img class="pv-is-photo" id="is-photo" src="" alt=""
+             onerror="document.getElementById('is-photo-wrap').classList.add('is-placeholder')">
+      </div>
+
+      <div class="pv-is-meta">
+        <span class="pv-is-price" id="is-price"></span>
+        <span class="pv-is-portion" id="is-portion"></span>
+      </div>
+      <p class="pv-is-desc" id="is-desc"></p>
+
+      <div class="pv-is-group" id="is-group-heat" hidden>
+        <div class="pv-is-group-label">Heat <span class="pv-is-req">Required</span></div>
+        <div class="pv-is-chips" id="is-heat-chips"></div>
+      </div>
+
+      <div id="is-extras-groups"></div>
+
+      <div class="pv-is-group">
+        <label class="pv-is-group-label" for="is-notes">Notes</label>
+        <textarea class="pv-input" id="is-notes" maxlength="80" style="min-height:60px;padding:10px 12px;"
+                  placeholder="e.g. chilli on the side" rows="2"></textarea>
+        <div class="pv-is-notes-count" id="is-notes-count">0 / 80</div>
+      </div>
+
+      <div class="pv-is-qty-row" id="is-qty-row" hidden>
+        <button type="button" class="pv-is-qty-btn" id="is-qty-dec" aria-label="One fewer">&minus;</button>
+        <span class="pv-is-qty-count" id="is-qty-count">1</span>
+        <button type="button" class="pv-is-qty-btn is-plus" id="is-qty-inc" aria-label="One more">+</button>
+      </div>
+    </div>
+
+    <div class="pv-is-action-bar">
+      <button type="button" class="pv-btn pv-btn-primary pv-btn-block" id="is-add-btn" disabled>
+        Add &middot; &mdash;
+      </button>
+    </div>
+  </div>
+</div>

@@ -103,6 +103,19 @@ class PaymentMethod(models.TextChoices):
     CASH = "cash", "Cash"
 
 
+class CollectionMethod(models.TextChoices):
+    """Poster-variant checkout addition (updates0909/handover_poster_variant
+    open question 2, answered: Uber Courier is a real selectable option,
+    not just promotional wording). Purely a recorded customer preference —
+    we don't book or dispatch a courier ourselves; the customer arranges
+    their own rider and gives them the collection details. Additive only:
+    no change to core.capacity's reservation transaction or core.transitions'
+    status machine, just one more snapshot field on Order, same shape as
+    `note`."""
+    DIRECT = "direct", "Direct collection"
+    UBER_COURIER = "uber_courier", "Uber Courier (customer-arranged)"
+
+
 class PaymentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     UNDER_REVIEW = "under_review", "Under review"
@@ -750,6 +763,9 @@ class Order(models.Model):
     slot = models.ForeignKey(Slot, on_delete=models.DO_NOTHING, related_name="orders")
     status = models.CharField(max_length=20, choices=OrderStatus.choices)
     payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices)
+    collection_method = models.CharField(
+        max_length=15, choices=CollectionMethod.choices, default=CollectionMethod.DIRECT,
+    )
     subtotal_cents = models.IntegerField()
     discount_cents = models.IntegerField(default=0)
     total_cents = models.IntegerField()

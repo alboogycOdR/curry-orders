@@ -1,0 +1,197 @@
+{% extends "base_v2.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Poster-variant order status — README's "Order status page" (confirmed
+in scope, "needs restyling"). Reuses static/js/eft.js and share-link.js
+UNCHANGED via the same ID-matching trick as checkout.html/_item_sheet_v2
+— the countdown, proof upload, and copy/share logic is real and already
+tested; only the surrounding markup/CSS is poster-styled.
+{% endcomment %}
+
+{% block title %}Order {{ order.order_number }} — {{ site_name }}{% endblock %}
+{% block promo_date %}Order status{% endblock %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+{% if not is_terminal %}
+<script>
+  (function () {
+    var DELAY = 30000;
+    var timer = setTimeout(function tick() {
+      var fileInput = document.getElementById("os-upload-input");
+      if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        timer = setTimeout(tick, DELAY);
+        return;
+      }
+      window.location.reload();
+    }, DELAY);
+  })();
+</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  {% csrf_token %}
+  <div class="pv-num">Order status</div>
+
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
+    <h1 class="pv-h2" id="os-order-number" style="font-size:38px;">{{ order.order_number }}</h1>
+    <button type="button" class="pv-btn pv-btn-outline on-light" style="min-height:36px;padding:0 12px;" id="os-copy-ref" data-ref="{{ order.order_number }}">Copy</button>
+  </div>
+
+  <p class="pv-sub" id="os-status-copy">{{ status_copy }}</p>
+
+  {% if step_data %}
+  <div style="display:flex;align-items:flex-start;margin:20px 0 0;overflow-x:auto;padding-bottom:4px;" aria-label="Order progress">
+    {% for step in step_data %}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:56px;position:relative;">
+      <span style="width:16px;height:16px;border-radius:50%;border:2px solid var(--poster-border);background:#fff;z-index:1;{% if step.filled %}border-color:var(--poster-navy);background:var(--poster-navy);{% endif %}{% if step.active %}border-color:var(--poster-blue);background:var(--poster-blue);box-shadow:0 0 0 3px rgba(22,140,255,.25);{% endif %}" aria-hidden="true"></span>
+      <span style="font-size:9.5px;letter-spacing:.05em;text-align:center;color:var(--poster-muted);line-height:1.25;padding:0 2px;{% if step.filled %}color:var(--poster-navy);font-weight:700;{% endif %}{% if step.active %}color:var(--poster-blue);font-weight:900;{% endif %}">{{ step.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <button type="button" class="pv-textlink" style="margin-top:16px;" id="os-share-link">Copy / share this link</button>
+  <div class="pv-hold" id="os-share-fallback" hidden style="margin-top:12px;">
+    <label for="os-share-input" style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;">Tap the link, then copy it:</label>
+    <input type="text" id="os-share-input" class="pv-input" readonly>
+  </div>
+  <p id="os-share-status" hidden style="margin-top:10px;font-size:13px;font-weight:700;color:var(--poster-success);"></p>
+
+  {% if messages %}
+  <ul style="list-style:none;margin:20px 0 0;padding:0;">
+    {% for message in messages %}
+    <li style="background:#fff3cd;color:#856404;border:2px solid var(--poster-border);border-radius:5px;padding:12px;font-size:13px;font-weight:600;margin-bottom:8px;">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <div style="display:flex;gap:32px;margin-top:28px;padding-top:18px;border-top:2px solid var(--poster-navy);flex-wrap:wrap;">
+    <div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Collect</div>
+      <div style="font-size:20px;font-weight:900;margin-top:6px;">{{ order.trading_day.date|date:"D j M" }}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Window</div>
+      <div style="font-size:20px;font-weight:900;margin-top:6px;">{{ order.slot.start_at|time:"H:i" }}&ndash;{{ order.slot.end_at|time:"H:i" }}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Payment</div>
+      <div style="font-size:20px;font-weight:900;margin-top:6px;">{{ order.get_payment_method_display }}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Collection</div>
+      <div style="font-size:20px;font-weight:900;margin-top:6px;">{{ order.get_collection_method_display }}</div>
+    </div>
+  </div>
+
+  {% if show_eft_panel %}
+  <div class="pv-coll" id="os-eft-panel" style="margin-top:28px;" data-order-token="{{ order.public_token }}"
+       data-upload-url="{% url 'public:api_upload_proof' public_token=order.public_token %}"
+       {% if not proof_already_uploaded %}data-hold-expires-at="{{ order.hold_expires_at|date:'c' }}"{% endif %}>
+    <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;">
+      <h2 style="font-size:24px;font-weight:900;text-transform:uppercase;margin:0;">Pay by EFT</h2>
+      <span style="margin-left:auto;font-variant-numeric:tabular-nums;font-size:15px;color:var(--poster-gold);font-weight:700;" id="os-eft-countdown"></span>
+    </div>
+    {% if not proof_already_uploaded %}
+    <p style="font-size:13px;font-weight:600;margin:12px 0 0;color:var(--poster-muted-dark);">Your slot is held for {{ eft_hold_minutes }} minutes &mdash; upload your proof of payment to confirm.</p>
+    {% endif %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px 20px;margin-top:18px;">
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Bank</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ settings.bank_name|default:"—" }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Account name</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ settings.account_name|default:"—" }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Account number</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ settings.account_number|default:"—" }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Branch code</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ settings.branch_code|default:"—" }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Account type</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ settings.account_type|default:"—" }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Amount</div><div style="font-size:15px;font-weight:700;margin-top:4px;">{{ order.total_cents|cents }}</div></div>
+      <div><div style="font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--poster-blue);">Reference &mdash; use this exact text</div><div style="font-size:15px;font-weight:700;margin-top:4px;color:var(--poster-gold);">{{ order.order_number }}</div></div>
+    </div>
+
+    {% if proof_already_uploaded %}
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(22,140,255,.35);font-size:14px;font-weight:600;">Your proof is with us &mdash; no further action needed.</div>
+    {% else %}
+    <div id="os-upload-block" style="margin-top:20px;padding-top:18px;border-top:1px solid rgba(22,140,255,.35);">
+      <p style="font-size:13px;font-weight:600;color:var(--poster-muted-dark);margin:0 0 12px;">Upload a screenshot or PDF of the payment (JPEG, PNG, WebP or PDF, up to 8&nbsp;MB).</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <input type="file" id="os-upload-input" accept="image/jpeg,image/png,image/webp,application/pdf" style="color:#fff;">
+        <button type="button" class="pv-btn pv-btn-primary" id="os-upload-submit" disabled>Upload proof</button>
+      </div>
+      <p id="os-upload-status" hidden style="margin-top:12px;font-size:13px;font-weight:700;"></p>
+    </div>
+    {% endif %}
+
+    {% if settings.support_whatsapp_e164 %}
+    <a style="display:inline-block;margin-top:16px;font-size:13px;font-weight:700;" href="https://wa.me/{{ settings.support_whatsapp_e164|cut:'+' }}?text=Payment%20problem%20with%20order%20{{ order.order_number }}">Payment problem? Message us on WhatsApp</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if show_address and settings.collection_address_line %}
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--poster-border);font-size:14px;font-weight:600;line-height:1.5;">
+    <div>{{ settings.collection_address_line }}</div>
+    {% if settings.collection_instructions %}<div>{{ settings.collection_instructions }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="pv-num" style="margin-top:32px;">Order sheet</div>
+  <div style="margin-top:8px;">
+    {% for line in lines %}
+    <div class="pv-bline">
+      <div>
+        <div class="pv-bline-name" style="font-size:15px;">{{ line.quantity }}&times; {{ line.dish_name_snapshot }}</div>
+        {% if line.option_key %}<div class="pv-bline-meta">{{ line.option_key }}</div>{% endif %}
+        {% if line.kitchen_note %}<div class="pv-bline-meta">&ldquo;{{ line.kitchen_note }}&rdquo;</div>{% endif %}
+      </div>
+      <div class="pv-bline-right"><div class="pv-bline-total">{{ line.line_total_cents|cents }}</div></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="pv-totrow"><span>Total</span><b>{{ order.total_cents|cents }}</b></div>
+
+  {% if order.note %}
+  <p class="pv-sub" style="margin-top:16px;">Note: {{ order.note }}</p>
+  {% endif %}
+
+  <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;">
+    {% if can_reorder %}
+    <a href="{% url 'public:reorder' public_token=order.public_token %}" class="pv-btn pv-btn-primary">Order these again</a>
+    {% endif %}
+    <a href="{% url 'v2:home' %}#menu" class="pv-btn pv-btn-outline on-light">Start another order</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+{% if show_eft_panel %}
+<script src="{% static 'js/eft.js' %}" defer></script>
+{% endif %}
+<script src="{% static 'js/share-link.js' %}" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    window.BKShareLink.wire({
+      button: document.getElementById("os-share-link"),
+      fallback: document.getElementById("os-share-fallback"),
+      input: document.getElementById("os-share-input"),
+      status: document.getElementById("os-share-status"),
+      url: window.location.href,
+      title: "Roti Connect — order {{ order.order_number|escapejs }}",
+    });
+
+    var copyRefBtn = document.getElementById("os-copy-ref");
+    if (copyRefBtn) {
+      copyRefBtn.addEventListener("click", function () {
+        var ref = copyRefBtn.getAttribute("data-ref");
+        if (navigator.clipboard && ref) {
+          navigator.clipboard.writeText(ref).then(function () {
+            copyRefBtn.textContent = "Copied!";
+            window.setTimeout(function () { copyRefBtn.textContent = "Copy"; }, 2000);
+          }).catch(function () {});
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

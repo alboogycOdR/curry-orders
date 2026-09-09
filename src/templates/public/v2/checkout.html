@@ -1,0 +1,178 @@
+{% extends "base_v2.html" %}
+{% load static %}
+
+{% comment %}
+Poster-variant checkout — guide §8's "checkout screen" / README's
+"Screens and components: Checkout". Reuses static/js/checkout.js
+UNCHANGED (idempotency handling, capacity-error recovery, share-link,
+slot-change panel — all real, all tested) by keeping every element ID
+it queries by. Only the markup/CSS around those IDs is poster-styled;
+the same trick _item_sheet_v2.html uses for item-sheet.js.
+
+Added beyond the Broadsheet checkout: a collection-method radio group
+(Direct collection / Uber Courier — open question 2, answered "real
+selectable option"). checkout.js reads it via
+`input[name=collection_method]:checked`, purely additive — its absence
+on the Broadsheet page is why that page still works unmodified.
+{% endcomment %}
+
+{% block title %}Checkout — {{ site_name }}{% endblock %}
+{% block promo_date %}Checkout{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  <div id="ck-form-state">
+    <div class="pv-num">Checkout &mdash; step 2 of 2</div>
+    <h2 class="pv-h2">Confirm and pay.</h2>
+
+    <div class="pv-coll" style="margin-top:16px;display:flex;align-items:center;gap:12px;">
+      <div style="flex:1;min-width:0;">
+        <div class="pv-coll-k" style="width:auto;">Collecting</div>
+        <div class="pv-coll-v"><span id="ck-collect-summary-day">&mdash;</span> &middot; <span id="ck-collect-summary-slot">&mdash;</span></div>
+      </div>
+      <a href="{% url 'v2:home' %}#collection" class="pv-textlink" id="ck-change-slot-link">Change &rarr;</a>
+    </div>
+
+    <div style="margin-top:24px;">
+      <div class="pv-num" style="color:var(--poster-muted);">How you'll pay</div>
+      <div class="pv-pay" id="ck-pay-eft-row">
+        <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;width:100%;">
+          <input type="radio" name="pay" id="ck-pay-eft" value="eft" style="margin-top:3px;">
+          <span>
+            <span class="pv-pay-t">EFT before cooking</span>
+            <span class="pv-pay-d">Bank details land on your order page. Your slot is held for {{ eft_hold_minutes }} minutes while you send proof of payment.</span>
+          </span>
+        </label>
+      </div>
+      <div class="pv-pay" id="ck-pay-cash-row" {% if not cash_available %}hidden{% endif %}>
+        <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;width:100%;">
+          <input type="radio" name="pay" id="ck-pay-cash" value="cash" style="margin-top:3px;">
+          <span>
+            <span class="pv-pay-t">Cash on collection</span>
+            <span class="pv-pay-d">Same-day only and capped &mdash; {{ cash_remaining }} cash order{{ cash_remaining|pluralize }} still open today.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    {% comment %} Poster-variant addition — Uber Courier (open question 2). {% endcomment %}
+    <div style="margin-top:24px;">
+      <div class="pv-num" style="color:var(--poster-muted);">How you'll collect</div>
+      <div class="pv-pay is-on" id="ck-collect-direct-row">
+        <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;width:100%;">
+          <input type="radio" name="collection_method" value="direct" checked style="margin-top:3px;">
+          <span>
+            <span class="pv-pay-t">Direct collection</span>
+            <span class="pv-pay-d">You (or someone you send) collects in person from Windsor Park.</span>
+          </span>
+        </label>
+      </div>
+      <div class="pv-pay" id="ck-collect-uber-row">
+        <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;width:100%;">
+          <input type="radio" name="collection_method" value="uber_courier" style="margin-top:3px;">
+          <span>
+            <span class="pv-pay-t">Uber Courier</span>
+            <span class="pv-pay-d">You arrange your own rider and give them the collection details &mdash; we don't book the courier for you.</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    {% csrf_token %}
+    <div style="margin-top:24px;">
+      <label class="pv-label" for="ck-name">Name</label>
+      <input class="pv-input" id="ck-name" placeholder="Who's collecting?">
+      <p class="pv-hold" id="ck-name-error" style="color:var(--poster-error);" hidden></p>
+
+      <label class="pv-label" for="ck-phone">Mobile number</label>
+      <input class="pv-input" id="ck-phone" placeholder="082 000 0000">
+      <p class="pv-hold" id="ck-phone-error" style="color:var(--poster-error);" hidden></p>
+
+      <label class="pv-label" for="ck-note">Order note <span style="text-transform:none;font-weight:600;">(optional)</span></label>
+      <textarea class="pv-input" id="ck-note" rows="2" maxlength="200" style="min-height:70px;padding:10px 12px;" placeholder="Anything the kitchen should know"></textarea>
+    </div>
+
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:20px;font-size:13px;font-weight:600;">
+      <input type="checkbox" id="ck-accept-policies" style="margin-top:3px;">
+      <span>I accept the <a href="{% url 'public:policies' %}" target="_blank" rel="noopener">collection and cancellation policies</a>.</span>
+    </label>
+    <p class="pv-hold" id="ck-accept-policies-error" style="color:var(--poster-error);" hidden></p>
+
+    <p class="pv-hold" id="ck-form-error" style="color:var(--poster-error);margin-top:14px;" hidden></p>
+    <div class="pv-co-note" id="ck-capacity-recovery" hidden style="background:#fff;color:var(--poster-navy);border-color:var(--poster-error);"></div>
+
+    <div style="margin-top:28px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+      <div class="pv-num" style="color:var(--poster-muted);">Your order</div>
+      <div id="ck-sheet" style="margin-top:8px;"></div>
+      <div class="pv-totrow"><span>Total</span><b id="ck-total-value">R 0.00</b></div>
+      <div style="margin-top:14px;font-size:14px;font-weight:600;">
+        <div>Collect <strong id="ck-collect-day">&mdash;</strong></div>
+        <div>Window <strong id="ck-collect-slot">&mdash;</strong>
+          <button type="button" class="pv-textlink" id="ck-change-time-btn" aria-expanded="false" aria-controls="ck-slot-panel" style="margin-left:8px;">Change time</button>
+        </div>
+      </div>
+
+      <div id="ck-slot-panel" hidden style="margin-top:14px;padding:14px;border:2px solid var(--poster-border);border-radius:5px;">
+        <p style="font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);margin:0 0 10px;">Change collection time</p>
+        <div class="pv-filters" id="ck-slot-day-bar" role="group" aria-label="Collection day" style="margin-top:0;"></div>
+        <div id="ck-slot-grid" class="pv-slots" aria-live="polite" aria-label="Available slots" style="margin-top:12px;grid-template-columns:repeat(4,1fr);"></div>
+        <div style="margin-top:14px;">
+          <button type="button" class="pv-btn pv-btn-outline on-light" id="ck-slot-cancel">Cancel</button>
+        </div>
+        <p id="ck-slot-status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"></p>
+      </div>
+
+      <p class="pv-hold" id="ck-place-blocked-reason" style="color:var(--poster-error);margin-top:10px;" hidden></p>
+      <button type="button" class="pv-btn pv-btn-primary pv-btn-block" id="ck-place" disabled style="margin-top:14px;">Place the order</button>
+      <a href="{% url 'v2:home' %}#collection" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;">&larr; Back to collection</a>
+    </div>
+  </div>
+
+  <div id="ck-confirmed-state" hidden style="margin-top:20px;">
+    <span style="font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--poster-blue);">Order received</span>
+    <h2 class="pv-h2" id="ck-confirm-heading" style="font-size:38px;">We&rsquo;ve got it.</h2>
+    <p class="pv-sub" id="ck-confirm-copy"></p>
+    <div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:24px;padding-top:16px;border-top:2px solid var(--poster-navy);">
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Reference</div>
+        <div style="font-size:22px;font-weight:900;margin-top:6px;" id="ck-ref">&mdash;</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Day</div>
+        <div style="font-size:22px;font-weight:900;margin-top:6px;" id="ck-day-value">&mdash;</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-muted);">Total</div>
+        <div style="font-size:22px;font-weight:900;margin-top:6px;" id="ck-total-value-2">&mdash;</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;">
+      <button type="button" class="pv-btn pv-btn-dark" id="ck-start-another">Start another order</button>
+      <a href="#" id="ck-view-order-link" class="pv-btn pv-btn-outline on-light">View my order</a>
+      <button type="button" class="pv-btn pv-btn-outline on-light" id="ck-share-link">Copy / share link</button>
+    </div>
+    <div class="pv-hold" id="ck-share-fallback" hidden style="margin-top:14px;">
+      <label for="ck-share-input" style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;">Tap the link, then copy it:</label>
+      <input type="text" id="ck-share-input" class="pv-input" readonly>
+    </div>
+    <p id="ck-share-status" hidden style="margin-top:10px;font-size:13px;font-weight:700;color:var(--poster-success);"></p>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+{{ days|json_script:"days-data" }}
+<script>
+  window.BK_CHECKOUT_URLS = {
+    order:        "{% url 'v2:home' %}#menu",
+    basket:       "{% url 'v2:home' %}",
+    api_checkout: "{% url 'public:api_checkout' %}",
+    order_status: "{% url 'v2:order_status' public_token='TOKEN_PLACEHOLDER' %}",
+    reorder:      "{% url 'public:reorder' public_token='TOKEN_PLACEHOLDER' %}",
+    api_day: "{% url 'public:api_day_availability' date_str='DATE_PLACEHOLDER' %}",
+  };
+  window.BK_CASH = { todayIso: "{{ today_iso }}", available: {{ cash_available|yesno:"true,false" }} };
+</script>
+<script src="{% static 'js/share-link.js' %}" defer></script>
+<script src="{% static 'js/checkout.js' %}" defer></script>
+{% endblock %}

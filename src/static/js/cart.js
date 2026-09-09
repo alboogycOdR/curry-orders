@@ -22,7 +22,15 @@
 (function () {
   "use strict";
 
-  var V2_KEY      = "rc_cart_v2";
+  // Poster variant (/v2/) gets its own storage key so the two customer
+  // surfaces stay independent while they're being compared side by side
+  // (updates0909/handover_poster_variant README's "run both live" call)
+  // — a basket started on one doesn't silently show up on the other.
+  // Same module, same logic either way; only the key differs. `defer`
+  // guarantees document.body exists by the time this runs.
+  var V2_KEY      = (document.body && document.body.classList.contains("route-v2"))
+    ? "rc_cart_v2_poster"
+    : "rc_cart_v2";
   var V1_CART_KEY = "bk_cart_v1";
   var V1_DAY_KEY  = "bk_day_v1";   // integer index — NOT mapped to dayIso
   var V1_SLOT_KEY = "bk_slot_v1";
@@ -359,6 +367,10 @@
 
   window.BKCart = {
     // State
+    STORAGE_KEY:  V2_KEY, // so other scripts (checkout.js's storage-event
+                          // listener) compare against the real key rather
+                          // than hardcoding "rc_cart_v2", which is wrong
+                          // on /v2/ pages (V2_KEY there is "rc_cart_v2_poster").
     getState:     getState,
     setState:     setState,
     // Lines

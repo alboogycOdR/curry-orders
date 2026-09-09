@@ -570,7 +570,7 @@ def basket(request: HttpRequest) -> HttpResponse:
     })
 
 
-def checkout(request: HttpRequest) -> HttpResponse:
+def _checkout_context() -> dict:
     """§20's own acceptance line "cash hidden on advance dates and when
     cap reached" — `cash_daily_cap` is a *count* of cash orders per day
     (`core.capacity.check_cash`), not a rand figure, so `cash_remaining`
@@ -579,6 +579,9 @@ def checkout(request: HttpRequest) -> HttpResponse:
     `cash_available` is false; `reserve()` re-checks all of this
     server-side regardless (§8.6), same as every other client-side
     convenience check in this app.
+
+    Shared by `checkout()` and `views_v2.checkout()` — same real numbers
+    either way, only the template differs.
     """
     settings = Settings.current()
     today = now_sast().date()
@@ -588,7 +591,7 @@ def checkout(request: HttpRequest) -> HttpResponse:
     ).count()
     cash_remaining = max(0, settings.cash_daily_cap - cash_occupying_today)
 
-    return render(request, "public/checkout.html", {
+    return {
         # Cart lines already carry {name, price} (cart.js), so checkout
         # doesn't need the menu price map — only the day list, to turn the
         # day index the order screen stored back into a display label.
@@ -597,10 +600,16 @@ def checkout(request: HttpRequest) -> HttpResponse:
         "today_iso": today.isoformat(),
         "cash_available": settings.cash_enabled and cash_remaining > 0,
         "cash_remaining": cash_remaining,
-    })
+    }
 
 
-def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
+def checkout(request: HttpRequest) -> HttpResponse:
+    return render(request, "public/checkout.html", _checkout_context())
+
+
+def order_status(
+    request: HttpRequest, public_token: str, template_name: str = "public/order_status.html",
+) -> HttpResponse:
     """Spec §6.1 `/orders/:public_token` — order status view,
     `noindex, nofollow`. Not one of the four handoff screens: order
     number, status in plain language, the order sheet, collection
@@ -609,6 +618,10 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
     control (`static/js/eft.js`). The staff side that verifies/rejects a
     proof (the EFT queue) is milestone 5; a payment_review order here
     just says "we're checking it" until then.
+
+    `template_name` lets `views_v2.order_status` reuse this exact query
+    and context (real order, real EFT/stepper state) with its own
+    poster-styled template rather than duplicating it.
     """
     order = Order.objects.filter(public_token=public_token).select_related(
         "trading_day", "slot", "payment",
@@ -620,7 +633,7 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
         order.payment_method == PaymentMethod.EFT and order.status in _EFT_PAGE_STATUSES
     )
 
-    return render(request, "public/order_status.html", {
+    return render(request, template_name, {
         "order": order,
         "lines": order.lines.all(),
         "status_copy": _status_copy(order),
@@ -650,13 +663,22 @@ _LOOKUP_GENERIC_ERROR = (
 )
 
 
-def lookup(request: HttpRequest) -> HttpResponse:
+def lookup(
+    request: HttpRequest,
+    template_name: str = "public/lookup.html",
+    status_namespace: str = "public",
+) -> HttpResponse:
     """§11.10: order number (`CT-…`) + mobile, throttled 10/hour/IP and
     10/hour/order-number.  Order number is now optional — if blank, the
     view returns the 5 most-recent orders for that mobile instead of
     redirecting to a single tracker page.  Every failure (throttled, no
     match, blank mobile) renders the same generic message so this page
     cannot enumerate order numbers or confirm a mobile.
+
+    `template_name`/`status_namespace` let the poster variant (`views_v2.
+    lookup`) reuse this exact logic — same throttling, same generic-error
+    behaviour — rendering its own template and redirecting into its own
+    `order_status` route instead of duplicating any of it.
     """
     error = None
     order_number_input = ""
@@ -684,7 +706,9 @@ def lookup(request: HttpRequest) -> HttpResponse:
                 if order is None:
                     error = _LOOKUP_GENERIC_ERROR
                 else:
-                    response = redirect("public:order_status", public_token=order.public_token)
+                    response = redirect(
+                        f"{status_namespace}:order_status", public_token=order.public_token,
+                    )
                     # §11.10: "set a 24h httpOnly cookie scoped to that token".
                     response.set_cookie(
                         f"order_auth_{order.public_token}",
@@ -719,7 +743,7 @@ def lookup(request: HttpRequest) -> HttpResponse:
                     else:
                         orders = found
 
-    response = render(request, "public/lookup.html", {
+    response = render(request, template_name, {
         "error": error,
         "order_number": order_number_input,
         "orders": orders,

@@ -149,6 +149,21 @@ body.route-v2 {
   --shadow-drawer: -20px 0 55px rgba(0, 0, 0, .35);
 
   --ease-poster: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Fallback mappings for the handful of *generic* Broadsheet tokens a
+     few reused scripts still reach for via inline styles rather than a
+     class (checkout.js's slot-panel/recovery snippets, item-sheet.js's
+     toast) — those files are shared verbatim between route-public and
+     route-v2 (see checkout.html's/item-sheet.js's own comments), and
+     without these route-v2 would silently fall through to :root's
+     print/staff values (near-black on off-white) instead of the poster
+     palette. Not full Broadsheet parity, just enough for what those
+     scripts actually use.  */
+  --color-text: var(--poster-navy);
+  --color-bg: var(--poster-paper);
+  --color-neutral-600: var(--poster-muted);
+  --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-ui: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
 }
 
 /* Barlow Condensed — self-hosted (guide §5.1; CSP script-src/CDN policy

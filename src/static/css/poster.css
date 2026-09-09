@@ -21,6 +21,10 @@ body.route-v2 {
   background: var(--poster-navy);
   margin: 0;
   padding-bottom: 96px; /* room for the fixed bottom nav, guide §10.4 */
+  scroll-behavior: smooth; /* hero/footer CTAs and bottom-nav links scroll to #menu/#collection */
+}
+@media (prefers-reduced-motion: reduce) {
+  body.route-v2 { scroll-behavior: auto; }
 }
 body.route-v2 a { color: var(--poster-gold); text-decoration: none; }
 body.route-v2 a:hover { color: var(--poster-gold-soft); }
@@ -232,3 +236,70 @@ body.route-v2 .pv-coll :focus-visible { outline-color: var(--poster-gold); }
   .pv-cards { grid-template-columns: repeat(4, 1fr); }
   .pv-drawer { width: 420px; }
 }
+
+/* ---------- item configurator sheet (reuses item-sheet.js verbatim —
+   see templates/public/v2/_item_sheet_v2.html) ---------- */
+.pv-is-wrap { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; }
+.pv-is-wrap[hidden] { display: none; }
+.pv-is-panel { position: relative; z-index: 1; width: 100%; max-height: 92dvh; background: var(--poster-paper); color: var(--poster-navy); border-radius: 10px 10px 0 0; display: flex; flex-direction: column; outline: none; animation: pvSlide 220ms var(--ease-poster); }
+.pv-is-drag { width: 40px; height: 4px; border-radius: 2px; background: var(--poster-border); margin: 12px auto 0; flex-shrink: 0; }
+.pv-is-scroll { overflow-y: auto; flex: 1; padding: 0 20px 12px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.pv-is-header { display: flex; align-items: center; gap: 8px; padding: 16px 0 8px; }
+.pv-is-title { flex: 1; font-size: 26px; font-weight: 900; text-transform: uppercase; margin: 0; line-height: 1; }
+.pv-is-photo-wrap { width: 100%; border-radius: 5px; background: var(--poster-blue-panel); overflow: hidden; margin-bottom: 12px; aspect-ratio: 3/2; }
+#is-photo-wrap.is-placeholder { background: var(--poster-blue-panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='%23168CFF' stroke-width='2.5'%3E%3Ccircle cx='32' cy='32' r='25'/%3E%3Ccircle cx='32' cy='32' r='15' stroke-width='2'/%3E%3Cpath d='M23 29q9-7 18 0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/54px no-repeat; }
+.pv-is-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
+#is-photo-wrap:not(.has-photo) .pv-is-photo { display: none; }
+.pv-is-meta { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.pv-is-price { font-size: 24px; font-weight: 900; }
+.pv-is-portion { font-size: 12px; font-weight: 600; color: var(--poster-muted); }
+.pv-is-desc { font-size: 14px; font-weight: 500; color: var(--poster-muted); margin: 0 0 16px; line-height: 1.4; }
+.pv-is-group { margin-bottom: 20px; padding-top: 16px; border-top: 1px solid var(--poster-border); }
+.pv-is-group-label { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.pv-is-req { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--poster-muted); }
+.pv-is-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* .is-chip / .is-selected / .is-chip-delta: names item-sheet.js itself
+   generates via string concatenation — not renameable from the template. */
+.is-chip { flex: 0 1 auto; min-height: 44px; padding: 8px 18px; border-radius: 999px; border: 2px solid var(--poster-border); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 120ms ease, border-color 120ms ease, color 120ms ease; white-space: nowrap; }
+.is-chip.is-selected { background: var(--poster-blue); border-color: var(--poster-blue); color: #fff; }
+.is-chip-delta { font-size: 11px; opacity: .8; margin-left: 4px; }
+.pv-is-notes-count { font-size: 11px; font-weight: 600; color: var(--poster-muted); text-align: right; margin-top: 3px; }
+.pv-is-qty-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--poster-border); margin-bottom: 4px; }
+.pv-is-qty-btn { width: 40px; height: 40px; border-radius: 4px; border: 2px solid var(--poster-navy); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
+.pv-is-qty-btn.is-plus { background: var(--poster-navy); color: var(--poster-gold); }
+.pv-is-qty-count { font-size: 18px; font-weight: 900; min-width: 24px; text-align: center; }
+.pv-is-action-bar { flex-shrink: 0; padding: 12px 20px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); border-top: 2px solid var(--poster-navy); background: var(--poster-paper); }
+/* body.sheet-open: item-sheet.js's own class, toggled on <body> to hide
+   the bottom nav while the sheet is open. */
+body.sheet-open .pv-nav { display: none !important; }
+
+/* ---------- checkout.js's own inline slot-change-panel chips ----------
+   .ck-slot-day-chip / .ck-slot-chip / .is-selected / .is-full are class
+   names checkout.js generates itself (buildDayChipsHtml/buildSlotChipsHtml)
+   — reused verbatim by the poster checkout page, so these names can't
+   be renamed from the template side either. */
+.ck-slot-day-chip { font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; padding: 6px 10px; border-radius: 4px; text-align: center; line-height: 1.2; background: #fff; color: var(--poster-navy); border: 2px solid var(--poster-border); min-height: 44px; min-width: 48px; }
+.ck-slot-day-chip .ck-chip-top { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+.ck-slot-day-chip .ck-chip-bottom { display: block; font-size: 16px; font-weight: 900; }
+.ck-slot-day-chip.is-selected { background: var(--poster-blue); color: #fff; border-color: var(--poster-blue); }
+.ck-slot-chip { font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; padding: 8px 6px; border-radius: 4px; text-align: center; line-height: 1.2; background: #fff; color: var(--poster-navy); border: 2px solid var(--poster-border); min-height: 44px; }
+.ck-slot-chip.is-full { color: var(--poster-muted); text-decoration: line-through; cursor: not-allowed; }
+.ck-recovery-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.ck-recovery-actions button { font-family: inherit; font-size: 12px; font-weight: 800; padding: 7px 12px; border: 2px solid var(--poster-navy); background: none; color: var(--poster-navy); cursor: pointer; border-radius: 4px; }
+.ck-recovery-actions button:hover { background: var(--poster-navy); color: var(--poster-gold); }
+.ck-sheet-line--error { outline: 2px solid var(--poster-error); outline-offset: 2px; border-radius: 3px; }
+/* .ck-sheet-* : checkout.js's own order-sheet line renderer (renderSheetAndTotals). */
+.ck-sheet-line { display: flex; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--poster-border); }
+.ck-sheet-qty { font-weight: 900; width: 24px; flex: none; }
+.ck-sheet-name { flex: 1; font-size: 14px; font-weight: 700; }
+.ck-sheet-total { font-weight: 900; }
+.ck-sheet-empty { font-size: 13px; font-weight: 600; color: var(--poster-muted); }
+/* .is-group / .is-group-label / .is-group-req / .is-chips: item-sheet.js's
+   own class names for dynamically-rendered "extras" option groups
+   (_buildExtrasGroups) — same visual treatment as the static heat group's
+   .pv-is-group/.pv-is-group-label/.pv-is-chips above, but item-sheet.js
+   hardcodes these unprefixed names, so they need their own rules. */
+.is-group { margin-bottom: 20px; padding-top: 16px; border-top: 1px solid var(--poster-border); }
+.is-group-label { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.is-group-req { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--poster-muted); }
+.is-chips { display: flex; flex-wrap: wrap; gap: 8px; }

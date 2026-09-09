@@ -386,6 +386,13 @@
         return;
       }
 
+      // Poster-variant addition: a `input[name=collection_method]:checked`
+      // radio group (Direct collection / Uber Courier). Absent entirely on
+      // the Broadsheet checkout page, so this is `undefined` there and
+      // JSON.stringify drops it — the API defaults to "direct" when the
+      // key is missing, so omitting it is exactly as correct as sending it.
+      var collectionMethodInput = document.querySelector("input[name=collection_method]:checked");
+
       var payload = {
         name:            nameInput.value.trim(),
         mobile:          phoneInput.value.trim(),
@@ -393,6 +400,7 @@
         date:            day ? day.iso : null,
         slot_id:         slotId,
         payment_method:  safeGetPay(),
+        collection_method: collectionMethodInput ? collectionMethodInput.value : undefined,
         accept_policies: !!(acceptPoliciesInput && acceptPoliciesInput.checked),
         lines:           lines,
       };
@@ -674,7 +682,7 @@
     // ---- Phase 2c: cross-tab cart sync via storage event ----
     // When another tab updates the cart key, re-read and refresh the view.
     window.addEventListener("storage", function (e) {
-      if (e.key === "rc_cart_v2") {
+      if (e.key === window.BKCart.STORAGE_KEY) {
         renderSheetAndTotals();
         renderPay();
       }

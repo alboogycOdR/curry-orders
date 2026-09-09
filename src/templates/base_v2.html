@@ -13,6 +13,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23071124'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23FFC400' stroke-width='1.5'/%3E%3Cpath d='M10 14 Q16 9 22 14' fill='none' stroke='%23FFC400' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
   <link rel="stylesheet" href="{% static 'css/poster.css' %}">
+  <script src="{% static 'js/cart.js' %}" defer></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body class="route-v2">
@@ -21,9 +22,10 @@
 Promo strip + header — guide §8.2/§8.3. Three items only in the strip
 (date/deadline/phone); a fourth clips below 390px per the design
 reference's own note, and the dish name is already the hero headline.
-Values here are placeholders until chunk 2 wires the real
-promotion/settings data through — the phone number is already real
-(Settings.support_whatsapp_e164).
+promo_date/promo_deadline are per-page blocks (home.html fills in the
+real edition/cutoff copy from views_v2.home; other pages just label
+themselves, e.g. "Checkout"). Phone comes from
+public.context_processors.v2_shell (Settings.support_whatsapp_e164).
 {% endcomment %}
 <div class="pv-strip">
   {% block promo_strip %}
@@ -40,10 +42,10 @@ promotion/settings data through — the phone number is already real
     <div class="pv-avatar" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name|default:'Roti Connect' }} owner illustration"></div>
     <div class="pv-word">Roti<span> Connect</span></div>
   </a>
-  <a href="{% url 'public:basket' %}" class="pv-hbtn" aria-label="Basket">
+  <button type="button" class="pv-hbtn" aria-label="Basket" data-action="open-basket">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
-    <span class="pv-count" id="pv-header-count" hidden>0</span>
-  </a>
+    <span class="pv-count" data-cart-badge hidden>0</span>
+  </button>
 </header>
 
 {% block content %}{% endblock %}
@@ -58,9 +60,9 @@ promotion/settings data through — the phone number is already real
   <a class="pv-footer-tel" href="tel:{{ contact_phone_e164 }}">{{ contact_phone_display }}</a>
   {% endif %}
   <div class="pv-footer-links">
-    <a href="{% url 'public:menu' %}">Menu</a>
+    <a href="{% url 'v2:home' %}#menu">Menu</a>
     <a href="{% url 'v2:home' %}#collection">Collection</a>
-    <a href="{% url 'public:lookup' %}">Find my order</a>
+    <button type="button" data-action="open-lookup">Find my order</button>
   </div>
 </footer>
 
@@ -69,24 +71,77 @@ promotion/settings data through — the phone number is already real
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
     <span>Home</span>
   </a>
-  <a href="{% url 'public:menu' %}" class="{% block nav_menu_cls %}{% endblock %}">
+  <a href="{% url 'v2:home' %}#menu" class="{% block nav_menu_cls %}{% endblock %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
     <span>Menu</span>
   </a>
-  <a href="{% url 'public:basket' %}" class="{% block nav_basket_cls %}{% endblock %}" aria-label="Basket">
+  <button type="button" class="{% block nav_basket_cls %}{% endblock %}" aria-label="Basket" data-action="open-basket">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
+    <span class="pv-nav-badge" data-cart-badge hidden>0</span>
     <span>Basket</span>
-  </a>
-  <a href="{% url 'public:lookup' %}" class="{% block nav_orders_cls %}{% endblock %}">
+  </button>
+  <button type="button" class="{% block nav_orders_cls %}{% endblock %}" data-action="open-lookup">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
     <span>Orders</span>
-  </a>
+  </button>
   <a href="{% url 'public:account' %}" class="{% block nav_account_cls %}{% endblock %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
     <span>Account</span>
   </a>
 </nav>
 
+{% comment %}
+Basket drawer + order-lookup modal — guide §9.3/§9.4, shared shell so
+"Basket"/"Orders" open them from any /v2/ page, not just home. Markup
+lives here once; poster.js renders drawer contents from window.BKCart
+(the same client-side cart every /v2/ page shares) and drives both
+overlays' open/close/focus/Escape behaviour.
+
+The drawer's collection block is simplified from the design reference:
+rather than duplicating a full slot-picker grid here, it shows the
+currently-picked day/slot as text with a "Change" link back to the
+home page's collection section — one slot-picker, not two that could
+drift out of sync.
+{% endcomment %}
+<div id="pv-overlay-root" hidden>
+  <div class="pv-backdrop" data-action="close-overlays"></div>
+
+  <aside class="pv-drawer" id="pv-drawer" role="dialog" aria-modal="true" aria-labelledby="pv-drawer-title" hidden>
+    <div class="pv-drawer-head">
+      <h2 id="pv-drawer-title">Your basket</h2>
+      <button type="button" class="pv-x" data-action="close-overlays" aria-label="Close basket">&times;</button>
+    </div>
+    <div class="pv-drawer-body" id="pv-drawer-body">
+      <!-- rendered by poster.js from window.BKCart -->
+    </div>
+    <div class="pv-drawer-foot" id="pv-drawer-foot" hidden>
+      <div class="pv-totrow"><span>Total</span><b id="pv-drawer-total">R 0.00</b></div>
+      <p class="pv-hold" id="pv-drawer-hold"></p>
+      <a href="{% url 'v2:checkout' %}" class="pv-btn pv-btn-primary pv-btn-block" id="pv-drawer-checkout" style="margin-top:12px;">Checkout</a>
+    </div>
+  </aside>
+
+  <div class="pv-modal" id="pv-lookup-modal" role="dialog" aria-modal="true" aria-labelledby="pv-lookup-title" hidden>
+    <div class="pv-icon-block">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+    </div>
+    <h2 id="pv-lookup-title">Find my order</h2>
+    <form method="post" action="{% url 'v2:lookup' %}">
+      {% csrf_token %}
+      <label class="pv-label" for="pv-lookup-mobile">Mobile number</label>
+      <input class="pv-input" id="pv-lookup-mobile" name="mobile" type="tel" inputmode="tel" autocomplete="tel" placeholder="082 000 0000" required>
+      <label class="pv-label" for="pv-lookup-order">Order number <span style="text-transform:none;font-weight:600;">(optional)</span></label>
+      <input class="pv-input" id="pv-lookup-order" name="order_number" type="text" placeholder="CT-000000">
+      <button type="submit" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:16px;">Find order</button>
+    </form>
+    <button type="button" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;" data-action="close-overlays">Cancel</button>
+  </div>
+</div>
+
+<script>
+  window.BK_V2_URLS = { menu: "{% url 'v2:home' %}#menu" };
+</script>
+<script src="{% static 'js/poster.js' %}" defer></script>
 {% block extra_body %}{% endblock %}
 </body>
 </html>

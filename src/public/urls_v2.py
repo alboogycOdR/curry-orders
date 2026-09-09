@@ -14,4 +14,7 @@ app_name = "v2"
 
 urlpatterns = [
     path("", views_v2.home, name="home"),
+    path("checkout/", views_v2.checkout, name="checkout"),
+    path("orders/<str:public_token>/", views_v2.order_status, name="order_status"),
+    path("lookup/", views_v2.lookup, name="lookup"),
 ]

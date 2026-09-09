@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 from .models import (
     ActorKind,
+    CollectionMethod,
     Customer,
     DayDishAvailability,
     Dish,
@@ -105,6 +106,10 @@ class ReservationRequest:
     created_by_user: User | None = None
     is_staff_assisted: bool = False
     after_cutoff_reason: str | None = None
+    # Poster-variant checkout addition (CollectionMethod) — a recorded
+    # customer preference, same shape as `note` above; does not affect
+    # slot/capacity accounting or the transitions state machine.
+    collection_method: str = CollectionMethod.DIRECT
 
 
 # ---------------------------------------------------------------- ceiling checks (§8.2)
@@ -433,6 +438,7 @@ def reserve(req: ReservationRequest, settings: Settings) -> Order:
             slot=slot,
             status=status,
             payment_method=req.payment_method,
+            collection_method=req.collection_method,
             subtotal_cents=subtotal_cents,
             discount_cents=0,
             total_cents=subtotal_cents,

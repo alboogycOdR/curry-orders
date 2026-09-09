@@ -1,35 +1,169 @@
 {% extends "base_v2.html" %}
-{% load static %}
+{% load static moneyfmt %}
 
 {% comment %}
-Poster variant — home (chunk 1: foundation only). The promo strip,
-header, footer and bottom nav above/below this block are real and wired
-(Settings.support_whatsapp_e164 for the phone number); the hero,
-collection panel, menu, promise panel, ordering steps and final CTA that
-the style guide's §8.1 page order calls for land in chunks 2–3 and reuse
-the same dish/slot/settings data views.py's home()/menu() already query
-— not duplicated here yet.
+Poster variant — home. Single scrolling page per guide §8.1: hero,
+collection panel, menu, promise panel, ordering steps, final CTA. Real
+data throughout (views_v2.home) — same dish/day/slot queries the
+Broadsheet /order/ and /basket/ pages use, reused rather than
+reimplemented (see that view's own comment).
 
-Per the handover's "no fake states" rule (README "Placeholder honesty"),
-this says plainly that it's unfinished rather than shipping an empty or
-invented page.
+Simplification from the design reference, matching how the *real*
+Broadsheet /order/ screen already works (order.js's own dish-card
+renderer): every card's control is a "+" that opens the item
+configurator sheet, never a bare qty stepper on the card — a dish with
+required options (heat) can have several basket lines at once, which a
+single card-level counter can't represent. The reference's qty-stepper
+mockup doesn't model options at all; the real app's existing pattern
+does, so this follows that rather than the mockup.
 {% endcomment %}
 
 {% block nav_home_cls %}is-on{% endblock %}
+
+{% block promo_date %}{{ edition_label|default:"This week's drop" }}{% endblock %}
+{% block promo_deadline %}<span class="sep">&bull;</span><span>{{ cutoff_copy }}</span>{% endblock %}
 
 {% block content %}
 <section class="pv-hero">
   <div class="pv-brush" style="width:300px;height:70px;top:44px;left:-90px"></div>
   <div class="pv-brush" style="width:240px;height:44px;top:150px;left:40px"></div>
-  <span class="pv-eyebrow">Poster variant</span>
-  <h1 class="pv-h1">Under<span class="pv-script">construction.</span></h1>
-  <p class="pv-lede">This is the new poster-style design for {{ site_name }}, running side by side with the current site while Brandon decides between them. The hero, menu and ordering flow are being built out chunk by chunk.</p>
+  <span class="pv-eyebrow">Friday kitchen drop</span>
+  {% if featured %}
+  <h1 class="pv-h1">{{ featured.name|upper }}</h1>
+  <p class="pv-lede">{{ featured.short_description|default:"Cooked fresh, in small batches, in Windsor Park." }}</p>
+  {% else %}
+  <h1 class="pv-h1">Fresh from<span class="pv-script">the kitchen.</span></h1>
+  <p class="pv-lede">Home-cooked specials, collection only, from Windsor Park in Kraaifontein.</p>
+  {% endif %}
+
+  <div class="pv-art">
+    <div class="pv-plate" style="background-image:url('{% if featured.photo_url %}{{ featured.photo_url }}{% else %}{% static 'img/poster-food-crop.jpg' %}{% endif %}')" role="img" aria-label="{{ featured.name|default:'Featured dish' }}"></div>
+    <div class="pv-ring" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name }} owner illustration"></div>
+    {% if featured %}
+    <div class="pv-sticker"><b>{{ featured.price_cents|cents }}</b><span>Each</span></div>
+    {% endif %}
+  </div>
+
+  <div class="pv-actions">
+    <a href="#menu" class="pv-btn pv-btn-primary pv-btn-block">Order the special</a>
+    <a href="#collection" class="pv-btn pv-btn-outline pv-btn-block">Collection details</a>
+  </div>
+
+  {% if days %}
+  <div class="pv-proof">
+    <div><div class="pv-proof-k">Date</div><div class="pv-proof-v">{{ edition_label }}</div></div>
+    <div><div class="pv-proof-k">Window</div><div class="pv-proof-v">{{ collection_window|default:"—" }}</div></div>
+    <div><div class="pv-proof-k">Collect</div><div class="pv-proof-v">Windsor Park</div></div>
+  </div>
+  {% endif %}
 </section>
 
 <section class="pv-light" id="collection">
-  <div class="pv-num">Meanwhile</div>
-  <h2 class="pv-h2">Order on the current site.</h2>
-  <p class="pv-sub">Everything you need to place a real order — menu, collection slots, checkout — is live at the main site.</p>
-  <a href="{% url 'public:home' %}" class="pv-btn pv-btn-dark" style="margin-top:16px;display:inline-flex;">Go to the current site</a>
+  <div class="pv-num">01 &mdash; Collection</div>
+  <h2 class="pv-h2">Lunch or dinner. Same big flavour.</h2>
+  <p class="pv-sub">Collection only, from Windsor Park in Kraaifontein. Pick a window when you order &mdash; we hold it while you check out.</p>
+
+  {% if days %}
+  <div class="pv-coll">
+    <div class="pv-coll-row"><div class="pv-coll-k">Available</div><div class="pv-coll-v">{{ edition_label }}, from {{ collection_window }}</div></div>
+    {% if collection_address_line %}
+    <div class="pv-coll-row"><div class="pv-coll-k">Where</div><div class="pv-coll-v">{{ collection_address_line }}</div></div>
+    {% endif %}
+    <div class="pv-coll-row"><div class="pv-coll-k">Method</div><div class="pv-coll-v">Direct collection &middot; Uber Courier on request</div></div>
+    <div style="margin-top:14px;">
+      <div class="pv-coll-k" style="width:auto;">Pick your window</div>
+      {% if slots %}
+      <div class="pv-slots" id="pv-collection-slots" data-day-iso="{{ days.0.iso }}">
+        {% for slot in slots %}
+        <button type="button" class="pv-slot" data-slot-id="{{ slot.id }}" data-slot-label="{{ slot.label }}" {% if slot.full %}disabled{% endif %} aria-pressed="false">{{ slot.label }}</button>
+        {% endfor %}
+      </div>
+      <p style="font-size:12px;font-weight:600;color:var(--poster-muted-dark);margin:12px 0 0;">Your slot is held for {{ eft_hold_minutes }} minutes once you choose EFT at checkout.</p>
+      {% else %}
+      <p style="font-size:13px;font-weight:600;color:var(--poster-muted-dark);margin-top:8px;">No collection windows are open right now — check back soon.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p class="pv-sub" style="margin-top:16px;">Ordering is closed right now &mdash; check back soon.</p>
+  {% endif %}
+
+  <a href="#menu" class="pv-textlink" style="margin-top:16px;display:inline-flex;">See the full menu &rarr;</a>
 </section>
+
+<section class="pv-light" id="menu" style="padding-top:8px;">
+  <div class="pv-num">02 &mdash; Menu</div>
+  <h2 class="pv-h2">Order the good stuff.</h2>
+  <p class="pv-sub">Cooked in limited batches every week. When it's gone, it's gone.</p>
+
+  {% if categories %}
+  <div class="pv-filters" id="pv-filters" role="tablist" aria-label="Menu categories">
+    <button type="button" class="pv-filter is-on" data-filter="all" role="tab" aria-selected="true">Everything</button>
+    {% for cat_name, cat_dishes in categories %}
+    <button type="button" class="pv-filter" data-filter="{{ cat_name|slugify }}" role="tab" aria-selected="false">{{ cat_name }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="pv-cards" id="pv-menu-cards">
+    {% for cat_name, cat_dishes in categories %}
+    {% for dish in cat_dishes %}
+    <article class="pv-card{% if featured and dish.slug == featured.slug %} is-featured{% endif %}{% if dish.sold_out %} is-out{% endif %}" data-category="{{ cat_name|slugify }}">
+      <div class="pv-card-img{% if not dish.photo_url %} is-placeholder{% endif %}" {% if dish.photo_url %}style="background-image:url('{{ dish.photo_url }}')"{% endif %}>
+        {% if featured and dish.slug == featured.slug %}<span class="pv-tag">This week</span>{% endif %}
+      </div>
+      <div class="pv-card-body">
+        <div class="pv-card-cat">{{ cat_name }}</div>
+        <h3 class="pv-card-name">{{ dish.name }}</h3>
+        <p class="pv-card-desc">{{ dish.short_description }}</p>
+        <div class="pv-card-foot">
+          <span class="pv-card-price">{{ dish.price_cents|cents }}</span>
+          {% if dish.sold_out %}
+          <span class="pv-out-tag">Sold out</span>
+          {% else %}
+          <button type="button" class="pv-add" data-dish-id="{{ dish.id }}" aria-label="Add {{ dish.name }}">+</button>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="pv-sub" style="margin-top:16px;">The menu isn't open right now &mdash; check back soon.</p>
+  {% endif %}
+</section>
+
+<section class="pv-promise">
+  <div class="pv-num">03 &mdash; The kitchen</div>
+  <h2 class="pv-h2 on-dark">Experience the taste.</h2>
+  <div class="pv-promise-art" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name }} owner illustration"></div>
+  <ul class="pv-promise-list">
+    <li><b>01</b> Small batches, cooked the morning of collection.</li>
+    <li><b>02</b> Generous portions at a fair price. No shortcuts.</li>
+    <li><b>03</b> A family recipe, cooked the way it was taught.</li>
+  </ul>
+</section>
+
+<section class="pv-light">
+  <div class="pv-num">04 &mdash; How it works</div>
+  <h2 class="pv-h2">From click to curry.</h2>
+  <div class="pv-steps">
+    <div class="pv-step"><div class="pv-step-n">Step one</div><div class="pv-step-t">Pick your food</div><div class="pv-step-d">Choose your dishes and a collection window before the deadline.</div></div>
+    <div class="pv-step"><div class="pv-step-n">Step two</div><div class="pv-step-t">Confirm and pay</div><div class="pv-step-d">Pay by EFT and send your proof, or arrange cash on collection.</div></div>
+    <div class="pv-step"><div class="pv-step-n">Step three</div><div class="pv-step-t">Collect happy</div><div class="pv-step-d">Arrive at Windsor Park and we bring it out to you.</div></div>
+  </div>
+  <p class="pv-notice">EFT orders hold your slot for <b>{{ eft_hold_minutes }} minutes</b>. Cash on collection is same-day only and capped each day.</p>
+</section>
+
+<section class="pv-cta">
+  <h2 class="pv-h2 on-dark">Bring the appetite. We'll bring the roti.</h2>
+  {% if edition_label %}<p class="pv-sub on-dark">{{ cutoff_copy }} for {{ edition_label }}.</p>{% endif %}
+  <a href="#menu" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:20px;">Start my order</a>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+<script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
+{% include "public/v2/_item_sheet_v2.html" %}
+<script src="{% static 'js/item-sheet.js' %}" defer></script>
 {% endblock %}
