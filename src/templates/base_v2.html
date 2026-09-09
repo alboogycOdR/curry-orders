@@ -1,0 +1,92 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  {% comment %}
+  noindex: /v2/ is the poster-variant comparison surface (see robots.txt's
+  own Disallow line) — pulled once one variant is chosen (README's
+  "run both, archive the loser" decision).
+  {% endcomment %}
+  <title>{% block title %}{{ site_name|default:"Roti Connect" }}{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23071124'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23FFC400' stroke-width='1.5'/%3E%3Cpath d='M10 14 Q16 9 22 14' fill='none' stroke='%23FFC400' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{% static 'css/broadsheet.css' %}">
+  <link rel="stylesheet" href="{% static 'css/poster.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="route-v2">
+
+{% comment %}
+Promo strip + header — guide §8.2/§8.3. Three items only in the strip
+(date/deadline/phone); a fourth clips below 390px per the design
+reference's own note, and the dish name is already the hero headline.
+Values here are placeholders until chunk 2 wires the real
+promotion/settings data through — the phone number is already real
+(Settings.support_whatsapp_e164).
+{% endcomment %}
+<div class="pv-strip">
+  {% block promo_strip %}
+  <span>{% block promo_date %}This week's drop{% endblock %}</span>
+  {% block promo_deadline %}{% endblock %}
+  {% if contact_phone_display %}
+  <a class="tel" href="tel:{{ contact_phone_e164 }}">{{ contact_phone_display }}</a>
+  {% endif %}
+  {% endblock %}
+</div>
+
+<header class="pv-header">
+  <a href="{% url 'v2:home' %}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+    <div class="pv-avatar" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name|default:'Roti Connect' }} owner illustration"></div>
+    <div class="pv-word">Roti<span> Connect</span></div>
+  </a>
+  <a href="{% url 'public:basket' %}" class="pv-hbtn" aria-label="Basket">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
+    <span class="pv-count" id="pv-header-count" hidden>0</span>
+  </a>
+</header>
+
+{% block content %}{% endblock %}
+
+<footer class="pv-footer">
+  <div class="pv-footer-brand">
+    <div class="pv-avatar" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name|default:'Roti Connect' }} owner illustration"></div>
+    <div class="pv-word" style="color:#fff">Roti<span> Connect</span></div>
+  </div>
+  <p>Home kitchen in Windsor Park, Kraaifontein. Collection only, cooked to order.</p>
+  {% if contact_phone_display %}
+  <a class="pv-footer-tel" href="tel:{{ contact_phone_e164 }}">{{ contact_phone_display }}</a>
+  {% endif %}
+  <div class="pv-footer-links">
+    <a href="{% url 'public:menu' %}">Menu</a>
+    <a href="{% url 'v2:home' %}#collection">Collection</a>
+    <a href="{% url 'public:lookup' %}">Find my order</a>
+  </div>
+</footer>
+
+<nav class="pv-nav" aria-label="Primary">
+  <a href="{% url 'v2:home' %}" class="{% block nav_home_cls %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
+    <span>Home</span>
+  </a>
+  <a href="{% url 'public:menu' %}" class="{% block nav_menu_cls %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
+    <span>Menu</span>
+  </a>
+  <a href="{% url 'public:basket' %}" class="{% block nav_basket_cls %}{% endblock %}" aria-label="Basket">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
+    <span>Basket</span>
+  </a>
+  <a href="{% url 'public:lookup' %}" class="{% block nav_orders_cls %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+    <span>Orders</span>
+  </a>
+  <a href="{% url 'public:account' %}" class="{% block nav_account_cls %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
+    <span>Account</span>
+  </a>
+</nav>
+
+{% block extra_body %}{% endblock %}
+</body>
+</html>

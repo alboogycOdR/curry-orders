@@ -1,0 +1,234 @@
+/* poster.css — component classes for the poster variant (/v2/), built
+   against updates0909/handover_poster_variant/Roti Connect Poster Variant
+   - Design & Style Guide.md (source of truth) and its design reference
+   (design/Roti Connect - mobile flow (poster).dc.html).
+
+   Loaded only by templates/base_v2.html — never on route-public or the
+   staff surface, so these `.pv-*` names don't need a wrapper scope class
+   the way the design reference's `.pv` root did (that was the design
+   tool's own scoping trick; here the file itself is the scope). Tokens
+   come from body.route-v2 in broadsheet.css, per the guide's "take every
+   value from a variable" rule (§4) — no raw hexes below.
+
+   The design reference's `.pv-phone`/`.pv-status`/`.pv-stage`/`.pv-scroll`
+   phone-mock wrapper is a design-tool viewing aid with no production
+   equivalent and is deliberately not ported (per HANDOVER_PROMPT.md's
+   constraints) — the body itself is the "screen" here. */
+
+body.route-v2 {
+  font-family: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--poster-navy);
+  margin: 0;
+  padding-bottom: 96px; /* room for the fixed bottom nav, guide §10.4 */
+}
+body.route-v2 a { color: var(--poster-gold); text-decoration: none; }
+body.route-v2 a:hover { color: var(--poster-gold-soft); }
+
+/* ---------- promo strip + header ---------- */
+/* §8.2: short, compact, three items — a fourth clips below 390px and the
+   dish name is already the hero headline (see reference's own note). */
+.pv-strip { background: var(--poster-black); color: var(--poster-gold); font-size: 9.5px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; padding: 7px 14px; display: flex; gap: 7px; align-items: center; white-space: nowrap; overflow-x: auto; }
+.pv-strip .sep { color: var(--poster-blue); }
+.pv-strip .tel { margin-left: auto; color: #fff; letter-spacing: .06em; }
+.pv-header { position: sticky; top: 0; z-index: 30; background: var(--poster-navy); border-bottom: 2px solid var(--poster-blue); display: flex; align-items: center; gap: 10px; padding: 10px 18px; }
+.pv-avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; background: var(--poster-blue-deep) center/cover no-repeat; box-shadow: 0 0 0 2px var(--poster-navy), 0 0 0 4px var(--poster-blue); }
+.pv-word { font-size: 19px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; line-height: 1; color: #fff; }
+.pv-word span { color: var(--poster-gold); }
+.pv-hbtn { margin-left: auto; position: relative; width: 40px; height: 40px; border: 2px solid var(--poster-blue); background: transparent; border-radius: 5px; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pv-hbtn svg { width: 20px; height: 20px; }
+.pv-count { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 3px; background: var(--poster-gold); color: var(--poster-navy); font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+
+/* ---------- hero ---------- */
+.pv-hero { position: relative; overflow: hidden; padding: 22px 18px 26px; background: var(--poster-navy); color: #fff; }
+.pv-brush { position: absolute; background: var(--poster-blue); opacity: .16; transform: rotate(-24deg); border-radius: 40px; pointer-events: none; }
+.pv-eyebrow { position: relative; display: inline-block; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--poster-navy); background: var(--poster-gold); padding: 5px 10px; }
+.pv-h1 { position: relative; font-size: 72px; font-weight: 900; line-height: .8; letter-spacing: -.01em; text-transform: uppercase; margin: 16px 0 0; text-shadow: 3px 4px 0 rgba(12, 54, 121, .85); }
+.pv-script { display: block; font-family: "Brush Script MT", "Segoe Script", cursive; font-weight: 700; font-size: 58px; text-transform: none; letter-spacing: 0; color: var(--poster-gold); line-height: .95; margin-top: 2px; text-shadow: none; }
+.pv-lede { position: relative; font-size: 15px; font-weight: 500; color: var(--poster-muted-dark); max-width: 32ch; margin: 14px 0 0; line-height: 1.4; }
+.pv-art { position: relative; margin-top: 18px; height: 210px; }
+.pv-ring { position: absolute; left: 0; bottom: 0; width: 150px; height: 150px; border-radius: 50%; background: var(--poster-blue-deep) center/cover no-repeat; box-shadow: 0 0 0 4px var(--poster-white), 0 0 0 9px var(--poster-blue); }
+.pv-plate { position: absolute; right: 0; top: 0; width: 216px; height: 180px; border: 3px solid var(--poster-blue); background: var(--poster-blue-panel) center/cover no-repeat; border-radius: 5px; box-shadow: var(--shadow-dark-offset); }
+.pv-sticker { position: absolute; right: 6px; bottom: -6px; background: var(--poster-gold); color: var(--poster-navy); padding: 6px 14px 8px; border-radius: 4px; box-shadow: var(--shadow-blue-offset); transform: rotate(-4deg); }
+.pv-sticker b { display: block; font-size: 40px; font-weight: 900; line-height: .85; }
+.pv-sticker span { display: block; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.pv-actions { position: relative; display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
+.pv-proof { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 2px solid var(--poster-blue-deep); }
+.pv-proof-k { font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--poster-blue); }
+.pv-proof-v { font-size: 14px; font-weight: 700; color: #fff; margin-top: 3px; line-height: 1.15; }
+
+/* ---------- buttons ---------- */
+.pv-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 5px; border: 2px solid transparent; font-family: inherit; font-size: 14px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: transform 140ms var(--ease-poster), box-shadow 140ms var(--ease-poster), background 140ms var(--ease-poster); }
+.pv-btn:active { transform: translate(2px, 2px); }
+.pv-btn-primary { background: var(--poster-gold); color: var(--poster-navy); box-shadow: var(--shadow-blue-offset); }
+.pv-btn-primary:hover { background: var(--poster-gold-soft); }
+.pv-btn-primary:active { box-shadow: 2px 2px 0 #0C55B0; }
+.pv-btn-dark { background: var(--poster-navy); color: var(--poster-gold); border-color: var(--poster-blue); }
+.pv-btn-outline { background: transparent; color: #fff; border-color: var(--poster-blue); }
+.pv-btn-outline.on-light { color: var(--poster-navy); }
+.pv-btn-block { width: 100%; }
+.pv-btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.pv-textlink { background: none; border: none; padding: 0; font-family: inherit; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--poster-blue); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- light sections ---------- */
+.pv-light { background: var(--poster-paper); color: var(--poster-navy); padding: 26px 18px; }
+.pv-num { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--poster-blue); }
+.pv-h2 { font-size: 56px; font-weight: 900; line-height: .82; text-transform: uppercase; margin: 8px 0 0; letter-spacing: -.01em; }
+.pv-h2.on-dark { color: #fff; }
+.pv-sub { font-size: 14px; font-weight: 500; color: var(--poster-muted); margin: 10px 0 0; max-width: 42ch; line-height: 1.45; }
+.pv-sub.on-dark { color: var(--poster-muted-dark); }
+
+/* collection card */
+.pv-coll { margin-top: 18px; background: var(--poster-blue-panel); border: 2px solid var(--poster-blue); border-radius: 6px; box-shadow: var(--shadow-gold-offset); padding: 18px; color: #fff; }
+.pv-coll-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(22, 140, 255, .35); }
+.pv-coll-row:last-of-type { border-bottom: none; }
+.pv-coll-k { font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--poster-blue); width: 88px; flex: none; padding-top: 2px; }
+.pv-coll-v { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.pv-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.pv-slot { min-height: 44px; border-radius: 4px; border: 2px solid rgba(22, 140, 255, .55); background: transparent; color: #fff; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; transition: background 140ms var(--ease-poster); }
+.pv-slot.is-on { background: var(--poster-blue); border-color: var(--poster-blue); box-shadow: 3px 3px 0 var(--poster-gold); }
+.pv-slot:disabled { color: var(--poster-muted-dark); border-color: rgba(174, 184, 201, .3); text-decoration: line-through; cursor: not-allowed; }
+/* light-surface variant — the drawer is paper-white, so the navy-card slot styling would vanish */
+.pv-drawer .pv-slot { color: var(--poster-navy); border-color: var(--poster-border); background: #fff; }
+.pv-drawer .pv-slot.is-on { background: var(--poster-blue); border-color: var(--poster-blue); color: #fff; }
+.pv-drawer .pv-slot:disabled { color: var(--poster-muted); border-color: var(--poster-border); background: transparent; }
+
+/* filters */
+.pv-filters { display: flex; gap: 8px; overflow-x: auto; margin-top: 16px; padding-bottom: 4px; scrollbar-width: none; }
+.pv-filters::-webkit-scrollbar { display: none; }
+.pv-filter { flex: none; min-height: 38px; padding: 0 14px; border-radius: 4px; border: 2px solid var(--poster-border); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.pv-filter.is-on { background: var(--poster-blue); border-color: var(--poster-blue); color: #fff; box-shadow: 3px 3px 0 var(--poster-gold); }
+
+/* menu cards */
+.pv-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.pv-card { display: grid; grid-template-columns: 40% 1fr; gap: 12px; background: #fff; border: 2px solid var(--poster-border); border-radius: 5px; overflow: hidden; transition: border-color 180ms var(--ease-poster); }
+.pv-card.is-featured { border-color: var(--poster-blue); box-shadow: var(--shadow-gold-offset); }
+.pv-card.is-out { opacity: .6; }
+.pv-card-img { position: relative; min-height: 126px; background: var(--poster-blue-panel) center/cover no-repeat; }
+/* §8.7 requires an image on every card; until real photography lands, a
+   no-photo card takes a plate outline in the ring vocabulary of §3.3
+   rather than a bare panel — a bare panel reads as a failed load. */
+.pv-card-img.is-placeholder { background: var(--poster-blue-panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64' fill='none' stroke='%23168CFF' stroke-width='2.5'%3E%3Ccircle cx='32' cy='32' r='25'/%3E%3Ccircle cx='32' cy='32' r='15' stroke-width='2'/%3E%3Cpath d='M23 29q9-7 18 0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/54px no-repeat; }
+.pv-tag { position: absolute; top: 6px; left: 6px; background: var(--poster-gold); color: var(--poster-navy); font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; }
+.pv-card-body { padding: 12px 12px 12px 0; display: flex; flex-direction: column; }
+.pv-card-cat { font-size: 9.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--poster-blue); }
+.pv-card-name { font-size: 22px; font-weight: 900; line-height: .95; text-transform: uppercase; margin: 5px 0 0; }
+.pv-card.is-out .pv-card-name { text-decoration: line-through; }
+.pv-card-desc { font-size: 13px; font-weight: 500; color: var(--poster-muted); margin: 6px 0 0; line-height: 1.35; }
+.pv-card-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; }
+.pv-card-price { font-size: 26px; font-weight: 900; line-height: 1; color: var(--poster-navy); }
+.pv-add { margin-left: auto; min-height: 38px; min-width: 44px; padding: 0 12px; border-radius: 4px; border: none; background: var(--poster-navy); color: var(--poster-gold); font-family: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
+.pv-out-tag { margin-left: auto; font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--poster-error); }
+.pv-qty { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.pv-qty button { width: 38px; height: 38px; border-radius: 4px; border: 2px solid var(--poster-navy); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
+.pv-qty button.plus { background: var(--poster-navy); color: var(--poster-gold); }
+.pv-qty span { font-size: 18px; font-weight: 900; min-width: 18px; text-align: center; }
+
+/* promise */
+.pv-promise { background: var(--poster-navy); padding: 30px 18px; position: relative; overflow: hidden; }
+.pv-promise-art { width: 170px; height: 170px; border-radius: 50%; margin: 18px auto 0; background: var(--poster-blue-deep) center/cover no-repeat; box-shadow: 0 0 0 5px var(--poster-white), 0 0 0 12px var(--poster-blue), 0 0 0 22px rgba(22, 140, 255, .22); }
+.pv-promise-list { margin: 22px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0; }
+.pv-promise-list li { display: flex; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid rgba(22, 140, 255, .3); font-size: 15px; font-weight: 600; color: #fff; }
+.pv-promise-list li:last-child { border-bottom: none; }
+.pv-promise-list b { color: var(--poster-gold); font-size: 13px; font-weight: 900; letter-spacing: .1em; }
+
+/* steps */
+.pv-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.pv-step { background: #fff; border: 2px solid var(--poster-border); border-left: 6px solid var(--poster-blue); border-radius: 5px; padding: 14px 16px; }
+.pv-step-n { font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--poster-blue); }
+.pv-step-t { font-size: 24px; font-weight: 900; text-transform: uppercase; line-height: 1; margin: 6px 0 0; }
+.pv-step-d { font-size: 13px; font-weight: 500; color: var(--poster-muted); margin: 6px 0 0; line-height: 1.35; }
+.pv-notice { margin-top: 14px; background: var(--poster-navy); color: #fff; border-radius: 5px; padding: 14px 16px; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.pv-notice b { color: var(--poster-gold); }
+
+/* final CTA + footer */
+.pv-cta { background: var(--poster-blue-deep); padding: 34px 18px; text-align: left; color: #fff; }
+.pv-footer { background: var(--poster-black); padding: 26px 18px 30px; color: var(--poster-muted-dark); }
+.pv-footer-brand { display: flex; align-items: center; gap: 10px; }
+.pv-footer p { font-size: 13px; font-weight: 500; line-height: 1.45; margin: 12px 0 0; max-width: 38ch; }
+.pv-footer-tel { display: block; font-size: 28px; font-weight: 900; color: var(--poster-gold); margin-top: 14px; letter-spacing: .02em; }
+.pv-footer-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(22, 140, 255, .3); }
+.pv-footer-links a, .pv-footer-links button { background: none; border: none; padding: 0; font-family: inherit; font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #fff; cursor: pointer; }
+
+/* ---------- bottom nav ---------- */
+/* Five items per the "Add a 5th tab" decision (README open question 6):
+   Home, Menu, Basket, Orders, Account — the reference's grid was
+   repeat(4,1fr) for its four-tab version. */
+.pv-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; height: 72px; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--poster-black); border-top: 2px solid var(--poster-blue); }
+.pv-nav a, .pv-nav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 44px; border: none; background: none; color: var(--poster-muted-dark); font-family: inherit; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.pv-nav a.is-on, .pv-nav button.is-on { color: var(--poster-gold); }
+.pv-nav a.is-on::before, .pv-nav button.is-on::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; background: var(--poster-gold); }
+.pv-nav svg { width: 22px; height: 22px; }
+.pv-nav-badge { position: absolute; top: 9px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 4px; border-radius: 3px; background: var(--poster-gold); color: var(--poster-navy); font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+
+/* ---------- overlays ---------- */
+.pv-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(5, 10, 21, .6); animation: pvFade 180ms ease; }
+@keyframes pvFade { from { opacity: 0 } to { opacity: 1 } }
+.pv-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 110; width: 88%; max-width: 420px; background: var(--poster-paper); color: var(--poster-navy); box-shadow: var(--shadow-drawer); display: flex; flex-direction: column; animation: pvSlide 320ms var(--ease-poster); }
+@keyframes pvSlide { from { transform: translateX(100%) } to { transform: translateX(0) } }
+.pv-drawer-head { flex: none; background: var(--poster-navy); color: #fff; padding: 16px 18px; display: flex; align-items: center; gap: 10px; }
+.pv-drawer-head h2 { font-size: 26px; font-weight: 900; text-transform: uppercase; margin: 0; line-height: 1; }
+.pv-x { margin-left: auto; width: 36px; height: 36px; border-radius: 4px; border: 2px solid var(--poster-blue); background: none; color: #fff; font-family: inherit; font-size: 16px; font-weight: 900; cursor: pointer; }
+.pv-drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.pv-drawer-foot { flex: none; border-top: 2px solid var(--poster-border); background: #fff; padding: 14px 18px 18px; }
+.pv-bline { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--poster-border); }
+.pv-bline-name { font-size: 18px; font-weight: 900; text-transform: uppercase; line-height: 1; }
+.pv-bline-meta { font-size: 12px; font-weight: 600; color: var(--poster-muted); margin-top: 4px; }
+.pv-bline-right { margin-left: auto; text-align: right; }
+.pv-bline-total { font-size: 17px; font-weight: 900; }
+.pv-empty { text-align: center; padding: 40px 0; }
+.pv-empty h3 { font-size: 32px; font-weight: 900; text-transform: uppercase; margin: 0 0 8px; line-height: .9; }
+.pv-empty p { font-size: 14px; font-weight: 500; color: var(--poster-muted); margin: 0 0 20px; }
+.pv-totrow { display: flex; align-items: baseline; margin-top: 14px; padding-top: 12px; border-top: 2px solid var(--poster-navy); }
+.pv-totrow span { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--poster-muted); }
+.pv-totrow b { margin-left: auto; font-size: 34px; font-weight: 900; line-height: 1; }
+.pv-hold { font-size: 12px; font-weight: 600; color: var(--poster-muted); margin: 10px 0 0; line-height: 1.4; }
+
+.pv-modal { position: fixed; left: 18px; right: 18px; top: 96px; z-index: 110; background: #fff; color: var(--poster-navy); border: 3px solid var(--poster-blue); border-radius: 6px; box-shadow: var(--shadow-gold-offset); padding: 20px; animation: pvRise 300ms var(--ease-poster); max-width: 420px; margin: 0 auto; }
+@keyframes pvRise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+.pv-modal h2 { font-size: 34px; font-weight: 900; text-transform: uppercase; margin: 12px 0 0; line-height: .9; }
+.pv-icon-block { width: 46px; height: 46px; border-radius: 5px; background: var(--poster-navy); color: var(--poster-gold); display: flex; align-items: center; justify-content: center; }
+.pv-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--poster-muted); margin: 18px 0 6px; }
+.pv-input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 0 12px; border-radius: 4px; border: 2px solid var(--poster-border); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 16px; font-weight: 600; }
+.pv-input:focus { outline: 2px solid var(--poster-blue); outline-offset: 1px; }
+.pv-placeholder-note { font-size: 12px; font-weight: 600; color: var(--poster-muted); margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--poster-border); line-height: 1.4; }
+
+/* checkout screen */
+.pv-co-note { background: var(--poster-blue-panel); border: 2px solid var(--poster-blue); border-radius: 5px; padding: 14px 16px; font-size: 13px; font-weight: 600; color: #fff; line-height: 1.4; margin-top: 16px; }
+.pv-pay { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 2px solid var(--poster-border); border-radius: 5px; background: #fff; cursor: pointer; margin-top: 10px; }
+.pv-pay.is-on { border-color: var(--poster-blue); box-shadow: 3px 3px 0 var(--poster-gold); }
+.pv-pay-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--poster-navy); flex: none; margin-top: 2px; display: flex; align-items: center; justify-content: center; }
+.pv-pay.is-on .pv-pay-dot { border-color: var(--poster-blue); }
+.pv-pay.is-on .pv-pay-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--poster-blue); }
+.pv-pay-t { display: block; font-size: 19px; font-weight: 900; text-transform: uppercase; line-height: 1; }
+.pv-pay-d { display: block; font-size: 13px; font-weight: 500; color: var(--poster-muted); margin-top: 5px; line-height: 1.35; }
+
+/* §13: focus stays visible in gold or electric blue — never the UA
+   default, which is a 1px near-black ring and vanishes on the navy
+   surfaces. */
+body.route-v2 :focus-visible { outline: 2px solid var(--poster-gold); outline-offset: 2px; }
+body.route-v2 .pv-light :focus-visible,
+body.route-v2 .pv-drawer :focus-visible,
+body.route-v2 .pv-modal :focus-visible { outline-color: var(--poster-blue); }
+body.route-v2 .pv-coll :focus-visible { outline-color: var(--poster-gold); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-drawer, .pv-modal, .pv-backdrop { animation: none; }
+  .pv-btn { transition: none; }
+}
+
+/* ---------- responsive (guide §10.1/§10.5 — not designed in the
+   reference, extrapolated here; flagged for a design pass) ---------- */
+@media (min-width: 700px) {
+  .pv-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .pv-modal { max-width: 480px; }
+}
+@media (min-width: 980px) {
+  .pv-hero { padding: 48px 40px 56px; display: grid; grid-template-columns: 1fr 420px; align-items: center; gap: 32px; }
+  .pv-h1 { font-size: 100px; }
+  .pv-actions { flex-direction: row; }
+  .pv-actions .pv-btn { width: auto; }
+  .pv-light, .pv-promise, .pv-cta, .pv-footer, .pv-strip, .pv-header { padding-left: 40px; padding-right: 40px; }
+  .pv-cards { grid-template-columns: repeat(4, 1fr); }
+  .pv-drawer { width: 420px; }
+}

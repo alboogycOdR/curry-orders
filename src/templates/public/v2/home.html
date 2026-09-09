@@ -1,0 +1,35 @@
+{% extends "base_v2.html" %}
+{% load static %}
+
+{% comment %}
+Poster variant — home (chunk 1: foundation only). The promo strip,
+header, footer and bottom nav above/below this block are real and wired
+(Settings.support_whatsapp_e164 for the phone number); the hero,
+collection panel, menu, promise panel, ordering steps and final CTA that
+the style guide's §8.1 page order calls for land in chunks 2–3 and reuse
+the same dish/slot/settings data views.py's home()/menu() already query
+— not duplicated here yet.
+
+Per the handover's "no fake states" rule (README "Placeholder honesty"),
+this says plainly that it's unfinished rather than shipping an empty or
+invented page.
+{% endcomment %}
+
+{% block nav_home_cls %}is-on{% endblock %}
+
+{% block content %}
+<section class="pv-hero">
+  <div class="pv-brush" style="width:300px;height:70px;top:44px;left:-90px"></div>
+  <div class="pv-brush" style="width:240px;height:44px;top:150px;left:40px"></div>
+  <span class="pv-eyebrow">Poster variant</span>
+  <h1 class="pv-h1">Under<span class="pv-script">construction.</span></h1>
+  <p class="pv-lede">This is the new poster-style design for {{ site_name }}, running side by side with the current site while Brandon decides between them. The hero, menu and ordering flow are being built out chunk by chunk.</p>
+</section>
+
+<section class="pv-light" id="collection">
+  <div class="pv-num">Meanwhile</div>
+  <h2 class="pv-h2">Order on the current site.</h2>
+  <p class="pv-sub">Everything you need to place a real order — menu, collection slots, checkout — is live at the main site.</p>
+  <a href="{% url 'public:home' %}" class="pv-btn pv-btn-dark" style="margin-top:16px;display:inline-flex;">Go to the current site</a>
+</section>
+{% endblock %}

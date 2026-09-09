@@ -27,6 +27,12 @@ urlpatterns = [
     # — a load balancer or uptime check hits this directly.
     path("healthz", healthz, name="healthz"),
     path("manage/", include("staff.urls")),  # namespace "manage" (app_name in staff/urls.py)
+    # Poster-variant comparison surface (updates0909/handover_poster_variant)
+    # — runs side by side with the surface below at "", not a replacement
+    # of it, until one is chosen and the other archived. Must come before
+    # the public include below so /v2/... doesn't fall through to
+    # public.urls' "" pattern first.
+    path("v2/", include("public.urls_v2")),  # namespace "v2"
     path("", include("public.urls")),  # namespace "public"
 ]
 
