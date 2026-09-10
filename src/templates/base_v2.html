@@ -60,7 +60,7 @@ public.context_processors.v2_shell (Settings.support_whatsapp_e164).
   <a class="pv-footer-tel" href="tel:{{ contact_phone_e164 }}">{{ contact_phone_display }}</a>
   {% endif %}
   <div class="pv-footer-links">
-    <a href="{% url 'v2:home' %}#menu">Menu</a>
+    <a href="{% url 'v2:menu' %}">Menu</a>
     <a href="{% url 'v2:home' %}#collection">Collection</a>
     <button type="button" data-action="open-lookup">Find my order</button>
   </div>
@@ -71,7 +71,7 @@ public.context_processors.v2_shell (Settings.support_whatsapp_e164).
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
     <span>Home</span>
   </a>
-  <a href="{% url 'v2:home' %}#menu" class="{% block nav_menu_cls %}{% endblock %}">
+  <a href="{% url 'v2:menu' %}" class="{% block nav_menu_cls %}{% endblock %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
     <span>Menu</span>
   </a>
@@ -139,7 +139,7 @@ drift out of sync.
 </div>
 
 <script>
-  window.BK_V2_URLS = { menu: "{% url 'v2:home' %}#menu" };
+  window.BK_V2_URLS = { menu: "{% url 'v2:menu' %}" };
 </script>
 <script src="{% static 'js/poster.js' %}" defer></script>
 {% block extra_body %}{% endblock %}

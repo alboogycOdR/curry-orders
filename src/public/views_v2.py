@@ -26,35 +26,45 @@ from core.tz import coerce_time, now_sast
 from public import views as public_views
 
 
+def _first_orderable_day(days: list[dict]) -> TradingDay | None:
+    if not days:
+        return None
+    return TradingDay.objects.filter(date=dt.date.fromisoformat(days[0]["iso"])).first()
+
+
+def _featured_context(request: HttpRequest, dishes: list) -> dict:
+    """Featured dish for the hero — real MenuDish (with photo/sold_out),
+    looked up by slug against whatever `active_dishes()`/`_featured_dish`
+    (views.py's own selection logic, reused rather than re-implemented)
+    picked."""
+    active = menu_queries.active_dishes()
+    featured_dish = public_views._featured_dish(active, request.GET.get("featured"))
+    if featured_dish is None:
+        return {"featured": None}
+    return {"featured": next((d for d in dishes if d.slug == featured_dish.slug), None)}
+
+
 def home(request: HttpRequest) -> HttpResponse:
-    """Poster-variant home — single scrolling page (guide §8.1): hero,
-    collection panel, menu, promise panel, ordering steps, final CTA.
-    Real data throughout — same queries `views.order()`/`views.basket()`
-    already use (`core.menu`, `_orderable_day_list`, `_slot_list_for_day`),
-    just rendered as one page instead of three.
+    """Poster-variant home (guide §8.1's hero/collection/promise/steps/
+    CTA sections). The full dish catalog moved to its own screen
+    (`menu()`, split from home per the 2025-09 navigation review — a
+    single scrolling page read as "the menu is stuck inside the home
+    page" rather than a real Menu destination) — home only needs the one
+    featured dish for its hero, not the whole catalog.
 
     The /v2/ shell context (site_name, contact phone) doesn't need
     building here — `public.context_processors.v2_shell` supplies it to
     every /v2/ template automatically.
     """
-    ctx: dict = {}
     settings = Settings.current()
     today = now_sast().date()
     days = public_views._orderable_day_list(today, settings)
-    first_day = (
-        TradingDay.objects.filter(date=dt.date.fromisoformat(days[0]["iso"])).first()
-        if days else None
-    )
+    first_day = _first_orderable_day(days)
     slots = public_views._slot_list_for_day(first_day)
 
-    dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
-    categories = menu_queries.categories_ordered(dishes)
-
-    active = menu_queries.active_dishes()
-    featured_dish = public_views._featured_dish(active, request.GET.get("featured"))
-    featured_menu_dish = None
-    if featured_dish is not None:
-        featured_menu_dish = next((d for d in dishes if d.slug == featured_dish.slug), None)
+    # Only the featured dish's own data is needed here — with_options is
+    # for the item-configurator sheet, which lives on the Menu page now.
+    dishes = menu_queries.dishes_for_date(first_day, with_options=False) if first_day else []
 
     edition_label = ""
     if days:
@@ -70,11 +80,9 @@ def home(request: HttpRequest) -> HttpResponse:
         else f"Ordering for {edition_label}" if edition_label else f"Order by {cutoff.strftime('%H:%M')}"
     )
 
-    ctx.update({
+    ctx: dict = {
         "days": days,
         "slots": slots,
-        "categories": categories,
-        "featured": featured_menu_dish,
         "edition_label": edition_label,
         "cutoff_copy": cutoff_copy,
         "today_orderable": today_orderable,
@@ -85,11 +93,37 @@ def home(request: HttpRequest) -> HttpResponse:
         ),
         "collection_address_line": settings.collection_address_line,
         "eft_hold_minutes": settings.eft_hold_minutes,
+    }
+    ctx.update(_featured_context(request, dishes))
+    return render(request, "public/v2/home.html", ctx)
+
+
+def menu(request: HttpRequest) -> HttpResponse:
+    """Poster-variant Menu — its own screen (split from home, see that
+    view's docstring). Category filters + every real dish, add/qty via
+    the item-configurator sheet (_item_sheet_v2.html/item-sheet.js,
+    reused verbatim). No slot picker here — Collection stays the one
+    place that sets it (guide's own collection-panel ownership of that
+    control), so a visitor who lands on Menu first sees a banner
+    pointing back to it rather than a second, possibly-drifting picker.
+    """
+    settings = Settings.current()
+    today = now_sast().date()
+    days = public_views._orderable_day_list(today, settings)
+    first_day = _first_orderable_day(days)
+
+    dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
+    categories = menu_queries.categories_ordered(dishes)
+
+    ctx: dict = {
+        "categories": categories,
+        "eft_hold_minutes": settings.eft_hold_minutes,
         "menu_catalog_json": json.dumps(
             public_views._menu_catalog_payload(dishes)
         ).replace("</", "<\\/"),
-    })
-    return render(request, "public/v2/home.html", ctx)
+    }
+    ctx.update(_featured_context(request, dishes))
+    return render(request, "public/v2/menu.html", ctx)
 
 
 def checkout(request: HttpRequest) -> HttpResponse:

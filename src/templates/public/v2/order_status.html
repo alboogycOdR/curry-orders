@@ -159,7 +159,7 @@ tested; only the surrounding markup/CSS is poster-styled.
     {% if can_reorder %}
     <a href="{% url 'public:reorder' public_token=order.public_token %}" class="pv-btn pv-btn-primary">Order these again</a>
     {% endif %}
-    <a href="{% url 'v2:home' %}#menu" class="pv-btn pv-btn-outline on-light">Start another order</a>
+    <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-outline on-light">Start another order</a>
   </div>
 </section>
 {% endblock %}

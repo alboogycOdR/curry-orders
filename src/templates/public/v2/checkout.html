@@ -164,7 +164,7 @@ on the Broadsheet page is why that page still works unmodified.
 {{ days|json_script:"days-data" }}
 <script>
   window.BK_CHECKOUT_URLS = {
-    order:        "{% url 'v2:home' %}#menu",
+    order:        "{% url 'v2:menu' %}",
     basket:       "{% url 'v2:home' %}",
     api_checkout: "{% url 'public:api_checkout' %}",
     order_status: "{% url 'v2:order_status' public_token='TOKEN_PLACEHOLDER' %}",

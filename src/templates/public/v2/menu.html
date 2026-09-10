@@ -1,0 +1,87 @@
+{% extends "base_v2.html" %}
+{% load static moneyfmt %}
+
+{% comment %}
+Poster variant — Menu, its own screen (split from home per the 2025-09
+navigation review: a single scrolling page read as "the menu is stuck
+inside the home page" rather than a real destination — see
+views_v2.menu's own docstring). Collection/slot-picking stays on Home;
+this page banners a reminder + link back there if no slot is chosen yet,
+rather than duplicating a second picker that could drift out of sync
+with the first.
+
+Simplification from the design reference, matching how the *real*
+Broadsheet /order/ screen already works (order.js's own dish-card
+renderer): every card's control is a "+" that opens the item
+configurator sheet, never a bare qty stepper on the card — a dish with
+required options (heat) can have several basket lines at once, which a
+single card-level counter can't represent.
+{% endcomment %}
+
+{% block nav_menu_cls %}is-on{% endblock %}
+{% block promo_date %}Menu{% endblock %}
+
+{% block content %}
+<section class="pv-light" id="menu" style="padding-top:22px;">
+  <div class="pv-num">02 &mdash; Menu</div>
+  <h2 class="pv-h2">Order the good stuff.</h2>
+  <p class="pv-sub">Cooked in limited batches every week. When it's gone, it's gone.</p>
+
+  <div class="pv-notice" id="pv-slot-reminder" style="margin-top:16px;">
+    Pick a collection day and window on the <a href="{% url 'v2:home' %}#collection" style="color:var(--poster-gold);">Home page</a> before you check out.
+  </div>
+
+  {% if categories %}
+  <div class="pv-filters" id="pv-filters" role="tablist" aria-label="Menu categories">
+    <button type="button" class="pv-filter is-on" data-filter="all" role="tab" aria-selected="true">Everything</button>
+    {% for cat_name, cat_dishes in categories %}
+    <button type="button" class="pv-filter" data-filter="{{ cat_name|slugify }}" role="tab" aria-selected="false">{{ cat_name }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="pv-cards" id="pv-menu-cards">
+    {% for cat_name, cat_dishes in categories %}
+    {% for dish in cat_dishes %}
+    <article class="pv-card{% if featured and dish.slug == featured.slug %} is-featured{% endif %}{% if dish.sold_out %} is-out{% endif %}" data-category="{{ cat_name|slugify }}">
+      <div class="pv-card-img{% if not dish.photo_url %} is-placeholder{% endif %}" {% if dish.photo_url %}style="background-image:url('{{ dish.photo_url }}')"{% endif %}>
+        {% if featured and dish.slug == featured.slug %}<span class="pv-tag">This week</span>{% endif %}
+      </div>
+      <div class="pv-card-body">
+        <div class="pv-card-cat">{{ cat_name }}</div>
+        <h3 class="pv-card-name">{{ dish.name }}</h3>
+        <p class="pv-card-desc">{{ dish.short_description }}</p>
+        <div class="pv-card-foot">
+          <span class="pv-card-price">{{ dish.price_cents|cents }}</span>
+          {% if dish.sold_out %}
+          <span class="pv-out-tag">Sold out</span>
+          {% else %}
+          <button type="button" class="pv-add" data-dish-id="{{ dish.id }}" aria-label="Add {{ dish.name }}">+</button>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="pv-sub" style="margin-top:16px;">The menu isn't open right now &mdash; check back soon.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_body %}
+<script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
+{% include "public/v2/_item_sheet_v2.html" %}
+<script src="{% static 'js/item-sheet.js' %}" defer></script>
+<script>
+  // Hide the "pick a slot" reminder once a slot is already chosen —
+  // cheap client-side check against the same window.BKCart every v2
+  // page shares (see poster.js), no server round-trip needed.
+  document.addEventListener("DOMContentLoaded", function () {
+    var reminder = document.getElementById("pv-slot-reminder");
+    if (reminder && window.BKCart && window.BKCart.getSlotId()) {
+      reminder.hidden = true;
+    }
+  });
+</script>
+{% endblock %}
