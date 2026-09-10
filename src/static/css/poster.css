@@ -106,6 +106,14 @@ body.route-v2 a:hover { color: var(--poster-gold-soft); }
 /* menu cards */
 .pv-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .pv-card { display: grid; grid-template-columns: 40% 1fr; gap: 12px; background: #fff; border: 2px solid var(--poster-border); border-radius: 5px; overflow: hidden; transition: border-color 180ms var(--ease-poster); }
+/* poster.js's category filter sets card.hidden = true/false — an author
+   rule always beats the UA stylesheet's own `[hidden]{display:none}`
+   regardless of selector order, so without this explicit override the
+   `display: grid` above wins and "hidden" cards keep showing. Same
+   fix needed anywhere else a `display` is forced on a toggleable
+   element — .pv-card is the one that bit in practice (Menu category
+   filtering silently doing nothing). */
+.pv-card[hidden] { display: none; }
 .pv-card.is-featured { border-color: var(--poster-blue); box-shadow: var(--shadow-gold-offset); }
 .pv-card.is-out { opacity: .6; }
 .pv-card-img { position: relative; min-height: 126px; background: var(--poster-blue-panel) center/cover no-repeat; }
@@ -200,6 +208,7 @@ body.route-v2 a:hover { color: var(--poster-gold-soft); }
 /* checkout screen */
 .pv-co-note { background: var(--poster-blue-panel); border: 2px solid var(--poster-blue); border-radius: 5px; padding: 14px 16px; font-size: 13px; font-weight: 600; color: #fff; line-height: 1.4; margin-top: 16px; }
 .pv-pay { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 2px solid var(--poster-border); border-radius: 5px; background: #fff; cursor: pointer; margin-top: 10px; }
+.pv-pay[hidden] { display: none; }
 .pv-pay.is-on { border-color: var(--poster-blue); box-shadow: 3px 3px 0 var(--poster-gold); }
 .pv-pay-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--poster-navy); flex: none; margin-top: 2px; display: flex; align-items: center; justify-content: center; }
 .pv-pay.is-on .pv-pay-dot { border-color: var(--poster-blue); }
@@ -265,6 +274,7 @@ body.route-v2 .pv-coll :focus-visible { outline-color: var(--poster-gold); }
 .is-chip-delta { font-size: 11px; opacity: .8; margin-left: 4px; }
 .pv-is-notes-count { font-size: 11px; font-weight: 600; color: var(--poster-muted); text-align: right; margin-top: 3px; }
 .pv-is-qty-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--poster-border); margin-bottom: 4px; }
+.pv-is-qty-row[hidden] { display: none; }
 .pv-is-qty-btn { width: 40px; height: 40px; border-radius: 4px; border: 2px solid var(--poster-navy); background: #fff; color: var(--poster-navy); font-family: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
 .pv-is-qty-btn.is-plus { background: var(--poster-navy); color: var(--poster-gold); }
 .pv-is-qty-count { font-size: 18px; font-weight: 900; min-width: 24px; text-align: center; }

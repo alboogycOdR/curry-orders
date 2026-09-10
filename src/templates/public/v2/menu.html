@@ -16,6 +16,16 @@ renderer): every card's control is a "+" that opens the item
 configurator sheet, never a bare qty stepper on the card — a dish with
 required options (heat) can have several basket lines at once, which a
 single card-level counter can't represent.
+
+Day chips (browse which collection day's menu is showing) also match
+/order/'s own day-bar — missed in the first pass of this split, added
+after comparing the two Menu screens directly. static/js/poster-menu.js
+is a poster-styled equivalent of order.js's day-switch rebuild (same
+GET /api/order/day/<date>/ endpoint, same category logic), not that
+script reused verbatim — order.js's rebuild functions emit Broadsheet's
+own `.op-*` markup, which would fight this page's `.pv-card` styling on
+every day switch the same way basket.js's/checkout.js's dynamically
+generated classes did until those got their own poster CSS.
 {% endcomment %}
 
 {% block nav_menu_cls %}is-on{% endblock %}
@@ -26,6 +36,18 @@ single card-level counter can't represent.
   <div class="pv-num">02 &mdash; Menu</div>
   <h2 class="pv-h2">Order the good stuff.</h2>
   <p class="pv-sub">Cooked in limited batches every week. When it's gone, it's gone.</p>
+
+  {% if days %}
+  <div class="pv-filters" id="pv-day-bar" role="group" aria-label="Collection day" style="margin-top:16px;">
+    {% for d in days %}
+    <button type="button" class="ck-slot-day-chip{% if forloop.first %} is-selected{% endif %}" data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">
+      <span class="ck-chip-top">{{ d.dow }}</span>
+      <span class="ck-chip-bottom">{{ d.dom }}</span>
+    </button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <p class="pv-hold" id="pv-day-notice" hidden role="status" aria-live="polite" style="color:var(--poster-error);margin-top:10px;"></p>
 
   <div class="pv-notice" id="pv-slot-reminder" style="margin-top:16px;">
     Pick a collection day and window on your <a href="{% url 'v2:basket' %}" style="color:var(--poster-gold);">basket</a> before you check out.
@@ -73,6 +95,14 @@ single card-level counter can't represent.
 <script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
 {% include "public/v2/_item_sheet_v2.html" %}
 <script src="{% static 'js/item-sheet.js' %}" defer></script>
+{{ days|json_script:"pv-days-data" }}
+<script>
+  window.PV_MENU_URLS = {
+    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00", ""),
+  };
+  window.PV_FEATURED_SLUG = "{{ featured.slug|default:''|escapejs }}";
+</script>
+<script src="{% static 'js/poster-menu.js' %}" defer></script>
 <script>
   // Hide the "pick a slot" reminder once a slot is already chosen —
   // cheap client-side check against the same window.BKCart every v2

@@ -111,12 +111,14 @@ def basket(request: HttpRequest) -> HttpResponse:
 
 def menu(request: HttpRequest) -> HttpResponse:
     """Poster-variant Menu — its own screen (split from home, see that
-    view's docstring). Category filters + every real dish, add/qty via
-    the item-configurator sheet (_item_sheet_v2.html/item-sheet.js,
-    reused verbatim). No slot picker here — Collection stays the one
-    place that sets it (guide's own collection-panel ownership of that
-    control), so a visitor who lands on Menu first sees a banner
-    pointing back to it rather than a second, possibly-drifting picker.
+    view's docstring). Day chips to browse which collection day's menu
+    is showing (matching the Broadsheet /order/ screen's own
+    day-bar/order.js behaviour — GET /api/order/day/<date>/ re-fetches
+    and the page rebuilds its own card grid client-side; see
+    static/js/poster-menu.js, a poster-styled equivalent of order.js's
+    rebuild rather than that script reused verbatim, since order.js's
+    rebuild functions emit Broadsheet's own `.op-*` markup). No *slot*
+    picker here — Collection/Basket stays the one place that sets it.
     """
     settings = Settings.current()
     today = now_sast().date()
@@ -127,6 +129,7 @@ def menu(request: HttpRequest) -> HttpResponse:
     categories = menu_queries.categories_ordered(dishes)
 
     ctx: dict = {
+        "days": days,
         "categories": categories,
         "eft_hold_minutes": settings.eft_hold_minutes,
         "menu_catalog_json": json.dumps(
