@@ -219,8 +219,16 @@ Any basket lines unavailable on the new day are removed with a notice.
 {{ days|json_script:"op-days-data" }}
 <script>
   // Base URL for GET /api/order/day/<date>/  — JS appends the ISO date + "/"
+  //
+  // Replace "0000-00-00/" (placeholder + its trailing slash), not just
+  // "0000-00-00" — the reversed URL is ".../day/0000-00-00/"; stripping
+  // only the placeholder left ".../day//" (a stray double slash), and
+  // order.js's own `dayUrlBase + date + "/"` then 404'd on
+  // ".../day//2026-09-11/" every time a day chip was clicked. Found via
+  // the poster-variant's identical construction (menu.html, copied from
+  // here) failing the same way; this is the original.
   window.OP_URLS = {
-    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00", ""),
+    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00/", ""),
   };
 </script>
 <script src="{% static 'js/order.js' %}" defer></script>
