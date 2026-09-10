@@ -43,6 +43,29 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
+  web-v2:
+    # Poster-variant standalone deploy (updates0909/handover_poster_variant)
+    # — same image, same database as `web`, mounted at its own port so
+    # Brandon can compare http://<host>:8102/ (current site) against
+    # http://<host>:8104/ (poster variant) as two plain top-level sites
+    # rather than a sub-path under the first. ROOT_URLCONF is the only
+    # difference (config/urls_v2_root.py mounts public.urls_v2 at "/" —
+    # see that file's own comment for why this replaced the earlier
+    # `/v2/` prefix). No separate scheduler/db/minio — those are shared.
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      --workers ${GUNICORN_WORKERS:-2} --worker-class gthread --threads 4 --timeout 60
+    env_file: .env
+    environment:
+      ROOT_URLCONF: config.urls_v2_root
+    ports:
+      - "${WEB_BIND_HOST:-127.0.0.1}:${WEB_V2_BIND_PORT:-8104}:8000"
+    depends_on:
+      - db
+      - minio
+    mem_limit: 1g
+    restart: unless-stopped
+
   scheduler:
     build: .
     command: python manage.py run_scheduler

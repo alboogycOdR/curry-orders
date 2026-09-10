@@ -115,7 +115,13 @@ SESSION_SAVE_EVERY_REQUEST = True
 # and SESSION_COOKIE_SECURE (True in prod.py; False here since local dev
 # and CI run over plain HTTP) are set per-environment, not here.
 
-ROOT_URLCONF = "config.urls"
+
+# Overridable so the poster-variant comparison deploy (docker-compose's
+# web-v2 service, port 8104) can run the *same image* with a different
+# urlconf that mounts public.urls_v2 at "/" instead of "/v2/" — a plain
+# env var swap, no code branching needed. Everything else (web, scheduler)
+# leaves this at the default.
+ROOT_URLCONF = env("ROOT_URLCONF", default="config.urls")
 
 # The other agent owns src/templates/base.html and src/static/ (design
 # system CSS/JS/fonts) — these paths must point at exactly those

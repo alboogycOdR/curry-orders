@@ -1138,11 +1138,6 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
         "Disallow: /manage/",
         "Disallow: /admin/",
         "Disallow: /healthz",
-        # /v2/ is the poster-variant comparison surface (updates0909) —
-        # kept out of search results while it runs side by side with the
-        # surface above; revisit once one variant is chosen and the
-        # other archived.
-        "Disallow: /v2/",
     ]
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
 

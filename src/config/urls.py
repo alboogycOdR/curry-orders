@@ -27,14 +27,17 @@ urlpatterns = [
     # — a load balancer or uptime check hits this directly.
     path("healthz", healthz, name="healthz"),
     path("manage/", include("staff.urls")),  # namespace "manage" (app_name in staff/urls.py)
-    # Poster-variant comparison surface (updates0909/handover_poster_variant)
-    # — runs side by side with the surface below at "", not a replacement
-    # of it, until one is chosen and the other archived. Must come before
-    # the public include below so /v2/... doesn't fall through to
-    # public.urls' "" pattern first.
-    path("v2/", include("public.urls_v2")),  # namespace "v2"
     path("", include("public.urls")),  # namespace "public"
 ]
+
+# The poster-variant comparison surface (updates0909/handover_poster_variant)
+# used to be mounted here at /v2/, but a path prefix under the same port
+# caused enough in-page-navigation quirks (some links behaving as if
+# still scoped to /v2/) that it moved to its own top-level deploy
+# instead — docker-compose's `web-v2` service (port 8104), which reuses
+# this exact codebase with a different ROOT_URLCONF
+# (config.urls_v2_root mounts public.urls_v2 at "/" on that service).
+# See that file's own comment for the full reasoning.
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
