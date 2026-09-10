@@ -58,7 +58,13 @@ on the Broadsheet page is why that page still works unmodified.
     {% comment %} Poster-variant addition — Uber Courier (open question 2). {% endcomment %}
     <div style="margin-top:24px;">
       <div class="pv-num" style="color:var(--poster-muted);">How you'll collect</div>
-      <div class="pv-pay is-on" id="ck-collect-direct-row">
+      {% comment %}
+      No hardcoded "is-on" here — poster.js now syncs every .pv-pay row
+      to its radio's actual checked state on load (fixed after finding
+      the EFT row above looked unselected despite being checked; this
+      row's own hardcoded is-on was a workaround for the same gap).
+      {% endcomment %}
+      <div class="pv-pay" id="ck-collect-direct-row">
         <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;width:100%;">
           <input type="radio" name="collection_method" value="direct" checked style="margin-top:3px;">
           <span>
