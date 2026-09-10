@@ -78,33 +78,39 @@
     // ---------------------------------------------------------------- .pv-pay radio highlight
     // Generic: any .pv-pay wrapping a radio gets .is-on synced to it —
     // used by both the payment-method and collection-method groups on
-    // the checkout page. Must also sync once immediately on load, not
-    // only on "change": checkout.js's renderPay() can pre-check EFT or
-    // Cash from the customer's persisted BKCart.getPay() state before
-    // this file ever runs, and a radio that's *already* checked never
-    // fires a native "change" event on its own — found live: the EFT
-    // row (no server-rendered .is-on) looked unselected on load even
-    // though the radio itself was correctly checked; only the
-    // collection-method row looked right, and only because its
-    // "direct" option happened to be hardcoded .is-on in the template
-    // as a workaround. Syncing here removes the need for any such
-    // per-template hardcoding.
-
-    function syncPayRow(row) {
-      var radio = row.querySelector('input[type="radio"]');
-      if (radio) row.classList.toggle("is-on", radio.checked);
-    }
+    // the checkout page.
 
     document.querySelectorAll(".pv-pay").forEach(function (row) {
       var radio = row.querySelector('input[type="radio"]');
       if (!radio) return;
-      syncPayRow(row);
       radio.addEventListener("change", function () {
         document.querySelectorAll('input[name="' + radio.name + '"]').forEach(function (r) {
           var wrap = r.closest(".pv-pay");
           if (wrap) wrap.classList.toggle("is-on", r.checked);
         });
       });
+    });
+  });
+
+  // A first sync pass belongs on window "load", not the DOMContentLoaded
+  // block above: checkout.js's own renderPay() sets payEft/payCash.checked
+  // programmatically from the customer's persisted BKCart.getPay() state,
+  // inside *its own* DOMContentLoaded handler — registered after this
+  // file's (checkout.js loads later in the document), so it runs *after*
+  // this file's handler already fired. Setting `.checked` via JS also
+  // never fires a native "change" event on its own. Net effect, found
+  // live: the EFT row looked unselected on load despite the radio being
+  // genuinely checked — syncing here once DOMContentLoaded is a
+  // DOMContentLoaded handler too early; only Direct-collection looked
+  // right, and only because that one option had .is-on hardcoded in the
+  // template as a workaround. `load` fires strictly after every deferred
+  // script's DOMContentLoaded handler has completed, so this reads the
+  // final state regardless of script order — no changes to checkout.js
+  // needed, and the template's hardcoded .is-on could come out.
+  window.addEventListener("load", function () {
+    document.querySelectorAll(".pv-pay").forEach(function (row) {
+      var radio = row.querySelector('input[type="radio"]');
+      if (radio) row.classList.toggle("is-on", radio.checked);
     });
   });
 })();
