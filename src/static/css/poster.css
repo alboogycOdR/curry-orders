@@ -250,7 +250,14 @@ body.route-v2 .pv-coll :focus-visible { outline-color: var(--poster-gold); }
    see templates/public/v2/_item_sheet_v2.html) ---------- */
 .pv-is-wrap { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; }
 .pv-is-wrap[hidden] { display: none; }
-.pv-is-panel { position: relative; z-index: 1; width: 100%; max-height: 92dvh; background: var(--poster-paper); color: var(--poster-navy); border-radius: 10px 10px 0 0; display: flex; flex-direction: column; outline: none; animation: pvSlide 220ms var(--ease-poster); }
+/* z-index 101, not 1: .pv-is-wrap (its parent) establishes a local
+   stacking context, and its sibling .pv-backdrop sits at z-index 100
+   there (the shared backdrop class, also used by the More sheet) — a
+   panel at z-index 1 rendered BEHIND that backdrop, which silently
+   swallowed every click inside the sheet (Add button included) even
+   though the sheet was visibly open. Found via a Playwright click that
+   correctly reported "#is-backdrop intercepts pointer events". */
+.pv-is-panel { position: relative; z-index: 101; width: 100%; max-height: 92dvh; background: var(--poster-paper); color: var(--poster-navy); border-radius: 10px 10px 0 0; display: flex; flex-direction: column; outline: none; animation: pvSlide 220ms var(--ease-poster); }
 .pv-is-drag { width: 40px; height: 4px; border-radius: 2px; background: var(--poster-border); margin: 12px auto 0; flex-shrink: 0; }
 .pv-is-scroll { overflow-y: auto; flex: 1; padding: 0 20px 12px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .pv-is-header { display: flex; align-items: center; gap: 8px; padding: 16px 0 8px; }
