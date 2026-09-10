@@ -98,7 +98,18 @@ generated classes did until those got their own poster CSS.
 {{ days|json_script:"pv-days-data" }}
 <script>
   window.PV_MENU_URLS = {
-    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00", ""),
+    {% comment %}
+    Replace "0000-00-00/" (placeholder + its trailing slash), not just
+    "0000-00-00" — the reversed URL is ".../day/0000-00-00/"; stripping
+    only the placeholder leaves ".../day//" (a stray double slash), and
+    poster-menu.js's own `dayUrlBase + date + "/"` then 404s on
+    ".../day//2026-09-11/". Same bug exists in order.html's identical
+    line (order.js has the identical construction) — a pre-existing bug
+    on the live Broadsheet site, confirmed independently and flagged,
+    not introduced here; fixed in this file only per this session's
+    poster-variant scope.
+    {% endcomment %}
+    api_day_base: "{% url 'public:api_day_availability' date_str='0000-00-00' %}".replace("0000-00-00/", ""),
   };
   window.PV_FEATURED_SLUG = "{{ featured.slug|default:''|escapejs }}";
 </script>
