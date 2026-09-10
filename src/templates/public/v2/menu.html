@@ -3,12 +3,12 @@
 
 {% comment %}
 Poster variant — Menu, its own screen (split from home per the 2025-09
-navigation review: a single scrolling page read as "the menu is stuck
+IA-alignment review: a single scrolling page read as "the menu is stuck
 inside the home page" rather than a real destination — see
-views_v2.menu's own docstring). Collection/slot-picking stays on Home;
-this page banners a reminder + link back there if no slot is chosen yet,
-rather than duplicating a second picker that could drift out of sync
-with the first.
+views_v2.menu's own docstring). Slot-picking lives only on Basket
+(matching the Broadsheet site's own architecture); this page banners a
+reminder + link there if no slot is chosen yet, rather than duplicating
+a second picker that could drift out of sync with the first.
 
 Simplification from the design reference, matching how the *real*
 Broadsheet /order/ screen already works (order.js's own dish-card
@@ -28,7 +28,7 @@ single card-level counter can't represent.
   <p class="pv-sub">Cooked in limited batches every week. When it's gone, it's gone.</p>
 
   <div class="pv-notice" id="pv-slot-reminder" style="margin-top:16px;">
-    Pick a collection day and window on the <a href="{% url 'v2:home' %}#collection" style="color:var(--poster-gold);">Home page</a> before you check out.
+    Pick a collection day and window on your <a href="{% url 'v2:basket' %}" style="color:var(--poster-gold);">basket</a> before you check out.
   </div>
 
   {% if categories %}

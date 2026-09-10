@@ -1,0 +1,57 @@
+{% extends "base_v2.html" %}
+
+{% comment %}
+Poster-variant Account hub — matches the Broadsheet account.html's own
+structure/logic (views_v2.account reuses views.account unmodified,
+different template only): logged-in state shows the last collected
+order + Repeat, and a "Find an order" link; logged-out state offers
+Log in / Sign up plus a "Find my order without logging in" link.
+{% endcomment %}
+
+{% block title %}Account — {{ site_name }}{% endblock %}
+{% block promo_date %}Account{% endblock %}
+{% block nav_account_cls %}is-on{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  {% if request.customer_user %}
+  <div class="pv-num">Account</div>
+  <h2 class="pv-h2">Hi, {{ request.customer_user.full_name|truncatewords:2 }}</h2>
+  <p class="pv-sub">Your account is ready for your next order.</p>
+
+  {% if last_order %}
+  <div class="pv-coll" style="margin-top:20px;">
+    <div class="pv-coll-row"><div class="pv-coll-k">Last order</div><div class="pv-coll-v">{{ last_order.order_number }} &mdash; {{ last_order.trading_day.date|date:"j M" }}</div></div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <a class="pv-btn pv-btn-primary" href="{% url 'v2:reorder' public_token=last_order.public_token %}">Order these again</a>
+      <a class="pv-btn pv-btn-outline" href="{% url 'v2:order_status' public_token=last_order.public_token %}">View order</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+    <div class="pv-num">Find an order</div>
+    <p class="pv-sub">Look up any order placed with your mobile number.</p>
+    <a class="pv-btn pv-btn-dark" href="{% url 'v2:lookup' %}" style="margin-top:12px;display:inline-flex;">Find my order</a>
+  </div>
+
+  <a href="{% url 'v2:customer_logout' %}" class="pv-textlink" style="margin-top:24px;display:inline-flex;">Log out</a>
+  {% else %}
+  <div class="pv-num">Account</div>
+  <h2 class="pv-h2">Your account.</h2>
+  <p class="pv-sub">Save your details and keep track of your orders.</p>
+
+  <div class="pv-coll" style="margin-top:20px;">
+    <div class="pv-coll-k" style="width:auto;">Already have an account?</div>
+    <p style="color:#fff;font-size:14px;font-weight:600;margin:8px 0 12px;">Log in to order faster next time.</p>
+    <a class="pv-btn pv-btn-primary" href="{% url 'v2:customer_login' %}">Log in</a>
+  </div>
+  <div style="margin-top:16px;padding:18px;border:2px solid var(--poster-border);border-radius:6px;background:#fff;">
+    <div style="font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-blue);">New here?</div>
+    <p style="font-size:14px;font-weight:600;margin:8px 0 12px;color:var(--poster-navy);">Create an account with your mobile number.</p>
+    <a class="pv-btn pv-btn-outline on-light" href="{% url 'v2:customer_signup' %}">Sign up</a>
+  </div>
+  <a href="{% url 'v2:lookup' %}" class="pv-textlink" style="margin-top:20px;display:inline-flex;">Find my order without logging in</a>
+  {% endif %}
+</section>
+{% endblock %}

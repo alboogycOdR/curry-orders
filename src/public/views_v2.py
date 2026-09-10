@@ -45,12 +45,16 @@ def _featured_context(request: HttpRequest, dishes: list) -> dict:
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    """Poster-variant home (guide §8.1's hero/collection/promise/steps/
-    CTA sections). The full dish catalog moved to its own screen
-    (`menu()`, split from home per the 2025-09 navigation review — a
-    single scrolling page read as "the menu is stuck inside the home
-    page" rather than a real Menu destination) — home only needs the one
-    featured dish for its hero, not the whole catalog.
+    """Poster-variant home (hero/collection-info/menu-teaser/promise/
+    steps/final-CTA). Matches the *Broadsheet* home's own information
+    architecture (views.home()) — Home is a read-only landing page; it
+    has never had slot-picking (that's Basket's job alone, both here and
+    on the Broadsheet site). The design guide's original single-page
+    mockup put a slot picker in its Home hero section; this build moved
+    it to the real Basket page instead once the 2025-09 IA review
+    compared the two surfaces side by side and found Home picking slots
+    was a poster-only invention with no equivalent on the site it's
+    meant to be compared against.
 
     The /v2/ shell context (site_name, contact phone) doesn't need
     building here — `public.context_processors.v2_shell` supplies it to
@@ -60,7 +64,6 @@ def home(request: HttpRequest) -> HttpResponse:
     today = now_sast().date()
     days = public_views._orderable_day_list(today, settings)
     first_day = _first_orderable_day(days)
-    slots = public_views._slot_list_for_day(first_day)
 
     # Only the featured dish's own data is needed here — with_options is
     # for the item-configurator sheet, which lives on the Menu page now.
@@ -82,7 +85,6 @@ def home(request: HttpRequest) -> HttpResponse:
 
     ctx: dict = {
         "days": days,
-        "slots": slots,
         "edition_label": edition_label,
         "cutoff_copy": cutoff_copy,
         "today_orderable": today_orderable,
@@ -96,6 +98,15 @@ def home(request: HttpRequest) -> HttpResponse:
     }
     ctx.update(_featured_context(request, dishes))
     return render(request, "public/v2/home.html", ctx)
+
+
+def basket(request: HttpRequest) -> HttpResponse:
+    """Poster-variant Basket — a real page (information-architecture
+    parity with the Broadsheet site: Basket has always been its own
+    screen there, with the day/slot picker, editable lines and Continue
+    button views.basket()/basket.js already implement — reused verbatim,
+    including edit-mode via the item-configurator sheet)."""
+    return public_views.basket(request, template_name="public/v2/basket.html")
 
 
 def menu(request: HttpRequest) -> HttpResponse:
@@ -144,4 +155,40 @@ def order_status(request: HttpRequest, public_token: str) -> HttpResponse:
 def lookup(request: HttpRequest) -> HttpResponse:
     return public_views.lookup(
         request, template_name="public/v2/lookup.html", status_namespace="v2",
+    )
+
+
+def account(request: HttpRequest) -> HttpResponse:
+    return public_views.account(request, template_name="public/v2/account.html")
+
+
+def customer_login(request: HttpRequest) -> HttpResponse:
+    return public_views.customer_login(
+        request, template_name="public/v2/customer_login.html", redirect_namespace="v2",
+    )
+
+
+def customer_signup(request: HttpRequest) -> HttpResponse:
+    return public_views.customer_signup(
+        request, template_name="public/v2/customer_signup.html", redirect_namespace="v2",
+    )
+
+
+def account_setup(request: HttpRequest) -> HttpResponse:
+    return public_views.account_setup(
+        request, template_name="public/v2/account_setup.html", redirect_namespace="v2",
+    )
+
+
+def help_page(request: HttpRequest) -> HttpResponse:
+    return public_views.help_page(request, template_name="public/v2/help.html")
+
+
+def policies_page(request: HttpRequest) -> HttpResponse:
+    return public_views.policies_page(request, template_name="public/v2/policies.html")
+
+
+def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
+    return public_views.reorder(
+        request, public_token, template_name="public/v2/reorder.html", redirect_namespace="v2",
     )

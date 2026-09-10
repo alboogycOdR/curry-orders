@@ -294,6 +294,28 @@ body.sheet-open .pv-nav { display: none !important; }
 .ck-sheet-name { flex: 1; font-size: 14px; font-weight: 700; }
 .ck-sheet-total { font-weight: 900; }
 .ck-sheet-empty { font-size: 13px; font-weight: 600; color: var(--poster-muted); }
+/* .bk-*: basket.js's own class names (renderLines/buildSlotGridHtml) —
+   reused verbatim on the poster Basket page, same reasoning as the
+   .ck-*/.is-* blocks above. */
+.bk-line { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--poster-border); }
+.bk-line-info { flex: 1; min-width: 0; }
+.bk-line-name { font-size: 16px; font-weight: 900; text-transform: uppercase; }
+.bk-line-opts { font-size: 12px; font-weight: 600; color: var(--poster-muted); margin-top: 2px; }
+.bk-line-note { font-size: 12px; color: var(--poster-muted); margin-top: 2px; font-style: italic; }
+.bk-line-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.bk-line-total { font-weight: 900; font-size: 15px; white-space: nowrap; }
+.bk-stepper { display: flex; align-items: center; gap: 4px; }
+.bk-stepper-btn { min-height: 34px; min-width: 34px; padding: 0; font-size: 18px; line-height: 1; border-radius: 4px; }
+.bk-stepper-count { font-weight: 900; font-size: 16px; min-width: 22px; text-align: center; }
+.bk-edit-btn { font-size: 12px; font-weight: 700; padding: 3px 10px; min-height: 28px; }
+/* .bk-chip is basket.js's day/slot chip base class (shared with
+   .ck-slot-day-chip's own styling above for the day row; the slot grid
+   uses .bk-chip.bk-slot-chip together, matching exactly what
+   buildSlotGridHtml() regenerates on every day switch). */
+.bk-chip.bk-slot-chip { font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; border-radius: 4px; text-align: center; background: #fff; color: var(--poster-navy); border: 2px solid var(--poster-border); min-height: 44px; }
+.bk-chip.bk-slot-chip.is-selected { background: var(--poster-blue); color: #fff; border-color: var(--poster-blue); }
+.bk-chip.bk-slot-chip.is-full { color: var(--poster-muted); text-decoration: line-through; cursor: not-allowed; }
+
 /* .is-group / .is-group-label / .is-group-req / .is-chips: item-sheet.js's
    own class names for dynamically-rendered "extras" option groups
    (_buildExtrasGroups) — same visual treatment as the static heat group's

@@ -544,13 +544,18 @@ def order(request: HttpRequest) -> HttpResponse:
     })
 
 
-def basket(request: HttpRequest) -> HttpResponse:
+def basket(request: HttpRequest, template_name: str = "public/basket.html") -> HttpResponse:
     """PR 5: basket — day/slot picker, line steppers, Continue.
 
     Emits `#menu-data` via `_menu_catalog_payload` so item-sheet.js can
     power Edit mode on existing lines; missing/sold-out disables the Edit
     button. Day/slot state lives in localStorage (cart v2 `dayIso`/`slotId`);
     basket.js syncs UI ↔ cart on every interaction.
+
+    `template_name` lets `views_v2.basket` reuse this exact query with
+    its own poster-styled template — the poster variant's Basket is a
+    real page here too (information-architecture parity with the
+    Broadsheet site, not the drawer the design guide's own mockup used).
     """
     settings = Settings.current()
     today = now_sast().date()
@@ -562,7 +567,7 @@ def basket(request: HttpRequest) -> HttpResponse:
     # Menu catalog needed for the Edit item sheet — same payload as order().
     dishes = menu_queries.dishes_for_date(first_day, with_options=True) if first_day else []
 
-    return render(request, "public/basket.html", {
+    return render(request, template_name, {
         "menu_catalog_json": json.dumps(_menu_catalog_payload(dishes)).replace("</", "<\\/"),
         "days": days,
         "slots": slots,
@@ -764,7 +769,7 @@ def lookup(
     return response
 
 
-def account(request: HttpRequest) -> HttpResponse:
+def account(request: HttpRequest, template_name: str = "public/account.html") -> HttpResponse:
     # Task 8: pass last collected order for logged-in customers so the
     # template can show a Repeat button (guest repeat comes from
     # rc_last_order_v1 in localStorage, populated by checkout.js).
@@ -778,7 +783,7 @@ def account(request: HttpRequest) -> HttpResponse:
             .order_by("-created_at")
             .first()
         )
-    return render(request, "public/account.html", {"last_order": last_order})
+    return render(request, template_name, {"last_order": last_order})
 
 
 _LOGIN_THROTTLE_LIMIT = 10
@@ -786,7 +791,11 @@ _LOGIN_THROTTLE_WINDOW_SECONDS = 3600  # 1 hour
 _LOGIN_IP_SCOPE = "login_ip"
 
 
-def customer_login(request: HttpRequest) -> HttpResponse:
+def customer_login(
+    request: HttpRequest,
+    template_name: str = "public/customer_login.html",
+    redirect_namespace: str = "public",
+) -> HttpResponse:
     error = None
     if request.method == "POST":
         ip = request.META.get("REMOTE_ADDR") or "unknown"
@@ -799,7 +808,7 @@ def customer_login(request: HttpRequest) -> HttpResponse:
         ).count()
         if recent_failures >= _LOGIN_THROTTLE_LIMIT:
             error = "Too many sign-in attempts — try again in an hour."
-            return render(request, "public/customer_login.html", {"error": error})
+            return render(request, template_name, {"error": error})
 
         try:
             mobile = normalize_sa_mobile(str(request.POST.get("mobile", "")))
@@ -817,11 +826,15 @@ def customer_login(request: HttpRequest) -> HttpResponse:
             error = "We couldn't sign you in. Check your mobile number and password."
         else:
             customer_sessions.log_in(request, customer)
-            return redirect("public:account")
-    return render(request, "public/customer_login.html", {"error": error})
+            return redirect(f"{redirect_namespace}:account")
+    return render(request, template_name, {"error": error})
 
 
-def customer_signup(request: HttpRequest) -> HttpResponse:
+def customer_signup(
+    request: HttpRequest,
+    template_name: str = "public/customer_signup.html",
+    redirect_namespace: str = "public",
+) -> HttpResponse:
     error = None
     if request.method == "POST":
         name = str(request.POST.get("name", "")).strip()
@@ -859,8 +872,8 @@ def customer_signup(request: HttpRequest) -> HttpResponse:
                 customer.password_hash = make_password(password)
                 customer.save(update_fields=["full_name", "password_hash"])
                 customer_sessions.log_in(request, customer)
-                return redirect("public:account")
-    return render(request, "public/customer_signup.html", {"error": error})
+                return redirect(f"{redirect_namespace}:account")
+    return render(request, template_name, {"error": error})
 
 
 def customer_logout(request: HttpRequest) -> HttpResponse:
@@ -918,11 +931,15 @@ def customer_google_callback(request: HttpRequest) -> HttpResponse:
     return redirect("public:account_setup")
 
 
-def account_setup(request: HttpRequest) -> HttpResponse:
+def account_setup(
+    request: HttpRequest,
+    template_name: str = "public/account_setup.html",
+    redirect_namespace: str = "public",
+) -> HttpResponse:
     """Collect mobile number after Google sign-in to link/create Customer."""
     identity_pk = request.session.get("_social_identity_pk")
     if not identity_pk:
-        return redirect("public:customer_login")
+        return redirect(f"{redirect_namespace}:customer_login")
 
     error = None
     if request.method == "POST":
@@ -952,9 +969,9 @@ def account_setup(request: HttpRequest) -> HttpResponse:
             for k in ("_social_identity_pk", "_social_name", "_social_email"):
                 request.session.pop(k, None)
             customer_sessions.log_in(request, customer)
-            return redirect("public:account")
+            return redirect(f"{redirect_namespace}:account")
 
-    return render(request, "public/account_setup.html", {
+    return render(request, template_name, {
         "name": request.session.get("_social_name", ""),
         "email": request.session.get("_social_email", ""),
         "error": error,
@@ -964,7 +981,12 @@ def account_setup(request: HttpRequest) -> HttpResponse:
 # ---------------------------------------------------------------- reorder (§11.11)
 
 
-def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
+def reorder(
+    request: HttpRequest,
+    public_token: str,
+    template_name: str = "public/reorder.html",
+    redirect_namespace: str = "public",
+) -> HttpResponse:
     """§11.11: on a `collected` order's page, "Order these again" seeds a
     fresh cart from the same lines, at *current* prices — never the
     original order's snapshot — dropping any line whose dish has since
@@ -977,6 +999,9 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
     (`static/js/cart.js`) exactly like `dish.js` does; date/slot/payment
     are then chosen afresh on `/order/` → `/checkout/`, same as any
     other cart.
+
+    `template_name`/`redirect_namespace` let `views_v2.reorder` reuse
+    this exact cart-seeding logic with its own poster-styled template.
     """
     order = Order.objects.filter(public_token=public_token).prefetch_related(
         "lines__dish__options__values",
@@ -985,7 +1010,7 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
         raise Http404("No such order.")
     if order.status != OrderStatus.COLLECTED:
         messages.error(request, "Only a collected order can be reordered.")
-        return redirect("public:order_status", public_token=public_token)
+        return redirect(f"{redirect_namespace}:order_status", public_token=public_token)
 
     # Build v2 lines keyed by composite id so duplicate order lines merge.
     kept_v2: dict[str, dict[str, object]] = {}
@@ -1054,10 +1079,10 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
 
     if not kept_v2:
         messages.error(request, "None of this order's dishes are still available to reorder.")
-        return redirect("public:order_status", public_token=public_token)
+        return redirect(f"{redirect_namespace}:order_status", public_token=public_token)
 
     lines_json = json.dumps(list(kept_v2.values())).replace("</", "<\\/")
-    return render(request, "public/reorder.html", {
+    return render(request, template_name, {
         "order": order,
         "dropped": dropped,
         "lines_json": lines_json,
@@ -1067,7 +1092,7 @@ def reorder(request: HttpRequest, public_token: str) -> HttpResponse:
 # ---------------------------------------------------------------- help / policies (§11.12)
 
 
-def help_page(request: HttpRequest) -> HttpResponse:
+def help_page(request: HttpRequest, template_name: str = "public/help.html") -> HttpResponse:
     """§6.1's `/help`: "how to order, collection, payment, cut-off" —
     every figure here is a live `Settings` value, not hard-coded copy,
     so a settings change (§20's own acceptance line: "cut-off, hold
@@ -1075,7 +1100,7 @@ def help_page(request: HttpRequest) -> HttpResponse:
     second place to update.
     """
     settings = Settings.current()
-    return render(request, "public/help.html", {
+    return render(request, template_name, {
         "same_day_cutoff": coerce_time(settings.same_day_cutoff).strftime("%H:%M"),
         "preorder_days": settings.preorder_days,
         "slot_minutes": settings.slot_minutes,
@@ -1096,7 +1121,7 @@ def help_page(request: HttpRequest) -> HttpResponse:
     })
 
 
-def policies_page(request: HttpRequest) -> HttpResponse:
+def policies_page(request: HttpRequest, template_name: str = "public/policies.html") -> HttpResponse:
     """§6.1's `/policies`: cancellation (§19), allergens/home-kitchen
     (owner wording — `Settings.allergen_disclaimer`/`home_kitchen_notice`,
     both still unset per §23's own owner-input table; rendered with a
@@ -1106,7 +1131,7 @@ def policies_page(request: HttpRequest) -> HttpResponse:
     Finland-hosting/POPIA line).
     """
     settings = Settings.current()
-    return render(request, "public/policies.html", {
+    return render(request, template_name, {
         "settings": settings,
         "proof_retention_days": settings.proof_retention_days,
         "order_retention_months": settings.order_retention_months,

@@ -1,0 +1,66 @@
+{% extends "base_v2.html" %}
+
+{% comment %}
+Poster-variant Help — matches help.html's own four cards exactly
+(views_v2.help_page reuses views.help_page's context unmodified): every
+figure is a live Settings value, not hard-coded copy.
+{% endcomment %}
+
+{% block title %}Help — {{ site_name }}{% endblock %}
+{% block promo_date %}Help{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  <div class="pv-num">Help</div>
+  <h2 class="pv-h2">How it works.</h2>
+  <p class="pv-sub">How ordering, collection and payment work at {{ site_name }}.</p>
+
+  <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:24px;">
+
+    <div class="pv-step" style="border-left-width:6px;">
+      <div class="pv-step-n">Ordering &amp; cut-off</div>
+      <div style="margin-top:10px;">
+        <p style="font-size:22px;font-weight:900;margin:0 0 4px;">{{ same_day_cutoff }}</p>
+        <p class="pv-sub" style="margin:0 0 8px;">Same-day orders close at this time. After cut-off, the next available collection day is shown.</p>
+        <p class="pv-sub" style="margin:0;">Order up to <strong style="color:var(--poster-navy);">{{ preorder_days }} days</strong> ahead. Open days only &mdash; closed days are not listed.</p>
+      </div>
+    </div>
+
+    <div class="pv-step" style="border-left-width:6px;">
+      <div class="pv-step-n">Collecting</div>
+      <div style="margin-top:10px;">
+        <p style="font-size:22px;font-weight:900;margin:0 0 4px;">{{ collection_window }}</p>
+        <p class="pv-sub" style="margin:0 0 8px;">Typical collection window (check your confirmation &mdash; this can vary by day).</p>
+        <p class="pv-sub" style="margin:0 0 8px;">Slots are <strong style="color:var(--poster-navy);">{{ slot_minutes }}-minute</strong> windows, each with its own capacity. A full slot stops appearing as a choice.</p>
+        <p class="pv-sub" style="margin:0;">Kraaifontein &mdash; collection address is on your confirmation, not on this page.</p>
+      </div>
+    </div>
+
+    <div class="pv-step" style="border-left-width:6px;">
+      <div class="pv-step-n">Payment</div>
+      <div style="margin-top:10px;">
+        <p class="pv-sub" style="margin:0 0 8px;color:var(--poster-navy);"><strong>EFT before cooking:</strong> pay by bank transfer using the reference on your order. Your slot is held for <strong>{{ eft_hold_minutes }} minutes</strong>. We start cooking once payment is verified.</p>
+        {% if cash_enabled %}
+        <p class="pv-sub" style="margin:0;color:var(--poster-navy);"><strong>Cash on collection:</strong> same-day orders only{% if cash_same_day_only %} (today only){% endif %}, limited availability. Confirmed once staff accept &mdash; payment is due at collection.</p>
+        {% else %}
+        <p class="pv-sub" style="margin:0;color:var(--poster-navy);"><strong>Cash:</strong> not currently accepted &mdash; EFT only.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="pv-step" style="border-left-width:6px;">
+      <div class="pv-step-n">Still need help?</div>
+      <div style="margin-top:10px;">
+        {% if support_whatsapp_e164 %}
+        <p class="pv-sub" style="margin:0 0 8px;">Message us on WhatsApp from your order&rsquo;s own status page &mdash; the link is there once you&rsquo;ve placed an order.</p>
+        <p class="pv-sub" style="margin:0 0 8px;">Please don&rsquo;t place routine orders over WhatsApp.</p>
+        {% else %}
+        <p class="pv-sub" style="margin:0 0 8px;">Find your order via <a href="{% url 'v2:lookup' %}" style="color:var(--poster-blue);">order lookup</a>, then message us from there if needed.</p>
+        {% endif %}
+        <p style="margin:0;"><a href="{% url 'v2:policies' %}" style="color:var(--poster-blue);font-weight:700;">Read our collection, cancellation &amp; privacy policies &rarr;</a></p>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

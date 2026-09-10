@@ -30,7 +30,7 @@ on the Broadsheet page is why that page still works unmodified.
         <div class="pv-coll-k" style="width:auto;">Collecting</div>
         <div class="pv-coll-v"><span id="ck-collect-summary-day">&mdash;</span> &middot; <span id="ck-collect-summary-slot">&mdash;</span></div>
       </div>
-      <a href="{% url 'v2:home' %}#collection" class="pv-textlink" id="ck-change-slot-link">Change &rarr;</a>
+      <a href="{% url 'v2:basket' %}" class="pv-textlink" id="ck-change-slot-link">Change &rarr;</a>
     </div>
 
     <div style="margin-top:24px;">
@@ -94,7 +94,7 @@ on the Broadsheet page is why that page still works unmodified.
 
     <label style="display:flex;gap:10px;align-items:flex-start;margin-top:20px;font-size:13px;font-weight:600;">
       <input type="checkbox" id="ck-accept-policies" style="margin-top:3px;">
-      <span>I accept the <a href="{% url 'public:policies' %}" target="_blank" rel="noopener">collection and cancellation policies</a>.</span>
+      <span>I accept the <a href="{% url 'v2:policies' %}" target="_blank" rel="noopener">collection and cancellation policies</a>.</span>
     </label>
     <p class="pv-hold" id="ck-accept-policies-error" style="color:var(--poster-error);" hidden></p>
 
@@ -124,7 +124,7 @@ on the Broadsheet page is why that page still works unmodified.
 
       <p class="pv-hold" id="ck-place-blocked-reason" style="color:var(--poster-error);margin-top:10px;" hidden></p>
       <button type="button" class="pv-btn pv-btn-primary pv-btn-block" id="ck-place" disabled style="margin-top:14px;">Place the order</button>
-      <a href="{% url 'v2:home' %}#collection" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;">&larr; Back to collection</a>
+      <a href="{% url 'v2:basket' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;">&larr; Back to collection</a>
     </div>
   </div>
 
@@ -165,10 +165,10 @@ on the Broadsheet page is why that page still works unmodified.
 <script>
   window.BK_CHECKOUT_URLS = {
     order:        "{% url 'v2:menu' %}",
-    basket:       "{% url 'v2:home' %}",
+    basket:       "{% url 'v2:basket' %}",
     api_checkout: "{% url 'public:api_checkout' %}",
     order_status: "{% url 'v2:order_status' public_token='TOKEN_PLACEHOLDER' %}",
-    reorder:      "{% url 'public:reorder' public_token='TOKEN_PLACEHOLDER' %}",
+    reorder:      "{% url 'v2:reorder' public_token='TOKEN_PLACEHOLDER' %}",
     api_day: "{% url 'public:api_day_availability' date_str='DATE_PLACEHOLDER' %}",
   };
   window.BK_CASH = { todayIso: "{{ today_iso }}", available: {{ cash_available|yesno:"true,false" }} };

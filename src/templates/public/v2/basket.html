@@ -1,0 +1,100 @@
+{% extends "base_v2.html" %}
+{% load static %}
+
+{% comment %}
+Poster-variant Basket — a real page (2025-09 IA-alignment review:
+information-architecture parity with the Broadsheet site, which has
+always had Basket as its own screen, not a drawer). Reuses
+static/js/basket.js UNCHANGED — day chips, slot grid, line steppers,
+edit-via-item-sheet, the day-change re-fetch and sold-out pruning are
+all real and already tested — by keeping every element ID it queries
+by, the same trick checkout.html/_item_sheet_v2.html use for
+checkout.js/item-sheet.js.
+{% endcomment %}
+
+{% block title %}Basket — {{ site_name }}{% endblock %}
+{% block promo_date %}Basket{% endblock %}
+{% block nav_basket_cls %}is-on{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  <div class="pv-num">Step 1 of 2 &mdash; items &amp; collection slot</div>
+  <p class="pv-hold" id="bk-toast" role="alert" hidden style="color:var(--poster-error);margin-top:10px;"></p>
+
+  <div id="bk-empty" hidden style="text-align:center;padding:40px 0;">
+    {% if request.customer_user %}
+    <h2 class="pv-h2" style="font-size:32px;">Hi, {{ request.customer_user.full_name.split.0 }} &mdash; your basket is empty</h2>
+    {% else %}
+    <h2 class="pv-h2" style="font-size:32px;">Your basket is empty</h2>
+    {% endif %}
+    <p class="pv-sub" style="margin:12px auto 20px;">Head to the menu and add something to get started.</p>
+    <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-primary">Browse the menu</a>
+  </div>
+
+  <div id="bk-content">
+    <div class="pv-num" style="margin-top:20px;">Order sheet</div>
+    <p class="pv-hold" id="bk-date-notice" hidden role="status" aria-live="polite" style="color:var(--poster-error);margin-top:8px;"></p>
+    <div id="bk-lines" style="margin-top:8px;"></div>
+    <div class="pv-totrow" id="bk-total-row">
+      <span>Total</span>
+      <b id="bk-total-value"></b>
+    </div>
+
+    <div style="margin-top:28px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+      <div class="pv-num">When to collect</div>
+
+      <div style="margin-top:16px;">
+        <div style="font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-blue);">Day</div>
+        <div class="pv-filters" id="bk-day-chips" style="margin-top:10px;">
+          {% for d in days %}
+          <button type="button" class="ck-slot-day-chip" aria-pressed="false" data-day-index="{{ d.index }}" data-day-iso="{{ d.iso }}">
+            <span class="ck-chip-top">{{ d.dow }}</span>
+            <span class="ck-chip-bottom">{{ d.dom }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div style="display:flex;align-items:baseline;gap:12px;">
+          <div style="font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--poster-blue);">Collection slot</div>
+          <span style="font-size:12px;font-weight:600;color:var(--poster-muted);margin-left:auto;">15-minute windows</span>
+        </div>
+        <div class="pv-slots" id="bk-slot-grid" style="margin-top:10px;grid-template-columns:repeat(4,1fr);">
+          {% comment %}
+          class="bk-chip bk-slot-chip" — matches exactly what basket.js's
+          own buildSlotGridHtml() generates on a day-chip switch (see
+          that function); the initial server render must use the same
+          classes or the grid would visibly restyle itself the moment
+          you change day.
+          {% endcomment %}
+          {% for s in slots %}
+          <button type="button" class="bk-chip bk-slot-chip{% if s.full %} is-full{% endif %}" data-slot-id="{{ s.id }}" data-slot="{{ s.label }}" aria-pressed="false" {% if s.full %}disabled{% endif %}>{{ s.label }}</button>
+          {% endfor %}
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--poster-muted);margin-top:10px;" id="bk-slot-note"></div>
+      </div>
+
+      <p style="font-size:12px;font-weight:600;color:var(--poster-muted);margin-top:16px;" id="bk-ready-hint"></p>
+      <button type="button" class="pv-btn pv-btn-primary pv-btn-block" id="bk-continue" data-checkout-url="{% url 'v2:checkout' %}" disabled style="margin-top:6px;">Continue to payment</button>
+      <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;">Back to the menu</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+{% include "public/v2/_item_sheet_v2.html" %}
+
+{{ days|json_script:"bk-days-data" }}
+{{ eft_hold_minutes|json_script:"bk-eft-hold-data" }}
+<script id="menu-data" type="application/json">{{ menu_catalog_json|safe }}</script>
+<script>
+  window.BK_BASKET_URLS = {
+    api_availability: "{% url 'public:api_availability' %}",
+    checkout: "{% url 'v2:checkout' %}",
+  };
+</script>
+<script src="{% static 'js/basket.js' %}" defer></script>
+<script src="{% static 'js/item-sheet.js' %}" defer></script>
+{% endblock %}

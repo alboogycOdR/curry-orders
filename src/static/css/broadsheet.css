@@ -158,10 +158,16 @@ body.route-v2 {
      without these route-v2 would silently fall through to :root's
      print/staff values (near-black on off-white) instead of the poster
      palette. Not full Broadsheet parity, just enough for what those
-     scripts actually use.  */
+     scripts actually use — including, since the 2025-09 IA-alignment
+     pass added Basket as a real page reusing basket.js verbatim, the
+     generic `.btn`/`.btn-secondary`/`.btn-ghost` component classes
+     (defined below, unscoped to route-public) its line steppers and
+     Edit button render with. */
   --color-text: var(--poster-navy);
   --color-bg: var(--poster-paper);
   --color-neutral-600: var(--poster-muted);
+  --color-accent: var(--poster-blue);
+  --color-divider: var(--poster-border);
   --font-body: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --font-ui: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
 }

@@ -14,6 +14,7 @@ back to a different design.
 
 {% block title %}Find your order — {{ site_name }}{% endblock %}
 {% block promo_date %}Find my order{% endblock %}
+{% block nav_account_cls %}is-on{% endblock %}
 
 {% block extra_head %}
 <meta name="robots" content="noindex, nofollow">
@@ -66,6 +67,6 @@ back to a different design.
   </div>
   {% endif %}
 
-  <p style="margin-top:24px;font-size:13px;font-weight:700;"><a href="{% url 'public:help' %}" style="color:var(--poster-blue);">Need help?</a></p>
+  <p style="margin-top:24px;font-size:13px;font-weight:700;"><a href="{% url 'v2:help' %}" style="color:var(--poster-blue);">Need help?</a></p>
 </section>
 {% endblock %}

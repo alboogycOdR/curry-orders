@@ -2,15 +2,18 @@
 {% load static moneyfmt %}
 
 {% comment %}
-Poster variant — home: hero, collection panel, a menu teaser, promise
+Poster variant — home: hero, collection info, a menu teaser, promise
 panel, ordering steps, final CTA. Real data throughout (views_v2.home).
 
-The full dish catalog is its own screen now (v2:menu) — split off after
-the 2025-09 navigation review found that folding the whole menu into
-this page (per the design guide's original single-scrolling-page
-architecture, §8.1) read as "the Menu tab just scrolls the home page"
-rather than a real destination. This page keeps a short teaser section
-linking to it instead of the full card grid.
+Two things moved off this page in the 2025-09 information-architecture
+review (public/urls_v2.py's own docstring has the full reasoning):
+- The full dish catalog is its own screen now (v2:menu) — a single
+  scrolling page read as "the Menu tab just scrolls the home page"
+  rather than a real destination.
+- Collection is read-only info here, same as the Broadsheet home page
+  (views.home()) — slot-picking lives only on Basket, both there and
+  here, matching that site's own architecture rather than the design
+  guide's original single-page mockup (which put a picker in this hero).
 {% endcomment %}
 
 {% block nav_home_cls %}is-on{% endblock %}
@@ -41,7 +44,7 @@ linking to it instead of the full card grid.
 
   <div class="pv-actions">
     <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-primary pv-btn-block">Order the special</a>
-    <a href="#collection" class="pv-btn pv-btn-outline pv-btn-block">Collection details</a>
+    <a href="{% url 'v2:basket' %}" class="pv-btn pv-btn-outline pv-btn-block">Collection details</a>
   </div>
 
   {% if days %}
@@ -56,7 +59,7 @@ linking to it instead of the full card grid.
 <section class="pv-light" id="collection">
   <div class="pv-num">01 &mdash; Collection</div>
   <h2 class="pv-h2">Lunch or dinner. Same big flavour.</h2>
-  <p class="pv-sub">Collection only, from Windsor Park in Kraaifontein. Pick a window when you order &mdash; we hold it while you check out.</p>
+  <p class="pv-sub">Collection only, from Windsor Park in Kraaifontein. Pick a window on your basket &mdash; we hold it while you check out.</p>
 
   {% if days %}
   <div class="pv-coll">
@@ -65,20 +68,8 @@ linking to it instead of the full card grid.
     <div class="pv-coll-row"><div class="pv-coll-k">Where</div><div class="pv-coll-v">{{ collection_address_line }}</div></div>
     {% endif %}
     <div class="pv-coll-row"><div class="pv-coll-k">Method</div><div class="pv-coll-v">Direct collection &middot; Uber Courier on request</div></div>
-    <div style="margin-top:14px;">
-      <div class="pv-coll-k" style="width:auto;">Pick your window</div>
-      {% if slots %}
-      <div class="pv-slots" id="pv-collection-slots" data-day-iso="{{ days.0.iso }}">
-        {% for slot in slots %}
-        <button type="button" class="pv-slot" data-slot-id="{{ slot.id }}" data-slot-label="{{ slot.label }}" {% if slot.full %}disabled{% endif %} aria-pressed="false">{{ slot.label }}</button>
-        {% endfor %}
-      </div>
-      <p style="font-size:12px;font-weight:600;color:var(--poster-muted-dark);margin:12px 0 0;">Your slot is held for {{ eft_hold_minutes }} minutes once you choose EFT at checkout.</p>
-      {% else %}
-      <p style="font-size:13px;font-weight:600;color:var(--poster-muted-dark);margin-top:8px;">No collection windows are open right now — check back soon.</p>
-      {% endif %}
-    </div>
   </div>
+  <a href="{% url 'v2:basket' %}" class="pv-btn pv-btn-dark" style="margin-top:16px;display:inline-flex;">Choose your collection slot</a>
   {% else %}
   <p class="pv-sub" style="margin-top:16px;">Ordering is closed right now &mdash; check back soon.</p>
   {% endif %}

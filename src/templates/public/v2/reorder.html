@@ -1,0 +1,57 @@
+{% extends "base_v2.html" %}
+
+{% comment %}
+Poster-variant Reorder — matches reorder.html's own logic exactly
+(views_v2.reorder reuses views.reorder's cart-seeding unmodified):
+seeds the shared client-side cart from a collected order's own lines at
+current prices, drops anything since archived/deactivated (listed
+here), then sends the customer to Basket to pick a fresh date and slot.
+{% endcomment %}
+
+{% block title %}Order again — {{ site_name }}{% endblock %}
+{% block promo_date %}Order again{% endblock %}
+{% block nav_account_cls %}is-on{% endblock %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  <div class="pv-num">Order again</div>
+  <h2 class="pv-h2" style="font-size:38px;">Order these again.</h2>
+  <p class="pv-sub">We've started a new basket from order {{ order.order_number }}, priced at today's prices.</p>
+
+  {% if dropped %}
+  <div class="pv-co-note" style="background:#fff3cd;color:#856404;border-color:#ffc107;margin-top:16px;">
+    <strong style="display:block;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;">No longer available &mdash; dropped from this order</strong>
+    <ul style="margin:0;padding-left:18px;">
+      {% for name in dropped %}<li>{{ name }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:20px;">
+    {% for line in order.lines.all %}
+    <div class="pv-bline"><div class="pv-bline-name" style="font-size:15px;">{{ line.quantity }}&times; {{ line.dish_name_snapshot }}</div></div>
+    {% endfor %}
+  </div>
+
+  <a href="{% url 'v2:basket' %}" id="ro-continue" class="pv-btn pv-btn-primary" style="margin-top:24px;display:inline-flex;">Choose a date &amp; slot</a>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      window.BKCart.setState({
+        lines: {{ lines_json|safe }},
+        slotId: null,
+        slotLabel: null,
+        dayIso: null,
+      });
+    } catch (e) { /* localStorage unavailable — Basket still works, just starts empty */ }
+  });
+</script>
+{% endblock %}

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   {% comment %}
-  noindex: /v2/ is the poster-variant comparison surface (see robots.txt's
-  own Disallow line) — pulled once one variant is chosen (README's
-  "run both, archive the loser" decision).
+  noindex: the poster variant is a comparison surface (see robots.txt's
+  own note) — pulled once one variant is chosen (README's "run both,
+  archive the loser" decision).
   {% endcomment %}
   <title>{% block title %}{{ site_name|default:"Roti Connect" }}{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23071124'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23FFC400' stroke-width='1.5'/%3E%3Cpath d='M10 14 Q16 9 22 14' fill='none' stroke='%23FFC400' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -26,6 +26,11 @@ promo_date/promo_deadline are per-page blocks (home.html fills in the
 real edition/cutoff copy from views_v2.home; other pages just label
 themselves, e.g. "Checkout"). Phone comes from
 public.context_processors.v2_shell (Settings.support_whatsapp_e164).
+
+Header basket icon links to the real Basket page (v2:basket), matching
+base.html's own #nav-checkout-link — the 2025-09 IA-alignment review
+replaced this variant's earlier basket-as-drawer with a real page to
+match the Broadsheet site's own information architecture.
 {% endcomment %}
 <div class="pv-strip">
   {% block promo_strip %}
@@ -42,14 +47,20 @@ public.context_processors.v2_shell (Settings.support_whatsapp_e164).
     <div class="pv-avatar" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name|default:'Roti Connect' }} owner illustration"></div>
     <div class="pv-word">Roti<span> Connect</span></div>
   </a>
-  <button type="button" class="pv-hbtn" aria-label="Basket" data-action="open-basket">
+  <a href="{% url 'v2:basket' %}" class="pv-hbtn" aria-label="Basket">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
     <span class="pv-count" data-cart-badge hidden>0</span>
-  </button>
+  </a>
 </header>
 
 {% block content %}{% endblock %}
 
+{% comment %}
+Footer — mirrors base.html's own customer footer exactly (Find my
+order / Help / Policies / Staff login, staff-login only when logged
+out) rather than the design reference's Menu/Collection links, which
+have no equivalent in the Broadsheet footer.
+{% endcomment %}
 <footer class="pv-footer">
   <div class="pv-footer-brand">
     <div class="pv-avatar" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name|default:'Roti Connect' }} owner illustration"></div>
@@ -60,12 +71,22 @@ public.context_processors.v2_shell (Settings.support_whatsapp_e164).
   <a class="pv-footer-tel" href="tel:{{ contact_phone_e164 }}">{{ contact_phone_display }}</a>
   {% endif %}
   <div class="pv-footer-links">
-    <a href="{% url 'v2:menu' %}">Menu</a>
-    <a href="{% url 'v2:home' %}#collection">Collection</a>
-    <button type="button" data-action="open-lookup">Find my order</button>
+    <a href="{% url 'v2:lookup' %}">Find my order</a>
+    <a href="{% url 'v2:help' %}">Help</a>
+    <a href="{% url 'v2:policies' %}">Policies</a>
+    {% if not request.staff_user %}
+    <a href="{% url 'manage:login' %}">Staff login</a>
+    {% endif %}
   </div>
 </footer>
 
+{% comment %}
+Bottom nav — five items, matching base.html's mobile-bottom-nav exactly:
+Home, Menu, Basket, Account, More (Help/Policies/Staff login in a small
+sheet, same grouping as base.html's #mobile-more-sheet). No "Orders"
+tab and no lookup modal — the Broadsheet site has neither; order lookup
+lives on the Account hub page and in the footer above, same as there.
+{% endcomment %}
 <nav class="pv-nav" aria-label="Primary">
   <a href="{% url 'v2:home' %}" class="{% block nav_home_cls %}{% endblock %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
@@ -75,71 +96,34 @@ public.context_processors.v2_shell (Settings.support_whatsapp_e164).
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"></path><path d="M9 4v6a4 4 0 0 1-4 4"></path><path d="M16 4v16"></path><path d="M16 4c3 2 4 5 4 8h-4"></path></svg>
     <span>Menu</span>
   </a>
-  <button type="button" class="{% block nav_basket_cls %}{% endblock %}" aria-label="Basket" data-action="open-basket">
+  <a href="{% url 'v2:basket' %}" class="{% block nav_basket_cls %}{% endblock %}" aria-label="Basket">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16l-1.4 12H5.4L4 8Z"></path><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"></path></svg>
     <span class="pv-nav-badge" data-cart-badge hidden>0</span>
     <span>Basket</span>
-  </button>
-  <button type="button" class="{% block nav_orders_cls %}{% endblock %}" data-action="open-lookup">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
-    <span>Orders</span>
-  </button>
-  <a href="{% url 'public:account' %}" class="{% block nav_account_cls %}{% endblock %}">
+  </a>
+  <a href="{% url 'v2:account' %}" class="{% block nav_account_cls %}{% endblock %}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
     <span>Account</span>
   </a>
+  <button type="button" id="pv-more-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="pv-more-sheet" class="{% block nav_more_cls %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg>
+    <span>More</span>
+  </button>
 </nav>
 
-{% comment %}
-Basket drawer + order-lookup modal — guide §9.3/§9.4, shared shell so
-"Basket"/"Orders" open them from any /v2/ page, not just home. Markup
-lives here once; poster.js renders drawer contents from window.BKCart
-(the same client-side cart every /v2/ page shares) and drives both
-overlays' open/close/focus/Escape behaviour.
-
-The drawer's collection block is simplified from the design reference:
-rather than duplicating a full slot-picker grid here, it shows the
-currently-picked day/slot as text with a "Change" link back to the
-home page's collection section — one slot-picker, not two that could
-drift out of sync.
-{% endcomment %}
-<div id="pv-overlay-root" hidden>
-  <div class="pv-backdrop" data-action="close-overlays"></div>
-
-  <aside class="pv-drawer" id="pv-drawer" role="dialog" aria-modal="true" aria-labelledby="pv-drawer-title" hidden>
-    <div class="pv-drawer-head">
-      <h2 id="pv-drawer-title">Your basket</h2>
-      <button type="button" class="pv-x" data-action="close-overlays" aria-label="Close basket">&times;</button>
-    </div>
-    <div class="pv-drawer-body" id="pv-drawer-body">
-      <!-- rendered by poster.js from window.BKCart -->
-    </div>
-    <div class="pv-drawer-foot" id="pv-drawer-foot" hidden>
-      <div class="pv-totrow"><span>Total</span><b id="pv-drawer-total">R 0.00</b></div>
-      <p class="pv-hold" id="pv-drawer-hold"></p>
-      <a href="{% url 'v2:checkout' %}" class="pv-btn pv-btn-primary pv-btn-block" id="pv-drawer-checkout" style="margin-top:12px;">Checkout</a>
-    </div>
-  </aside>
-
-  <div class="pv-modal" id="pv-lookup-modal" role="dialog" aria-modal="true" aria-labelledby="pv-lookup-title" hidden>
-    <div class="pv-icon-block">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
-    </div>
-    <h2 id="pv-lookup-title">Find my order</h2>
-    <form method="post" action="{% url 'v2:lookup' %}">
-      {% csrf_token %}
-      <label class="pv-label" for="pv-lookup-mobile">Mobile number</label>
-      <input class="pv-input" id="pv-lookup-mobile" name="mobile" type="tel" inputmode="tel" autocomplete="tel" placeholder="082 000 0000" required>
-      <label class="pv-label" for="pv-lookup-order">Order number <span style="text-transform:none;font-weight:600;">(optional)</span></label>
-      <input class="pv-input" id="pv-lookup-order" name="order_number" type="text" placeholder="CT-000000">
-      <button type="submit" class="pv-btn pv-btn-primary pv-btn-block" style="margin-top:16px;">Find order</button>
-    </form>
-    <button type="button" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-top:10px;" data-action="close-overlays">Cancel</button>
+<div id="pv-more-sheet" role="dialog" aria-label="More options" aria-modal="true" hidden>
+  <div class="pv-backdrop" id="pv-more-backdrop"></div>
+  <div class="pv-modal" id="pv-more-panel" style="top:auto;bottom:88px;">
+    <a href="{% url 'v2:help' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Help &amp; FAQ</a>
+    <a href="{% url 'v2:policies' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Policies</a>
+    {% if not request.staff_user %}
+    <a href="{% url 'manage:login' %}" class="pv-textlink" style="margin-top:6px;">Kitchen staff login</a>
+    {% endif %}
   </div>
 </div>
 
 <script>
-  window.BK_V2_URLS = { menu: "{% url 'v2:menu' %}" };
+  window.BK_V2_URLS = { menu: "{% url 'v2:menu' %}", basket: "{% url 'v2:basket' %}" };
 </script>
 <script src="{% static 'js/poster.js' %}" defer></script>
 {% block extra_body %}{% endblock %}

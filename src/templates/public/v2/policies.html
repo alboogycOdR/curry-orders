@@ -1,0 +1,62 @@
+{% extends "base_v2.html" %}
+
+{% comment %}
+Poster-variant Policies — matches policies.html's own three sections
+exactly (views_v2.policies_page reuses views.policies_page's context
+unmodified): cancellation, allergens/home-kitchen (owner wording, with
+a plain fallback if not yet provided — never invented on the owner's
+behalf), and the POPIA notice.
+{% endcomment %}
+
+{% block title %}Policies — {{ site_name }}{% endblock %}
+{% block promo_date %}Policies{% endblock %}
+
+{% block content %}
+<section class="pv-light" style="min-height:70vh;">
+  <div class="pv-num">Policies</div>
+  <h2 class="pv-h2">The fine print.</h2>
+  <p class="pv-sub">Collection, cancellation, allergens and how we handle your information.</p>
+
+  <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+    <div class="pv-num">Cancellation</div>
+    <ul style="margin:12px 0 0;padding-left:20px;">
+      <li class="pv-sub" style="margin-bottom:8px;">An order can be cancelled by the customer while it's still awaiting payment or verification, before the kitchen has started preparing it.</li>
+      <li class="pv-sub" style="margin-bottom:8px;">Once the kitchen has started preparing your order, it can no longer be cancelled.</li>
+      <li class="pv-sub" style="margin-bottom:8px;">Staff may cancel an order &mdash; for example an EFT payment that was never verified, or a cash order that was never accepted or collected &mdash; and will let you know if this happens.</li>
+      <li class="pv-sub" style="margin-bottom:0;">An order not collected during the collection window may be marked as a no-show at the end of the day.</li>
+    </ul>
+  </div>
+
+  <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+    <div class="pv-num">Allergens &amp; home kitchen</div>
+    {% if settings.allergen_disclaimer %}
+    <p class="pv-sub" style="margin-top:12px;">{{ settings.allergen_disclaimer|linebreaksbr }}</p>
+    {% else %}
+    <p class="pv-sub" style="margin-top:12px;font-style:italic;">Allergen information has not yet been provided by the kitchen. If you have an allergy or dietary requirement, please check with staff before ordering.</p>
+    {% endif %}
+    {% if settings.home_kitchen_notice %}
+    <p class="pv-sub" style="margin-top:8px;">{{ settings.home_kitchen_notice|linebreaksbr }}</p>
+    {% else %}
+    <p class="pv-sub" style="margin-top:8px;font-style:italic;">Home-kitchen notice has not yet been provided by the kitchen.</p>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:24px;padding-top:20px;border-top:2px solid var(--poster-navy);">
+    <div class="pv-num">Your information (POPIA)</div>
+    <p class="pv-sub" style="margin-top:12px;">To take and fulfil your order, we store your name, mobile number, order details and &mdash; for EFT orders &mdash; a copy of your proof of payment. This is used only for order fulfilment and payment reconciliation.</p>
+    <p class="pv-sub">Proof-of-payment images are kept for {{ proof_retention_days }} days. Order records are kept for {{ order_retention_months }} months, after which they are removed.</p>
+    <p class="pv-sub">Your data is processed and stored on a server in the EU (Finland) on the owner's behalf, and remains subject to South Africa's Protection of Personal Information Act (POPIA).</p>
+    <p class="pv-sub">
+      To request that your information be deleted,
+      {% if support_whatsapp_e164 %}
+      message us on WhatsApp at <a href="https://wa.me/{{ support_whatsapp_e164|cut:'+' }}" style="color:var(--poster-blue);">{{ support_whatsapp_e164 }}</a>.
+      {% else %}
+      contact the kitchen directly.
+      {% endif %}
+    </p>
+    <p class="pv-sub" style="margin-bottom:0;"><strong style="color:var(--poster-navy);">Please don't place routine orders on WhatsApp</strong> &mdash; it's for order or payment problems only. Place orders through the site so they're captured correctly.</p>
+  </div>
+
+  <p style="margin-top:28px;font-size:13px;font-weight:700;"><a href="{% url 'v2:help' %}" style="color:var(--poster-blue);">&larr; Back to Help</a></p>
+</section>
+{% endblock %}

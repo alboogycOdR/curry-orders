@@ -11,6 +11,7 @@ tested; only the surrounding markup/CSS is poster-styled.
 
 {% block title %}Order {{ order.order_number }} — {{ site_name }}{% endblock %}
 {% block promo_date %}Order status{% endblock %}
+{% block nav_account_cls %}is-on{% endblock %}
 
 {% block extra_head %}
 <meta name="robots" content="noindex, nofollow">
@@ -157,7 +158,7 @@ tested; only the surrounding markup/CSS is poster-styled.
 
   <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;">
     {% if can_reorder %}
-    <a href="{% url 'public:reorder' public_token=order.public_token %}" class="pv-btn pv-btn-primary">Order these again</a>
+    <a href="{% url 'v2:reorder' public_token=order.public_token %}" class="pv-btn pv-btn-primary">Order these again</a>
     {% endif %}
     <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-outline on-light">Start another order</a>
   </div>
