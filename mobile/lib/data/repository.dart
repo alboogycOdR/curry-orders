@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 import 'api_client.dart';
@@ -53,6 +55,14 @@ class RotiConnectApi {
   Future<OrderDetail> orderStatus(String publicToken) async {
     final resp = await _client.dio.get<dynamic>('orders/$publicToken/');
     return _parse(resp, (d) => OrderDetail.fromJson(d as Map<String, dynamic>));
+  }
+
+  /// Throws `ApiException(code: 'illegal_transition')` for an order
+  /// that isn't `collected` yet — callers should only offer this action
+  /// when `OrderDetail.canReorder` is already true.
+  Future<ReorderResult> reorder(String publicToken) async {
+    final resp = await _client.dio.get<dynamic>('orders/$publicToken/reorder/');
+    return _parse(resp, (d) => ReorderResult.fromJson(d as Map<String, dynamic>));
   }
 
   /// `order_number` blank + `mobile` set requires a signed-in session
@@ -128,5 +138,18 @@ class RotiConnectApi {
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     return _parse(resp, (d) => d as Map<String, dynamic>);
+  }
+
+  /// `POST /api/v1/orders/:token/proof/` — multipart, one `file` field.
+  /// See `public.api.upload_proof`'s docstring for the validation order
+  /// (400 `upload_invalid` before any throttle spend, then 409
+  /// `illegal_transition` if the order moved past `awaiting_eft`/
+  /// `payment_review` since the page loaded, 429 `throttled`).
+  Future<String> uploadProof(String publicToken, {required File file}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path),
+    });
+    final resp = await _client.dio.post<dynamic>('orders/$publicToken/proof/', data: formData);
+    return _parse(resp, (d) => (d as Map<String, dynamic>)['status'] as String);
   }
 }

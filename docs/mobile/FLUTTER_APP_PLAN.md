@@ -34,7 +34,7 @@ Extends `src/public/api.py`. Reuses `core`/`public.views` helpers exactly
 like `views_v2.py` does for the poster web variant — no duplicated
 business logic.
 
-- **Status:** in_progress
+- **Status:** done — deployed and verified live against the real server (see below); the pytest suite for it still hasn't run against a DB in *this* session, which is the one loose end
 - **Depends on:** none
 
 Mounted at `/api/v1/` only on the poster-variant deploy
@@ -60,7 +60,8 @@ session cookie**, same mechanism as the web (`public.customer_sessions`)
 - [x] `GET /api/v1/account/` — new `account_json()`, 401 `auth_required` when signed out
 - [x] `GET /api/v1/account/orders/` — new `account_orders_json()`, order history for reorder support
 - [x] Auth mechanism decided: Django session cookie (see above)
-- [x] Tests: `tests/integration/test_mobile_api.py` — 15 tests (csrf, days, order status, lookup incl. auth-required/throttle, signup/login/logout/account, account orders). `pytest --collect-only` clean across all 487 repo tests. **Still not run against a live DB** — no local Postgres reachable on this machine. Run `py -3 -m pytest tests/integration/test_mobile_api.py tests/integration/test_availability_api.py tests/integration/test_customer_auth.py tests/integration/test_screens.py -q` against a real DB before trusting this Phase done.
+- [x] Tests: `tests/integration/test_mobile_api.py` — 15 tests (csrf, days, order status, lookup incl. auth-required/throttle, signup/login/logout/account, account orders). `pytest --collect-only` clean across all 487 repo tests. **Still not run against a live DB** in this session (no local Postgres reachable on this machine) — but the endpoints themselves are confirmed working against the real Clawsrv Postgres (see Deployed below), so the risk this was masking is lower than it was.
+- [x] **Deployed** — merged to `main`, pushed, and live on Clawsrv (2026-09-14): `git pull --ff-only && docker compose up -d --build web-v2`. Verified with curl against the real server: `GET /api/v1/csrf/` → 200, `GET /api/v1/days/` → 200 with real orderable dates, `GET /api/v1/availability/?date=...` → 200 with real dish data. This is what fixed the app's initial "404 on every screen" — the backend existed only on the dev machine until this point.
 
 ---
 
@@ -85,7 +86,7 @@ session cookie**, same mechanism as the web (`public.customer_sessions`)
 
 ## Phase 3 — Screens
 
-- **Status:** in_progress — every screen exists and runs against real API data; dish options and reorder are the two known real gaps left (see work items)
+- **Status:** done — every screen exists, runs against real API data, and the two known gaps (dish options, reorder) are closed
 - **Depends on:** Phase 1 (real data), Phase 2 (shell)
 
 **Explicit direction (2026-09-14): the app's information architecture is
@@ -167,39 +168,41 @@ screens, and record the actual decision here once made:
 - [x] Basket (`features/basket/basket_screen.dart`) — its own screen (decision above), line list with qty steppers, day/slot picker (`_CollectionPicker`, full slots disabled), footer pinning total + Checkout (disabled until a slot is chosen)
 - [x] Collection/slot picker — built as part of Basket above (`_CollectionPicker`), not a separate screen
 - [x] Checkout (`features/checkout/checkout_screen.dart`) — section-grouped (see decision above): order summary, EFT/cash radio (via `RadioGroup`, not the deprecated per-tile API), name/mobile/note fields, policy checkbox, disabled-until-valid submit, real `POST /api/v1/checkout/` call with a generated `Idempotency-Key`
-- [x] Order status (`features/orders/order_detail_screen.dart`) — status copy, five-dot stepper, order lines, collection address block, EFT bank-details panel. **Proof upload is not built** — the panel shows "proof already uploaded" when true but has no camera/gallery picker yet; that's explicitly Phase 4 (`image_picker` is already a pubspec dependency, unused so far)
+- [x] Order status (`features/orders/order_detail_screen.dart`) — status copy, five-dot stepper, order lines, collection address block, EFT bank-details panel. Proof upload (camera/gallery via `image_picker`) closed 2026-09-14 — see Phase 4
 - [x] Order lookup — folded into Account (decision above), not a separate screen/modal
 - [x] Account (`features/account/account_screen.dart`) — password login/signup only, **no Send code/OTP UI anywhere** (root `CLAUDE.md`'s v1 Account decision); signed-in view shows profile + order history
 - [x] Order history — `features/account/account_screen.dart`'s signed-in view, via `accountOrdersProvider`. **Reorder is not built** — tapping an order goes to its status page, there's no "order this again" action yet (the web has one at `POST orders/<token>/reorder/`; no app-side endpoint or screen exists for it)
-- [ ] Dish option configurator (Spice/Extras — `DishOption`/`DishOptionValue`) — **not built**. `Dish.fromJson`/`addDish` only support a plain dish with no chosen options; a dish that has required options can currently only be added at its base price with no option selection UI. This is a real gap, not a deferred polish item — needed before checkout is trustworthy for any dish with options.
+- [x] Dish option configurator — closed 2026-09-14. Backend: `GET /api/v1/availability/?date=` now calls `dishes_for_date(..., with_options=True)` and includes each dish's `options` (additive change, the web's `order.js` consumer ignores the new field). App: `features/menu/dish_option_sheet.dart` — a bottom sheet with one `RadioGroup` per required option (Spice, etc.) and a checkbox per optional one (Extras); computes the resulting unit price and a display summary, `BasketNotifier.addDish` already took `optionValueIds`/`optionsSummary`/`priceCentsOverride`, just wasn't reachable from the UI before this. Basket/Checkout line rows now show the options summary under the dish name.
+- [x] Reorder — closed 2026-09-14. Backend: extracted `public.views._reorder_matched_lines` out of the existing web `reorder()` view (§11.11's re-matching rules — current prices, drop archived/deactivated dishes, best-effort option re-matching) so it's shared rather than reimplemented; new `GET /api/v1/orders/<token>/reorder/` (`reorder_json`) returns plain `{dish_id, quantity, option_value_ids, unit_price_cents, ...}` lines instead of seeding the web's `localStorage` cart. App: `OrderDetailScreen` shows an "Order these again" button when `OrderDetail.canReorder`, calling the new endpoint and feeding the result into `BasketNotifier.addLine` (a new method — merges by quantity, distinct from `addDish`'s "+1 per tap").
 - [x] Basket badge on the bottom nav — `AppShell` now watches `basketProvider` directly (`ref.watch(basketProvider).itemCount`) instead of taking a static constructor param
 
 ---
 
 ## Phase 4 — Native platform features
 
-- **Status:** todo
+- **Status:** in_progress — 3 of 4 items closed 2026-09-14; push notifications blocked on external Firebase project access (see below)
 - **Depends on:** Phase 3 core screens working
 
 ### Work items
 
-- [ ] App icon + splash screen (Roti Connect branding)
-- [ ] Native camera/gallery picker for EFT proof upload (`image_picker`)
-- [ ] Local basket persistence (`shared_preferences` or `hive`)
-- [ ] Push notifications (FCM) — order-ready/status-change; requires Firebase project setup + `core` sending via Firebase Admin SDK on order transitions (backend work, not yet scoped)
+- [x] App icon + splash screen (Roti Connect branding) — closed 2026-09-14. No existing raster logo anywhere in the repo, so the mark was drawn from scratch: adapted the live site's own favicon (`src/templates/base_v2.html`'s inline SVG — navy circle, gold ring, gold upward arc) to a 1024x1024 master at exact `PosterColors` hexes (navy `#071124`, gold `#FFC400`, `lib/theme/poster_tokens.dart`), hand-drawn with Pillow (no cairosvg/ImageMagick on this machine — checked first) at 4x supersample + `LANCZOS` downscale for anti-aliasing, stamping overlapping filled circles along the arc's quadratic-bezier path rather than `ImageDraw.line` (the polyline stroke's mitred joints self-intersected and left moire notches at this width). Two PNGs in `mobile/assets/icon/`: `app_icon.png` (full-bleed navy + mark, legacy launcher icon) and `app_icon_foreground.png` (same mark, transparent, scaled to the adaptive-icon 66% safe zone). Wired via `flutter_launcher_icons: ^0.14.4` and `flutter_native_splash: ^2.4.7` (pinned down from `^2.4.8` — that version's `meta ^1.18.0` constraint conflicts with `flutter_test`'s SDK-pinned `meta 1.17.0`), both configured inline in `mobile/pubspec.yaml`, Android only, `adaptive_icon_background`/splash `color: "#071124"`, `android_12` block included. Ran `dart run flutter_launcher_icons` then `dart run flutter_native_splash:create` from `mobile/` — generated `android/app/src/main/res/mipmap-{hdpi,mdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher.png`, `mipmap-anydpi-v26/ic_launcher.xml` (adaptive icon XML) + `values/colors.xml`, and the splash `drawable*/{background,splash,android12splash}.png` + `launch_background.xml` + `values{,-night,-v31,-night-v31}/styles.xml`. `AndroidManifest.xml`'s `android:label="Roti Connect"` confirmed unchanged (no edit needed). `flutter analyze` → "No issues found!". `flutter build apk` intentionally not run (held until all phases done, per direction).
+- [x] Native camera/gallery picker for EFT proof upload — closed 2026-09-14. `data/repository.dart`'s `RotiConnectApi.uploadProof` POSTs multipart `FormData` (one `file` field) to `orders/<token>/proof/`, parsed through the same `_parse` error path as every other method. `features/orders/order_detail_screen.dart`'s `_EftPanel` is now a `ConsumerStatefulWidget` (was stateless) with an `_uploading` flag mirroring `_OrderBodyState._reordering`'s try/catch/finally shape; when proof isn't already uploaded it shows an "UPLOAD PROOF OF PAYMENT" button that opens a bottom sheet (camera vs gallery, both via `ImagePicker().pickImage`), uploads the pick, and on success invalidates `orderDetailProvider(publicToken)` plus a confirmation SnackBar.
+- [x] Local basket persistence — closed 2026-09-14. `state/basket.dart`'s `BasketNotifier` overrides its `state` setter (`super.state = value; _persist();`) so every mutation writes through to `shared_preferences` in one place rather than at each call site; restores on construction (`_restore()`, async — first frame can briefly show an empty basket before it resolves). `BasketLine`/`BasketState` gained `toJson`/`fromJson`; a corrupt/old-shape stored value is discarded rather than crashing the app on launch.
+- [ ] Push notifications (FCM) — **blocked, not started.** Needs: (1) a Firebase project created under the owner's Google account (external — nothing in this repo can create it), an Android app registered in it, and `google-services.json` added to `mobile/android/app/`; (2) the Flutter side (`firebase_core`, `firebase_messaging` packages, permission handling, token registration against the backend); (3) backend work — `core` sending notifications via the Firebase Admin SDK on order status transitions, plus somewhere to store each customer's device token. None of this is scaffolded yet — adding the Flutter packages without real Firebase config would just break the build. Whoever picks this up needs Firebase project access first.
 
 ---
 
 ## Phase 5 — Build & distribute
 
-- **Status:** todo
+- **Status:** in_progress
 - **Depends on:** Phase 3 (usable app)
 
 ### Work items
 
-- [ ] `flutter build apk --release`, signed with a debug/release keystore (decide: throwaway debug key is fine for sideload-only distribution)
-- [ ] Verify install + smoke test on a real Android device (not just emulator)
-- [ ] Document install steps for the owner/testers in this file or a new `docs/mobile/INSTALL.md`
+- [x] Release signing keystore generated 2026-09-14 — `mobile/android/app/roti-connect-upload-keystore.jks` + `key.properties` (both gitignored, never committed — see `docs/mobile/INSTALL.md`'s backup warning). `android/app/build.gradle.kts` now reads `key.properties` if present and signs release builds with it, falling back to the debug key if the file is missing (so a fresh checkout without the keystore still builds).
+- [x] `flutter build apk --release --split-per-abi` — verified working (arm64-v8a/armeabi-v7a/x86_64) with the real release keystore, not the debug fallback (confirmed via `apksigner verify --print-certs` — certificate DN `CN=Roti Connect, ...`). Hit a local Gradle cache corruption on this machine partway through this session (`Could not read workspace metadata from ...\.gradle\caches\8.14\...\metadata.bin`, unrelated to any code change here) — fixed by stopping the Gradle daemon (`gradlew --stop`) and deleting `~/.gradle/caches/8.14` entirely; if this recurs, that's the fix, not a code problem.
+- [ ] Verify install + smoke test on a real Android device — **not done in this session**; the earlier debug-signed APK was sent and hit a 404 (fixed by the Phase 1 deploy, see above) but a full smoke test against this final release-signed build hasn't happened yet
+- [x] Document install steps for the owner/testers — `docs/mobile/INSTALL.md`
 
 ---
 

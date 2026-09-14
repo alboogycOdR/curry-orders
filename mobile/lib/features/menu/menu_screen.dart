@@ -8,6 +8,7 @@ import '../../state/basket.dart';
 import '../../state/selection.dart';
 import '../../theme/poster_tokens.dart';
 import '../../util/money.dart';
+import 'dish_option_sheet.dart';
 
 /// Menu — category filters + dish list, matching the poster's content
 /// (README §10.3 cards) but with a persistent "view basket" bar instead
@@ -225,6 +226,25 @@ class _DishCard extends ConsumerWidget {
                         Text(formatCents(dish.priceCents), style: PosterText.priceCard.copyWith(fontSize: 18, color: PosterColors.navy)),
                         if (dish.soldOut)
                           const Text('SOLD OUT', style: TextStyle(color: PosterColors.error, fontWeight: FontWeight.w900, fontSize: 11))
+                        else if (dish.hasOptions)
+                          // A dish with options can have several distinct
+                          // basket lines (different Spice/Extras picks) —
+                          // no single quantity to show on the card itself,
+                          // always open the configurator.
+                          IconButton.filled(
+                            onPressed: () async {
+                              final selection = await showDishOptionSheet(context, dish);
+                              if (selection == null) return;
+                              ref.read(basketProvider.notifier).addDish(
+                                    dish,
+                                    optionValueIds: selection.optionValueIds,
+                                    optionsSummary: selection.summary,
+                                    priceCentsOverride: selection.unitPriceCents,
+                                  );
+                            },
+                            icon: const Icon(Icons.add),
+                            style: IconButton.styleFrom(backgroundColor: PosterColors.navy, foregroundColor: PosterColors.white),
+                          )
                         else if (line != null)
                           _QuantityStepper(compositeKey: line.compositeKey, quantity: line.quantity)
                         else

@@ -73,6 +73,7 @@ from public.views import (
     _order_status_context,
     _order_status_lookup,
     _orderable_day_list,
+    _reorder_matched_lines,
     _slot_list_for_day,
     _status_copy,
 )
@@ -402,7 +403,14 @@ def availability(request: HttpRequest) -> JsonResponse:
         )
 
     trading_day = materialise_days(selected_date, settings, count=1)[0]
-    dishes = menu_queries.dishes_for_date(trading_day)
+    # with_options=True: additive over this endpoint's pre-existing shape
+    # (order.js, the web consumer, ignores unknown fields) — the Flutter
+    # app needs `options` to render a Spice/Extras configurator before
+    # adding a dish with required options to the basket
+    # (docs/mobile/FLUTTER_APP_PLAN.md Phase 3's "dish option configurator"
+    # gap). Same {id, name, required, values:[{id, name, price_delta_cents}]}
+    # shape `_menu_catalog_payload`/`api_day_availability` already use.
+    dishes = menu_queries.dishes_for_date(trading_day, with_options=True)
     categories = menu_queries.categories_ordered(dishes)
     slots = _slot_list_for_day(trading_day)
 
@@ -423,6 +431,23 @@ def availability(request: HttpRequest) -> JsonResponse:
                         "photo_url": dish.photo_url,
                         "portion_label": dish.portion_label,
                         "category": dish.category,
+                        "options": [
+                            {
+                                "id": opt.id,
+                                "name": opt.name,
+                                "required": opt.required,
+                                "values": [
+                                    {
+                                        "id": v.id,
+                                        "name": v.name,
+                                        "price_delta_cents": v.price_delta_cents,
+                                    }
+                                    for v in (opt.values or [])
+                                    if v.is_available
+                                ],
+                            }
+                            for opt in (dish.options or [])
+                        ],
                     }
                     for dish in category_dishes
                 ],
@@ -749,6 +774,51 @@ def account_json(request: HttpRequest) -> JsonResponse:
         if last_order else None
     )
     return JsonResponse(payload)
+
+
+@require_GET
+def reorder_json(request: HttpRequest, public_token: str) -> JsonResponse:
+    """`GET /api/v1/orders/<token>/reorder/` — the app's equivalent of
+    `public.views.reorder`'s page: same re-matching rules
+    (`_reorder_matched_lines`, current prices, drop archived/deactivated
+    dishes and options with no live match), but returns plain JSON lines
+    the app feeds straight into `basketProvider` instead of seeding the
+    web's `localStorage` cart.
+
+    404 `not_found` for a missing order; 422 `illegal_transition` for one
+    that isn't `collected` yet (§11.11: only a collected order can be
+    reordered — reusing that Appendix C code rather than inventing a new
+    one, since it's the same "not in the right status for this action"
+    shape every other transition-guard error in this API already uses).
+    """
+    order = Order.objects.filter(public_token=public_token).prefetch_related(
+        "lines__dish__options__values",
+    ).first()
+    if order is None:
+        return _error_response("not_found", "No such order.")
+    if order.status != OrderStatus.COLLECTED:
+        return _error_response("illegal_transition", "Only a collected order can be reordered.")
+
+    matched, dropped = _reorder_matched_lines(order)
+    if not matched:
+        return _error_response(
+            "not_found", "None of this order's dishes are still available to reorder.",
+        )
+
+    return JsonResponse({
+        "lines": [
+            {
+                "dish_id": entry["dish"].pk,
+                "dish_name": entry["dish"].name,
+                "quantity": entry["quantity"],
+                "option_value_ids": entry["option_ids"],
+                "options_summary": ", ".join(v.name for v in entry["matched_values"]),
+                "unit_price_cents": entry["unit_price_cents"],
+            }
+            for entry in matched
+        ],
+        "dropped_dish_names": dropped,
+    })
 
 
 @require_GET

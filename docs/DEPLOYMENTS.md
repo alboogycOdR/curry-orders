@@ -28,16 +28,15 @@ Templates and static JS/CSS are baked into the Docker image. **`docker compose r
 
 ---
 
-## Static prototype — Clawsrv, port 8104 (SUPERSEDED)
+## Poster-variant Django app — Clawsrv, port 8105 ✅ LIVE
 
 | | |
 |---|---|
-| URL | http://204.168.249.99:8104/ |
-| Container | `brandons-kitchen-prototype` |
-| Serves | `design/prototype/index.html` — static HTML only, no backend |
-| Status | **Stale.** Serves the old dark jewel-tone theme (retired by D-30). Predates the real app entirely. |
+| URL | http://204.168.249.99:8105/ |
+| Host | same Clawsrv VPS/stack as the production app above |
+| Stack dir | `/home/clawusr/curry-orders/` (same checkout; `web-v2` compose service) |
+| Serves | same image/database as `web`, but with `ROOT_URLCONF=config.urls_v2_root`, mounting `public.urls_v2` (the poster/broadsheet variant from `updates0909/handover_poster_variant`) at `/` |
+| Redeploy | same as production above — `git pull --ff-only && docker compose up -d --build web-v2` |
+| Status | Live comparison build, for evaluating the poster/broadsheet redesign against the current production surface. |
 
-**Owner decision required** — one of:
-1. **Tear it down**: `docker rm -f brandons-kitchen-prototype` on Clawsrv
-2. **Leave as historical**: stops being a "current state" link
-3. **Repoint at real app**: Milestone 10 work, already scoped in `PHASE_2_PLAN.md`
+**Note:** `docker-compose.yml`'s default `WEB_V2_BIND_PORT` is `8104`; the live Clawsrv `.env` overrides this to `8105`. Only `8102` (production) and `8105` (poster variant) are current — treat any other port number in older docs/comments as stale.

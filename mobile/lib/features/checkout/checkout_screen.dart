@@ -114,7 +114,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text('${line.quantity}× ${line.name}')),
+                  Expanded(
+                    child: Text(
+                      line.optionsSummary.isEmpty
+                          ? '${line.quantity}× ${line.name}'
+                          : '${line.quantity}× ${line.name} (${line.optionsSummary})',
+                    ),
+                  ),
                   Text(formatCents(line.lineTotalCents)),
                 ],
               ),

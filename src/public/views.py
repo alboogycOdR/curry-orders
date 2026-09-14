@@ -34,6 +34,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import urllib.request
+from typing import TypedDict
 
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password, make_password
@@ -995,6 +996,68 @@ def account_setup(
 # ---------------------------------------------------------------- reorder (§11.11)
 
 
+class _MatchedReorderLine(TypedDict):
+    dish: Dish
+    option_ids: list[int]
+    matched_values: list[DishOptionValue]
+    quantity: int
+    unit_price_cents: int
+
+
+def _reorder_matched_lines(order: Order) -> tuple[list[_MatchedReorderLine], list[str]]:
+    """§11.11's re-matching rules, shared by the web `reorder()` view and
+    `public.api.reorder_json` (the Flutter app's equivalent): "Order
+    these again" seeds a fresh cart from the same lines at *current*
+    prices — never the original order's snapshot — dropping any line
+    whose dish has since been archived or deactivated (returned as
+    `dropped`, the human-readable dish names). Option selections are
+    best-effort re-matched by (option name, value name) against the
+    dish's *current* options; a selection with no live match is simply
+    dropped from that line rather than blocking the whole line.
+
+    Returns the matched lines aggregated by (dish, option set) — two
+    original order lines for the same dish+options merge into one
+    entry's `quantity` — plus the list of dropped dish names. Each
+    caller then maps `_MatchedReorderLine` into its own output shape
+    (the web's cart.js format vs. the app's plain JSON one).
+    """
+    aggregated: dict[str, _MatchedReorderLine] = {}
+    dropped: list[str] = []
+    for line in order.lines.all():
+        dish = line.dish
+        if dish is None or dish.archived_at is not None or not dish.is_active_on_menu:
+            dropped.append(line.dish_name_snapshot)
+            continue
+
+        matched_values = []
+        for selection in line.options_snapshot:
+            # select_related("option"): both this function's own price
+            # summing and reorder()'s heat/extras split below need the
+            # parent option's name off each matched value.
+            match = DishOptionValue.objects.filter(
+                option__dish=dish,
+                option__name=selection.get("option"),
+                name=selection.get("value"),
+                is_available=True,
+            ).select_related("option").first()
+            if match is not None:
+                matched_values.append(match)
+
+        option_ids = sorted({v.pk for v in matched_values})
+        composite_id = (
+            f"{dish.pk}:{','.join(str(i) for i in option_ids)}" if option_ids else str(dish.pk)
+        )
+        unit_price_cents = dish.price_cents + sum(v.price_delta_cents for v in matched_values)
+
+        entry = aggregated.setdefault(composite_id, {
+            "dish": dish, "option_ids": option_ids, "matched_values": matched_values,
+            "quantity": 0, "unit_price_cents": unit_price_cents,
+        })
+        entry["quantity"] += line.quantity
+
+    return list(aggregated.values()), dropped
+
+
 def reorder(
     request: HttpRequest,
     public_token: str,
@@ -1002,17 +1065,11 @@ def reorder(
     redirect_namespace: str = "public",
 ) -> HttpResponse:
     """§11.11: on a `collected` order's page, "Order these again" seeds a
-    fresh cart from the same lines, at *current* prices — never the
-    original order's snapshot — dropping any line whose dish has since
-    been archived or deactivated (listed in a notice on this page).
-    Option selections are best-effort re-matched by (option name, value
-    name) against the dish's *current* options; a selection that no
-    longer has a live match is simply dropped from that line rather than
-    blocking the whole line — the customer can re-pick it on `/order/`.
-    The new cart is seeded into the shared client-side cart
-    (`static/js/cart.js`) exactly like `dish.js` does; date/slot/payment
-    are then chosen afresh on `/order/` → `/checkout/`, same as any
-    other cart.
+    fresh cart from the same lines, at *current* prices. The new cart is
+    seeded into the shared client-side cart (`static/js/cart.js`) exactly
+    like `dish.js` does; date/slot/payment are then chosen afresh on
+    `/order/` → `/checkout/`, same as any other cart. See
+    `_reorder_matched_lines` for the actual re-matching rules.
 
     `template_name`/`redirect_namespace` let `views_v2.reorder` reuse
     this exact cart-seeding logic with its own poster-styled template.
@@ -1026,74 +1083,50 @@ def reorder(
         messages.error(request, "Only a collected order can be reordered.")
         return redirect(f"{redirect_namespace}:order_status", public_token=public_token)
 
-    # Build v2 lines keyed by composite id so duplicate order lines merge.
+    matched, dropped = _reorder_matched_lines(order)
+    if not matched:
+        messages.error(request, "None of this order's dishes are still available to reorder.")
+        return redirect(f"{redirect_namespace}:order_status", public_token=public_token)
+
+    # cart.js's own line shape — built here (not in _reorder_matched_lines)
+    # since it's specific to the web cart, not something a JSON API
+    # consumer wants.
     kept_v2: dict[str, dict[str, object]] = {}
-    dropped: list[str] = []
-    for line in order.lines.all():
-        dish = line.dish
-        if dish is None or dish.archived_at is not None or not dish.is_active_on_menu:
-            dropped.append(line.dish_name_snapshot)
-            continue
-
-        matched_values = []
-        for selection in line.options_snapshot:
-            match = DishOptionValue.objects.filter(
-                option__dish=dish,
-                option__name=selection.get("option"),
-                name=selection.get("value"),
-                is_available=True,
-            ).first()
-            if match is not None:
-                matched_values.append(match)
-
-        option_ids = sorted({v.pk for v in matched_values})
+    for entry in matched:
+        dish = entry["dish"]
+        matched_values = entry["matched_values"]
+        option_ids = entry["option_ids"]
         composite_id = (
             f"{dish.pk}:{','.join(str(i) for i in option_ids)}" if option_ids else str(dish.pk)
         )
-        unit_price_cents = dish.price_cents + sum(v.price_delta_cents for v in matched_values)
         name_suffix = (
             " (" + ", ".join(v.name for v in matched_values) + ")" if matched_values else ""
         )
-        # Find heat label: scan the options_snapshot for Spice group entries
-        # whose value matched.  matched_values is from a fresh queryset and
-        # does NOT have .option pre-loaded, so we use the snapshot dict.
-        matched_value_names = {v.name for v in matched_values}
+        # Each matched value carries its own parent option (select_related
+        # in _reorder_matched_lines) — no need to re-scan any snapshot to
+        # find which group ("Spice" vs. an add-on) it belongs to.
         heat = ""
         extras = []
-        for selection in line.options_snapshot:
-            if selection.get("value") not in matched_value_names:
-                continue
-            if selection.get("option") == "Spice":
-                heat = selection.get("value", "")
-            else:
-                # Find the matched DishOptionValue for price delta
-                for v in matched_values:
-                    if v.name == selection.get("value") and v.price_delta_cents != 0:
-                        extras.append({
-                            "optionValueId": v.pk,
-                            "name": v.name,
-                            "deltaCents": v.price_delta_cents,
-                        })
-
-        entry = kept_v2.setdefault(composite_id, {
+        for v in matched_values:
+            if v.option.name == "Spice":
+                heat = v.name
+            elif v.price_delta_cents != 0:
+                extras.append(
+                    {"optionValueId": v.pk, "name": v.name, "deltaCents": v.price_delta_cents}
+                )
+        kept_v2[composite_id] = {
             "id": composite_id,
             "itemId": dish.pk,
             "name": dish.name + name_suffix,
             "heat": heat,
             "extras": extras,
             "notes": "",
-            "qty": 0,
-            "unitPrice": unit_price_cents,
-            "lineTotal": 0,
+            "qty": entry["quantity"],
+            "unitPrice": entry["unit_price_cents"],
+            "lineTotal": entry["unit_price_cents"] * entry["quantity"],
             "photoUrl": "",
             "optionValueIds": option_ids,
-        })
-        entry["qty"] = int(entry["qty"]) + line.quantity
-        entry["lineTotal"] = entry["unitPrice"] * entry["qty"]
-
-    if not kept_v2:
-        messages.error(request, "None of this order's dishes are still available to reorder.")
-        return redirect(f"{redirect_namespace}:order_status", public_token=public_token)
+        }
 
     lines_json = json.dumps(list(kept_v2.values())).replace("</", "<\\/")
     return render(request, template_name, {

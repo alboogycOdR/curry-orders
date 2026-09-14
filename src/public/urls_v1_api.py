@@ -25,6 +25,7 @@ urlpatterns = [
     path("checkout/", api.checkout, name="checkout"),
     path("orders/<str:public_token>/", api.order_status_json, name="order_status"),
     path("orders/<str:public_token>/proof/", api.upload_proof, name="upload_proof"),
+    path("orders/<str:public_token>/reorder/", api.reorder_json, name="reorder"),
     path("lookup/", api.lookup_json, name="lookup"),
     path("auth/login/", api.login_json, name="login"),
     path("auth/signup/", api.signup_json, name="signup"),

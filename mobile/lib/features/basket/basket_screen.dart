@@ -103,6 +103,8 @@ class _BasketLineRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(line.name, style: PosterText.cardTitle.copyWith(fontSize: 16, color: PosterColors.navy)),
+                if (line.optionsSummary.isNotEmpty)
+                  Text(line.optionsSummary, style: PosterText.bodyDefault.copyWith(color: PosterColors.muted, fontSize: 11)),
                 Text(formatCents(line.unitPriceCents), style: PosterText.bodyDefault.copyWith(color: PosterColors.muted)),
               ],
             ),

@@ -31,8 +31,8 @@ production configuration.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — deploy, backup/restore, rotate
   secrets, common ops (stub until milestone 10).
 - [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md) — what's actually live
-  right now and where (currently: a stale static prototype on Clawsrv,
-  port 8104 — the real app isn't deployed anywhere yet).
+  right now and where (currently: production app on Clawsrv, port 8102,
+  plus the poster-variant Django app on port 8105).
 - [`docs/DISH_LIST_DRAFT.md`](docs/DISH_LIST_DRAFT.md) — draft menu
   content pending owner confirmation (§23).
 

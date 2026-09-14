@@ -19,7 +19,8 @@ import pytest
 from django.urls import reverse
 
 from core.capacity import CheckoutLine, ReservationRequest, reserve
-from core.models import Customer, ThrottleEvent
+from core.models import Customer, OrderStatus, ThrottleEvent
+from core.tz import now_sast
 
 pytestmark = [pytest.mark.django_db, pytest.mark.urls("config.urls_v2_root")]
 
@@ -47,6 +48,45 @@ class TestCsrfCookie:
         resp = client.get(reverse("api_v1:csrf"))
         assert resp.status_code == 200
         assert "csrftoken" in resp.cookies
+
+
+class TestReorderJson:
+    def test_only_a_collected_order_can_be_reordered(self, client, an_order) -> None:
+        resp = client.get(reverse("api_v1:reorder", args=[an_order.public_token]))
+        assert resp.status_code == 422
+        assert resp.json()["error"] == "illegal_transition"
+
+    def test_returns_current_price_lines_for_a_collected_order(
+        self, client, biz_settings, trading_day, slot, dish,
+    ) -> None:
+        order = reserve(
+            ReservationRequest(
+                trading_day_date=trading_day.date, slot_id=slot.pk, payment_method="eft",
+                customer_name="Jane Customer", customer_mobile_e164="+27821234567",
+                lines=[CheckoutLine(dish_id=dish.pk, quantity=2)],
+            ),
+            biz_settings,
+        )
+        order.status = OrderStatus.COLLECTED
+        order.collected_at = now_sast()
+        order.save(update_fields=["status", "collected_at"])
+
+        # Price went up after the order — reorder must quote today's price.
+        dish.price_cents += 5000
+        dish.save(update_fields=["price_cents"])
+
+        resp = client.get(reverse("api_v1:reorder", args=[order.public_token]))
+        assert resp.status_code == 200
+        body = resp.json()
+        (line,) = body["lines"]
+        assert line["dish_id"] == dish.pk
+        assert line["quantity"] == 2
+        assert line["unit_price_cents"] == dish.price_cents
+        assert body["dropped_dish_names"] == []
+
+    def test_unknown_token_is_not_found(self, client, biz_settings) -> None:
+        resp = client.get(reverse("api_v1:reorder", args=["nonexistent-token-123456"]))
+        assert resp.status_code == 404
 
 
 class TestOrderableDaysJson:

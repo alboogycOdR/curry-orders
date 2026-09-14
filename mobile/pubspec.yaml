@@ -61,6 +61,47 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # App icon + native splash generation (docs/mobile/FLUTTER_APP_PLAN.md
+  # Phase 4 "App icon + splash screen"). Dev-only: these run codegen against
+  # mobile/assets/icon/app_icon*.png and write straight into
+  # android/app/src/main/res/, they aren't runtime deps of the app.
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+# Config for `dart run flutter_launcher_icons` (android only — this app is
+# Android-only, see docs/mobile/FLUTTER_APP_PLAN.md's locked decisions).
+# Source artwork adapts the live site's favicon mark (src/templates/
+# base_v2.html's inline SVG: navy circle + gold ring + gold arc) at
+# PosterColors navy/gold (lib/theme/poster_tokens.dart) — hand-drawn with a
+# Pillow script (ring + quadratic-bezier arc, not committed — see
+# docs/mobile/FLUTTER_APP_PLAN.md Phase 4 for the generation notes). Legacy
+# icon is full-bleed navy + gold mark;
+# adaptive icon layers the same gold mark (transparent) over a navy
+# background so it isn't clipped by circle/squircle OEM masks.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#071124"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+# Config for `dart run flutter_native_splash:create` (android only). Navy
+# background (PosterColors.navy) with the same gold ring/arc mark,
+# transparent, centred — mirrors the launcher icon's adaptive foreground so
+# the splash-to-first-frame transition doesn't jump between two different
+# marks. android_12 uses the same values (Android 12+'s own splash API only
+# supports a single-colour background + centred icon, no separate "branding"
+# image here).
+flutter_native_splash:
+  color: "#071124"
+  image: "assets/icon/app_icon_foreground.png"
+  android: true
+  ios: false
+  web: false
+  android_12:
+    color: "#071124"
+    image: "assets/icon/app_icon_foreground.png"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

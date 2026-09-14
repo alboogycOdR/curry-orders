@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../data/api_exception.dart';
 import '../../data/models.dart';
 import '../../state/api_providers.dart';
+import '../../state/basket.dart';
 import '../../theme/poster_tokens.dart';
 import '../../util/money.dart';
 
@@ -31,13 +37,50 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 }
 
-class _OrderBody extends StatelessWidget {
+class _OrderBody extends ConsumerStatefulWidget {
   const _OrderBody({required this.order});
 
   final OrderDetail order;
 
   @override
+  ConsumerState<_OrderBody> createState() => _OrderBodyState();
+}
+
+class _OrderBodyState extends ConsumerState<_OrderBody> {
+  bool _reordering = false;
+
+  Future<void> _reorder() async {
+    setState(() => _reordering = true);
+    try {
+      final result = await ref.read(apiProvider).reorder(widget.order.publicToken);
+      for (final line in result.lines) {
+        ref.read(basketProvider.notifier).addLine(
+              dishId: line.dishId,
+              name: line.dishName,
+              unitPriceCents: line.unitPriceCents,
+              optionValueIds: line.optionValueIds,
+              optionsSummary: line.optionsSummary,
+              quantity: line.quantity,
+            );
+      }
+      if (!mounted) return;
+      if (result.droppedDishNames.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No longer available: ${result.droppedDishNames.join(', ')}')),
+        );
+      }
+      context.go('/basket');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _reordering = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final order = widget.order;
     return ListView(
       padding: const EdgeInsets.all(PosterSpace.pageSidePadding),
       children: [
@@ -46,6 +89,16 @@ class _OrderBody extends StatelessWidget {
         Text(order.statusCopy, style: PosterText.bodyLarge),
         const SizedBox(height: 16),
         if (order.stepData != null) _StepperRow(steps: order.stepData!),
+        if (order.canReorder)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: ElevatedButton(
+              onPressed: _reordering ? null : _reorder,
+              child: _reordering
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('ORDER THESE AGAIN'),
+            ),
+          ),
         const SizedBox(height: 20),
         _SectionCard(
           title: 'YOUR ORDER',
@@ -83,7 +136,7 @@ class _OrderBody extends StatelessWidget {
             title: 'WHERE',
             child: Text('${order.collectionAddressLine}\n${order.collectionInstructions ?? ''}'.trim()),
           ),
-        if (order.eft != null) _EftPanel(eft: order.eft!),
+        if (order.eft != null) _EftPanel(eft: order.eft!, publicToken: order.publicToken),
       ],
     );
   }
@@ -144,13 +197,65 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _EftPanel extends StatelessWidget {
-  const _EftPanel({required this.eft});
+class _EftPanel extends ConsumerStatefulWidget {
+  const _EftPanel({required this.eft, required this.publicToken});
 
   final EftDetail eft;
+  final String publicToken;
+
+  @override
+  ConsumerState<_EftPanel> createState() => _EftPanelState();
+}
+
+class _EftPanelState extends ConsumerState<_EftPanel> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked == null) return;
+    setState(() => _uploading = true);
+    try {
+      await ref.read(apiProvider).uploadProof(widget.publicToken, file: File(picked.path));
+      if (!mounted) return;
+      ref.invalidate(orderDetailProvider(widget.publicToken));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Proof uploaded — we\'re checking it.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _choosePickerSource() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source != null) await _pickAndUpload(source);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final eft = widget.eft;
     return _SectionCard(
       title: 'EFT — PAY INTO THIS ACCOUNT',
       child: Column(
@@ -167,10 +272,24 @@ class _EftPanel extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text('Proof already uploaded — we\'re checking it.', style: PosterText.bodyDefault),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _uploading ? null : _choosePickerSource,
+                  child: _uploading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('UPLOAD PROOF OF PAYMENT'),
+                ),
+              ),
             ),
-          // TODO(Phase 4): native camera/gallery picker (image_picker) →
-          // POST /api/v1/orders/<token>/proof/, once proof isn't already
-          // uploaded. Not built yet.
         ],
       ),
     );

@@ -4,6 +4,38 @@
 /// worth it yet; revisit if this file grows unwieldy.
 library;
 
+class DishOptionValue {
+  const DishOptionValue({required this.id, required this.name, required this.priceDeltaCents});
+
+  factory DishOptionValue.fromJson(Map<String, dynamic> json) => DishOptionValue(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        priceDeltaCents: json['price_delta_cents'] as int,
+      );
+
+  final int id;
+  final String name;
+  final int priceDeltaCents;
+}
+
+class DishOption {
+  const DishOption({required this.id, required this.name, required this.required, required this.values});
+
+  factory DishOption.fromJson(Map<String, dynamic> json) => DishOption(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        required: json['required'] as bool,
+        values: (json['values'] as List<dynamic>)
+            .map((v) => DishOptionValue.fromJson(v as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final int id;
+  final String name;
+  final bool required;
+  final List<DishOptionValue> values;
+}
+
 class Dish {
   const Dish({
     required this.id,
@@ -15,6 +47,7 @@ class Dish {
     required this.photoUrl,
     required this.portionLabel,
     required this.category,
+    required this.options,
   });
 
   factory Dish.fromJson(Map<String, dynamic> json) => Dish(
@@ -27,6 +60,10 @@ class Dish {
         photoUrl: (json['photo_url'] as String?) ?? '',
         portionLabel: (json['portion_label'] as String?) ?? '',
         category: (json['category'] as String?) ?? '',
+        options: (json['options'] as List<dynamic>?)
+                ?.map((o) => DishOption.fromJson(o as Map<String, dynamic>))
+                .toList() ??
+            const [],
       );
 
   final int id;
@@ -38,6 +75,9 @@ class Dish {
   final String photoUrl;
   final String portionLabel;
   final String category;
+  final List<DishOption> options;
+
+  bool get hasOptions => options.isNotEmpty;
 }
 
 /// One entry from `GET /api/v1/days/` — an actually-orderable date (open
@@ -283,6 +323,50 @@ class OrderSummary {
   final String statusCopy;
   final int totalCents;
   final String createdAt; // ISO datetime
+}
+
+/// One line from `GET /api/v1/orders/<token>/reorder/` — a dish from a
+/// past collected order, at today's price, with its options
+/// best-effort re-matched against the dish's current option set.
+class ReorderLine {
+  const ReorderLine({
+    required this.dishId,
+    required this.dishName,
+    required this.quantity,
+    required this.optionValueIds,
+    required this.optionsSummary,
+    required this.unitPriceCents,
+  });
+
+  factory ReorderLine.fromJson(Map<String, dynamic> json) => ReorderLine(
+        dishId: json['dish_id'] as int,
+        dishName: json['dish_name'] as String,
+        quantity: json['quantity'] as int,
+        optionValueIds: (json['option_value_ids'] as List<dynamic>).cast<int>(),
+        optionsSummary: (json['options_summary'] as String?) ?? '',
+        unitPriceCents: json['unit_price_cents'] as int,
+      );
+
+  final int dishId;
+  final String dishName;
+  final int quantity;
+  final List<int> optionValueIds;
+  final String optionsSummary;
+  final int unitPriceCents;
+}
+
+class ReorderResult {
+  const ReorderResult({required this.lines, required this.droppedDishNames});
+
+  factory ReorderResult.fromJson(Map<String, dynamic> json) => ReorderResult(
+        lines: (json['lines'] as List<dynamic>)
+            .map((l) => ReorderLine.fromJson(l as Map<String, dynamic>))
+            .toList(),
+        droppedDishNames: (json['dropped_dish_names'] as List<dynamic>).cast<String>(),
+      );
+
+  final List<ReorderLine> lines;
+  final List<String> droppedDishNames;
 }
 
 class LastOrderRef {
