@@ -36,4 +36,7 @@ urlpatterns = [
     path("", include("public.urls_v2")),  # namespace "v2" — home/checkout/order_status/lookup
     # namespace "public" — hand-picked subset; see public/urls_v2_supplement.py's docstring.
     path("", include("public.urls_v2_supplement")),
+    # namespace "api_v1" — the Flutter Android app's JSON API, see that
+    # module's own docstring (docs/mobile/FLUTTER_APP_PLAN.md Phase 1).
+    path("api/v1/", include("public.urls_v1_api")),
 ]

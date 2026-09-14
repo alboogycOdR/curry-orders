@@ -42,27 +42,40 @@ import hashlib
 import json
 from typing import TypedDict
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
 from django.http import HttpRequest, JsonResponse
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from core import eft
+from core import lookup as lookup_service
 from core import menu as menu_queries
 from core.capacity import CapacityError, CheckoutLine, ReservationRequest, reserve
 from core.materialise import materialise_days
 from core.models import (
     ActorKind,
     CollectionMethod,
+    Customer,
     IdempotencyKey,
     Order,
     OrderSource,
+    OrderStatus,
     PaymentMethod,
     Settings,
+    ThrottleEvent,
 )
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import now_sast
-from public.views import _slot_list_for_day
+from public import customer_sessions
+from public.views import (
+    _LOOKUP_GENERIC_ERROR,
+    _order_status_context,
+    _order_status_lookup,
+    _orderable_day_list,
+    _slot_list_for_day,
+    _status_copy,
+)
 from storage import service as storage_service
 
 
@@ -93,6 +106,8 @@ _ERROR_STATUS = {
     "throttled": 429,
     "upload_invalid": 400,
     "not_found": 404,
+    "auth_required": 401,
+    "throttled_login": 429,
 }
 
 
@@ -415,4 +430,353 @@ def availability(request: HttpRequest) -> JsonResponse:
             for category_name, category_dishes in categories
         ],
         "slots": slots,
+    })
+
+
+# ---------------------------------------------------------------- Flutter app (Phase 1)
+#
+# docs/mobile/FLUTTER_APP_PLAN.md Phase 1 — JSON endpoints the Android
+# app needs that the web build never did (it always had a server-rendered
+# page instead). Auth is the existing Django session cookie
+# (`public.customer_sessions`, unchanged) — no separate token scheme.
+# The app calls `csrf_cookie` once to receive `csrftoken`, then echoes it
+# back as `X-CSRFToken` on every POST, same mechanism the web JS uses via
+# `getCookie('csrftoken')`, just fetched explicitly since no Django
+# template is ever rendered client-side to embed one in.
+#
+# Everything else here reuses the exact same `core`/`public.views`
+# helpers the web views call — no parallel business logic, only a
+# different response format (JSON, not a template).
+
+
+@ensure_csrf_cookie
+@require_GET
+def csrf_cookie(request: HttpRequest) -> JsonResponse:
+    """`GET /api/v1/csrf/` — sets the `csrftoken` cookie. Call once at
+    app start (and again on a 403 `csrf_failed`) before any POST below.
+    """
+    return JsonResponse({"ok": True})
+
+
+@require_GET
+def orderable_days_json(request: HttpRequest) -> JsonResponse:
+    """`GET /api/v1/days/` — the orderable day list (§11.3's own
+    `orderable_dates` listing), same `{index, iso, dow, dom, long}` shape
+    `public.views._orderable_day_list` already builds for the web's date
+    switcher. The app needs this to know *which* dates are worth calling
+    `GET /api/v1/availability/?date=` for — that endpoint only rejects a
+    date outside the raw preorder-days horizon, not one that's closed or
+    already past today's cutoff (a real distinct concept — see
+    `core.tz.orderable_dates`).
+    """
+    settings = Settings.current()
+    today = now_sast().date()
+    return JsonResponse({"days": _orderable_day_list(today, settings)})
+
+
+def _order_json(order: Order, ctx: dict) -> dict:
+    """Serialise one order using the exact context `_order_status_context`
+    already computed (status copy, stepper, EFT-panel gating) — shared by
+    `order_status_json` and `lookup_json` below so both return the same
+    shape for the same order.
+    """
+    settings: Settings = ctx["settings"]
+    lines = [
+        {
+            "dish_name": line.dish_name_snapshot,
+            "unit_price_cents": line.unit_price_cents_snapshot,
+            "quantity": line.quantity,
+            "line_total_cents": line.line_total_cents,
+            "options": line.options_snapshot,
+            "kitchen_note": line.kitchen_note or "",
+        }
+        for line in ctx["lines"]
+    ]
+
+    payload: dict[str, object] = {
+        "order_number": order.order_number,
+        "public_token": order.public_token,
+        "status": order.status,
+        "status_copy": ctx["status_copy"],
+        "step_data": ctx["step_data"],
+        "is_terminal": ctx["is_terminal"],
+        "can_reorder": ctx["can_reorder"],
+        "payment_method": order.payment_method,
+        "collection_method": order.collection_method,
+        "collection_date": order.trading_day.date.isoformat() if order.trading_day_id else None,
+        "collection_slot_label": (
+            f"{order.slot.start_at.strftime('%H:%M')}–{order.slot.end_at.strftime('%H:%M')}"
+            if order.slot_id else None
+        ),
+        "total_cents": order.total_cents,
+        "note": order.note or "",
+        "lines": lines,
+    }
+    if ctx["show_address"]:
+        payload["collection_address_line"] = settings.collection_address_line or ""
+        payload["collection_instructions"] = settings.collection_instructions or ""
+    if ctx["show_eft_panel"]:
+        payload["eft"] = {
+            "bank_name": settings.bank_name or "",
+            "account_name": settings.account_name or "",
+            "account_number": settings.account_number or "",
+            "branch_code": settings.branch_code or "",
+            "account_type": settings.account_type or "",
+            "reference": order.order_number,
+            "amount_cents": order.total_cents,
+            "hold_expires_at": order.hold_expires_at.isoformat() if order.hold_expires_at else None,
+            "proof_already_uploaded": ctx["proof_already_uploaded"],
+        }
+    return payload
+
+
+@require_GET
+def order_status_json(request: HttpRequest, public_token: str) -> JsonResponse:
+    """`GET /api/v1/orders/<token>/` — JSON equivalent of
+    `public.views.order_status`'s server-rendered page. Reuses that
+    view's exact query/context (`_order_status_lookup`/
+    `_order_status_context`) — same status copy, EFT panel gating,
+    five-dot stepper — only the output format differs.
+    """
+    order = _order_status_lookup(public_token)
+    if order is None:
+        return _error_response("not_found", "No such order.")
+    return JsonResponse(_order_json(order, _order_status_context(order)))
+
+
+@require_POST
+@csrf_protect
+def lookup_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/lookup/` — JSON equivalent of `public.views.lookup`
+    (§11.10). Same throttling/generic-error discipline: every failure
+    returns the same generic message so this endpoint can't be used to
+    enumerate order numbers or confirm a mobile number belongs to anyone.
+
+    Body: `{"order_number": "CT-...", "mobile": "082..."}` —
+    `order_number` optional; when blank, returns up to 5 recent orders
+    for the *signed-in* customer's own mobile (session cookie required —
+    same guard as the web lookup's mobile-only listing; an app user is
+    expected to use `GET /api/v1/account/orders/` for their own history
+    instead of this path, see docs/mobile/FLUTTER_APP_PLAN.md Phase 3's
+    IA note — this stays mainly for tracking a guest order).
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    if not isinstance(data, dict):
+        return _error_response("validation_error", "Malformed JSON body.")
+
+    order_number_input = str(data.get("order_number", "")).strip()
+    mobile_input = str(data.get("mobile", ""))
+    ip = request.META.get("REMOTE_ADDR") or "unknown"
+
+    try:
+        lookup_service.check_lookup_throttle(ip, order_number_input)
+    except lookup_service.LookupError:
+        return _error_response("throttled", _LOOKUP_GENERIC_ERROR)
+
+    if order_number_input:
+        order = lookup_service.find_order(order_number_input, mobile_input)
+        lookup_service.record_lookup_attempt(ip, order_number_input)
+        if order is None:
+            return _error_response("not_found", _LOOKUP_GENERIC_ERROR)
+        return JsonResponse({"orders": [_order_json(order, _order_status_context(order))]})
+
+    customer = request.customer_user
+    customer_digits = (customer.mobile_e164 or "")[-9:] if customer and customer.mobile_e164 else ""
+    submitted_digits = lookup_service.last9_digits(mobile_input)
+    if not customer:
+        return _error_response(
+            "auth_required",
+            "Sign in to view all your orders by mobile number, or provide an order number.",
+        )
+    if not customer_digits or submitted_digits != customer_digits:
+        return _error_response("not_found", _LOOKUP_GENERIC_ERROR)
+
+    lookup_service.record_lookup_attempt(ip, "")
+    found = lookup_service.find_orders_by_mobile(mobile_input, limit=5)
+    if not found:
+        return _error_response("not_found", _LOOKUP_GENERIC_ERROR)
+    return JsonResponse({
+        "orders": [_order_json(o, _order_status_context(o)) for o in found],
+    })
+
+
+_LOGIN_THROTTLE_LIMIT = 10
+_LOGIN_THROTTLE_WINDOW_SECONDS = 3600  # 1 hour — same bucket/scope as the web login throttle.
+_LOGIN_IP_SCOPE = "login_ip"
+
+
+def _customer_json(customer: Customer) -> dict:
+    return {"full_name": customer.full_name, "mobile_e164": customer.mobile_e164}
+
+
+@require_POST
+@csrf_protect
+def login_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/auth/login/` — password login only. **v1 Account is
+    password login, not OTP** (root CLAUDE.md) — no Send-code/magic-link
+    endpoint exists here and none should be added. Shares the
+    `login_ip` throttle scope/limit with `public.views.customer_login`
+    (10/hour) so a brute-force attempt is capped across both web and app
+    clients against the same bucket. On success, logs the customer into
+    the same Django session `public.customer_sessions.log_in` uses for
+    the web — the app carries that cookie on every later request.
+
+    Body: `{"mobile": "082...", "password": "..."}`.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    if not isinstance(data, dict):
+        return _error_response("validation_error", "Malformed JSON body.")
+
+    ip = request.META.get("REMOTE_ADDR") or "unknown"
+    window_start = now_sast() - dt.timedelta(seconds=_LOGIN_THROTTLE_WINDOW_SECONDS)
+    recent_failures = ThrottleEvent.objects.filter(
+        scope=_LOGIN_IP_SCOPE, key=ip, occurred_at__gte=window_start,
+    ).count()
+    if recent_failures >= _LOGIN_THROTTLE_LIMIT:
+        return _error_response(
+            "throttled_login", "Too many sign-in attempts — try again in an hour.",
+        )
+
+    try:
+        mobile = normalize_sa_mobile(str(data.get("mobile", "")))
+    except InvalidPhoneNumber:
+        mobile = ""
+    password = str(data.get("password", ""))
+    customer = Customer.objects.filter(mobile_e164=mobile, anonymised_at__isnull=True).first()
+    if (
+        not customer
+        or not customer.password_hash
+        or not check_password(password, customer.password_hash)
+    ):
+        ThrottleEvent.objects.create(scope=_LOGIN_IP_SCOPE, key=ip)
+        return _error_response(
+            "validation_error", "We couldn't sign you in. Check your mobile number and password.",
+        )
+
+    customer_sessions.log_in(request, customer)
+    return JsonResponse(_customer_json(customer))
+
+
+@require_POST
+@csrf_protect
+def signup_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/auth/signup/` — mirrors `public.views.customer_signup`
+    field-for-field: name (2+ chars), SA mobile, password (8+ chars),
+    and the same account-takeover guard for a mobile number that already
+    has a guest order history (no OTP exists in v1 to verify ownership,
+    so a pre-existing guest `Customer` row is rejected with a
+    contact-us message rather than silently claimed).
+
+    Body: `{"name": "...", "mobile": "082...", "password": "..."}`.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    if not isinstance(data, dict):
+        return _error_response("validation_error", "Malformed JSON body.")
+
+    name = str(data.get("name", "")).strip()
+    password = str(data.get("password", ""))
+    try:
+        mobile = normalize_sa_mobile(str(data.get("mobile", "")))
+    except InvalidPhoneNumber:
+        return _error_response(
+            "validation_error", "Enter a valid South African mobile number.", field="mobile",
+        )
+    if len(name) < 2:
+        return _error_response("validation_error", "Enter your name.", field="name")
+    if len(password) < 8:
+        return _error_response(
+            "validation_error", "Use at least 8 characters for your password.", field="password",
+        )
+
+    customer, created = Customer.objects.get_or_create(
+        mobile_e164=mobile, defaults={"full_name": name},
+    )
+    if customer.password_hash:
+        return _error_response(
+            "validation_error", "An account already exists for that mobile number.", field="mobile",
+        )
+    if not created:
+        return _error_response(
+            "validation_error",
+            "You have already placed an order with this number. Use Order Lookup to view "
+            "your orders — or contact us if you need help setting up an account.",
+            field="mobile",
+        )
+
+    customer.full_name = name
+    customer.password_hash = make_password(password)
+    customer.save(update_fields=["full_name", "password_hash"])
+    customer_sessions.log_in(request, customer)
+    return JsonResponse(_customer_json(customer), status=201)
+
+
+@require_POST
+@csrf_protect
+def logout_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/auth/logout/`."""
+    customer_sessions.log_out(request)
+    return JsonResponse({"ok": True})
+
+
+@require_GET
+def account_json(request: HttpRequest) -> JsonResponse:
+    """`GET /api/v1/account/` — the signed-in customer's own profile.
+    401 `auth_required` (not a redirect — there's no login *page* to
+    redirect to from a native client) when there's no valid session.
+    """
+    customer = request.customer_user
+    if customer is None:
+        return _error_response("auth_required", "Sign in to view your account.")
+    last_order = (
+        Order.objects.filter(
+            customer_mobile_snapshot=customer.mobile_e164, status=OrderStatus.COLLECTED,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    payload = _customer_json(customer)
+    payload["last_order"] = (
+        {"order_number": last_order.order_number, "public_token": last_order.public_token}
+        if last_order else None
+    )
+    return JsonResponse(payload)
+
+
+@require_GET
+def account_orders_json(request: HttpRequest) -> JsonResponse:
+    """`GET /api/v1/account/orders/` — order history for the signed-in
+    customer (app Orders tab / reorder support). 401 `auth_required`
+    when not signed in — same guard as `account_json`. Lighter payload
+    than `order_status_json` (no lines/EFT/stepper detail) — the app is
+    expected to fetch the full detail on tap via
+    `GET /api/v1/orders/<token>/`.
+    """
+    customer = request.customer_user
+    if customer is None:
+        return _error_response("auth_required", "Sign in to view your orders.")
+    orders = (
+        Order.objects.filter(customer_mobile_snapshot=customer.mobile_e164)
+        .order_by("-created_at")[:20]
+    )
+    return JsonResponse({
+        "orders": [
+            {
+                "order_number": o.order_number,
+                "public_token": o.public_token,
+                "status": o.status,
+                "status_copy": _status_copy(o),
+                "total_cents": o.total_cents,
+                "created_at": o.created_at.isoformat(),
+            }
+            for o in orders
+        ],
     })

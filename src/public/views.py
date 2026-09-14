@@ -612,33 +612,18 @@ def checkout(request: HttpRequest) -> HttpResponse:
     return render(request, "public/checkout.html", _checkout_context())
 
 
-def order_status(
-    request: HttpRequest, public_token: str, template_name: str = "public/order_status.html",
-) -> HttpResponse:
-    """Spec §6.1 `/orders/:public_token` — order status view,
-    `noindex, nofollow`. Not one of the four handoff screens: order
-    number, status in plain language, the order sheet, collection
-    details, and — for an EFT order still `awaiting_eft`/`payment_review`
-    (§11.7) — bank details, a hold countdown and the proof-upload
-    control (`static/js/eft.js`). The staff side that verifies/rejects a
-    proof (the EFT queue) is milestone 5; a payment_review order here
-    just says "we're checking it" until then.
-
-    `template_name` lets `views_v2.order_status` reuse this exact query
-    and context (real order, real EFT/stepper state) with its own
-    poster-styled template rather than duplicating it.
+def _order_status_context(order: Order) -> dict:
+    """Everything `order_status()` renders, keyed off one already-fetched
+    `order` — split out so `public.api.order_status_json` (the Flutter
+    app's `GET /api/v1/orders/<token>/`, docs/mobile/FLUTTER_APP_PLAN.md
+    Phase 1) can reuse the exact same status/EFT/stepper logic instead of
+    re-deriving it, same "reuse, not duplication" split `views_v2.py`
+    already uses for the poster-variant HTML page.
     """
-    order = Order.objects.filter(public_token=public_token).select_related(
-        "trading_day", "slot", "payment",
-    ).prefetch_related("lines").first()
-    if order is None:
-        raise Http404("No such order.")
-
     show_eft_panel = (
         order.payment_method == PaymentMethod.EFT and order.status in _EFT_PAGE_STATUSES
     )
-
-    return render(request, template_name, {
+    return {
         "order": order,
         "lines": order.lines.all(),
         "status_copy": _status_copy(order),
@@ -657,7 +642,36 @@ def order_status(
         # Task 7: five-dot stepper (None for terminal statuses).
         "step_data": _status_ui.step_data(order.status),
         "is_terminal": order.status in _status_ui.TERMINAL_STATUSES,
-    })
+    }
+
+
+def _order_status_lookup(public_token: str) -> Order | None:
+    """Shared query for `order_status()` and `public.api.order_status_json`."""
+    return Order.objects.filter(public_token=public_token).select_related(
+        "trading_day", "slot", "payment",
+    ).prefetch_related("lines").first()
+
+
+def order_status(
+    request: HttpRequest, public_token: str, template_name: str = "public/order_status.html",
+) -> HttpResponse:
+    """Spec §6.1 `/orders/:public_token` — order status view,
+    `noindex, nofollow`. Not one of the four handoff screens: order
+    number, status in plain language, the order sheet, collection
+    details, and — for an EFT order still `awaiting_eft`/`payment_review`
+    (§11.7) — bank details, a hold countdown and the proof-upload
+    control (`static/js/eft.js`). The staff side that verifies/rejects a
+    proof (the EFT queue) is milestone 5; a payment_review order here
+    just says "we're checking it" until then.
+
+    `template_name` lets `views_v2.order_status` reuse this exact query
+    and context (real order, real EFT/stepper state) with its own
+    poster-styled template rather than duplicating it.
+    """
+    order = _order_status_lookup(public_token)
+    if order is None:
+        raise Http404("No such order.")
+    return render(request, template_name, _order_status_context(order))
 
 
 # ---------------------------------------------------------------- lookup (§11.10)
