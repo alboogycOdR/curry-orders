@@ -17,24 +17,32 @@ served by `urls_v2`'s own patterns (registered first in
 Bug found 2026-09-14: `staff/login.html` (and every other staff
 template — `src/templates/base.html`'s nav, extended by all of them)
 calls `{% url 'public:home' %}`/`public:order`/`public:basket`/
-`public:account`/`public:help`/`public:policies`/`public:lookup` for
-its shared customer-facing chrome, unconditionally, on every page —
-staff pages included. On the main deploy (`config.urls`) that's fine,
-`public.urls` registers the full set. Here, before this fix, none of
-those names existed under the "public" namespace at all (the docstring
-above only ever scoped this file to JSON/media endpoints), so every
-staff page — not just login — 500'd with `NoReverseMatch: Reverse for
-'home' not found` the moment anyone tried to load `/manage/` on this
-deploy. Staff `/manage/` logic itself is untouched (root CLAUDE.md: "do
-not rewrite... staff /manage/") — this only adds the missing *name*
-resolution `{% url 'public:...' %}` needs, aliased to the equivalent
-`views_v2` screen, exactly the aliasing technique `urls_v2.py`'s own
-docstring already describes for `customer_logout`/OAuth. Real GET
-traffic to these paths is still served entirely by `urls_v2`'s own
-patterns (listed first) — these entries exist for `{% url %}` reversal
-only. `order` has no direct v2 equivalent (the poster variant merged
+`public:account`/`public:help`/`public:policies`/`public:lookup`/
+`public:order_status` (the last one from `staff/_inbox_section.html`,
+each order row linking out to its public status page) for its shared
+customer-facing chrome, unconditionally, on every page — staff pages
+included. On the main deploy (`config.urls`) that's fine, `public.urls`
+registers the full set. Here, before this fix, none of those names
+existed under the "public" namespace at all (the docstring above only
+ever scoped this file to JSON/media endpoints), so every staff page —
+not just login, any page reachable after signing in too — 500'd with
+`NoReverseMatch` the moment anyone tried to load it on this deploy.
+Confirmed exhaustive by grepping every `{% url 'public:...' %}` (and
+double-quoted/`reverse()` variants) across `src/templates/staff/` and
+`base.html` — these eight names are the complete set. Staff `/manage/`
+logic itself is untouched (root CLAUDE.md: "do not rewrite... staff
+/manage/") — this only adds the missing *name* resolution
+`{% url 'public:...' %}` needs, aliased to the equivalent `views_v2`
+screen, exactly the aliasing technique `urls_v2.py`'s own docstring
+already describes for `customer_logout`/OAuth. Real GET traffic to
+these paths is still served entirely by `urls_v2`'s own patterns
+(listed first) — these entries exist for `{% url %}` reversal only.
+`order` has no direct v2 equivalent (the poster variant merged
 Broadsheet's separate Order/Menu split into one Menu screen) — aliased
-to `views_v2.menu`, the closest actual destination.
+to `views_v2.menu`, the closest actual destination. `order_status`
+reuses `views_v2.order_status` (the poster-styled tracker page,
+`public_token` kwarg) rather than the Broadsheet one, matching every
+other page on this deploy.
 """
 from django.urls import path
 
@@ -60,4 +68,5 @@ urlpatterns = [
     path("help/", views_v2.help_page, name="help"),
     path("policies/", views_v2.policies_page, name="policies"),
     path("lookup/", views_v2.lookup, name="lookup"),
+    path("orders/<str:public_token>/", views_v2.order_status, name="order_status"),
 ]
