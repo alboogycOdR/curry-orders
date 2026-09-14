@@ -62,17 +62,37 @@ body.route-v2 a:hover { color: var(--poster-gold-soft); }
 .pv-proof-v { font-size: 14px; font-weight: 700; color: #fff; margin-top: 3px; line-height: 1.15; }
 
 /* ---------- buttons ---------- */
+/* Every color declaration below is written as `.pv-btn.pv-btn-*` (two
+   classes), not `.pv-btn-*` alone — every real usage already carries
+   both classes (`class="pv-btn pv-btn-primary"` etc.), so this changes
+   nothing about which elements match, only specificity: (0,2,0) beats
+   `body.route-v2 a`'s (0,1,2) (line ~29's "every link is gold by
+   default" rule). A bare `.pv-btn-primary { color: ... }` loses that
+   fight on an `<a>` tag — one class each, and CSS's tiebreak after that
+   is element-selector *count*, where `body.route-v2 a` has two (body,
+   a) to this rule's zero, regardless of source order. Confirmed live
+   2026-09-14: every `<a class="pv-btn pv-btn-primary">` CTA (Browse
+   the menu, Order these again, Log in, ...) rendered with gold text on
+   its own gold background — completely unreadable — while the
+   identical `<button class="pv-btn pv-btn-primary">` elsewhere was
+   fine, since the offending selector requires an `a`. `pv-btn-dark`
+   happened to look right by accident (its own intended colour is gold,
+   same as the override); still fixed properly here rather than left as
+   a happy accident. */
 .pv-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 5px; border: 2px solid transparent; font-family: inherit; font-size: 14px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: transform 140ms var(--ease-poster), box-shadow 140ms var(--ease-poster), background 140ms var(--ease-poster); }
 .pv-btn:active { transform: translate(2px, 2px); }
-.pv-btn-primary { background: var(--poster-gold); color: var(--poster-navy); box-shadow: var(--shadow-blue-offset); }
-.pv-btn-primary:hover { background: var(--poster-gold-soft); }
-.pv-btn-primary:active { box-shadow: 2px 2px 0 #0C55B0; }
-.pv-btn-dark { background: var(--poster-navy); color: var(--poster-gold); border-color: var(--poster-blue); }
-.pv-btn-outline { background: transparent; color: #fff; border-color: var(--poster-blue); }
-.pv-btn-outline.on-light { color: var(--poster-navy); }
+.pv-btn.pv-btn-primary { background: var(--poster-gold); color: var(--poster-navy); box-shadow: var(--shadow-blue-offset); }
+.pv-btn.pv-btn-primary:hover { background: var(--poster-gold-soft); }
+.pv-btn.pv-btn-primary:active { box-shadow: 2px 2px 0 #0C55B0; }
+.pv-btn.pv-btn-dark { background: var(--poster-navy); color: var(--poster-gold); border-color: var(--poster-blue); }
+.pv-btn.pv-btn-outline { background: transparent; color: #fff; border-color: var(--poster-blue); }
+.pv-btn.pv-btn-outline.on-light { color: var(--poster-navy); }
 .pv-btn-block { width: 100%; }
 .pv-btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
-.pv-textlink { background: none; border: none; padding: 0; font-family: inherit; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--poster-blue); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+/* `.pv-textlink` has no sibling class to pair with for the same trick
+   (markup is `class="pv-textlink"` alone) — paired with `body.route-v2`
+   itself instead: (0,2,1) still beats (0,1,2) on class count. */
+body.route-v2 .pv-textlink { background: none; border: none; padding: 0; font-family: inherit; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--poster-blue); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---------- light sections ---------- */
 .pv-light { background: var(--poster-paper); color: var(--poster-navy); padding: 26px 18px; }
