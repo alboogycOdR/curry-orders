@@ -69,12 +69,11 @@ review (public/urls_v2.py's own docstring has the full reasoning):
     {% endif %}
     <div class="pv-coll-row"><div class="pv-coll-k">Method</div><div class="pv-coll-v">Direct collection &middot; Uber Courier on request</div></div>
   </div>
-  <a href="{% url 'v2:basket' %}" class="pv-btn pv-btn-dark" style="margin-top:16px;display:inline-flex;">Choose your collection slot</a>
   {% else %}
   <p class="pv-sub" style="margin-top:16px;">Ordering is closed right now &mdash; check back soon.</p>
   {% endif %}
 
-  <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-dark" style="margin-top:12px;display:inline-flex;">See the full menu</a>
+  <a href="{% url 'v2:menu' %}" class="pv-btn pv-btn-dark" style="margin-top:16px;display:inline-flex;">See the full menu</a>
 </section>
 
 <section class="pv-promise">
