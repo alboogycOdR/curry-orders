@@ -58,7 +58,12 @@ body.route-v2 a:hover { color: var(--poster-gold-soft); }
 .pv-lede { position: relative; font-size: 15px; font-weight: 500; color: var(--poster-muted-dark); max-width: 32ch; margin: 14px 0 0; line-height: 1.4; }
 .pv-art { position: relative; margin-top: 18px; height: 210px; }
 .pv-ring { position: absolute; left: 0; bottom: 0; width: 150px; height: 150px; border-radius: 50%; background: var(--poster-blue-deep) center/cover no-repeat; box-shadow: 0 0 0 4px var(--poster-white), 0 0 0 9px var(--poster-blue); }
-.pv-plate { position: absolute; right: 0; top: 0; width: 216px; height: 180px; border: 3px solid var(--poster-blue); background: var(--poster-blue-panel) center/cover no-repeat; border-radius: 5px; box-shadow: var(--shadow-dark-offset); }
+/* Spans the full hero width now that the owner-portrait ring (which
+   used to share this row, left of the plate) is gone from the hero —
+   `left/right: 0` instead of a fixed 216px pinned to the right, so the
+   photo fills the space the ring left behind. `background-size: cover`
+   (unchanged) crops to fill rather than stretching/distorting it. */
+.pv-plate { position: absolute; left: 0; right: 0; top: 0; height: 180px; border: 3px solid var(--poster-blue); background: var(--poster-blue-panel) center/cover no-repeat; border-radius: 5px; box-shadow: var(--shadow-dark-offset); }
 .pv-sticker { position: absolute; right: 6px; bottom: -6px; background: var(--poster-gold); color: var(--poster-navy); padding: 6px 14px 8px; border-radius: 4px; box-shadow: var(--shadow-blue-offset); transform: rotate(-4deg); }
 .pv-sticker b { display: block; font-size: 40px; font-weight: 900; line-height: .85; }
 .pv-sticker span { display: block; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
