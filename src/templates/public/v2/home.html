@@ -36,7 +36,7 @@ review (public/urls_v2.py's own docstring has the full reasoning):
 
   <div class="pv-art">
     <div class="pv-plate" style="background-image:url('{% if featured.photo_url %}{{ featured.photo_url }}{% else %}{% static 'img/poster-food-crop.jpg' %}{% endif %}')" role="img" aria-label="{{ featured.name|default:'Featured dish' }}"></div>
-    <div class="pv-ring" style="background-image:url('{% static 'img/poster-owner-portrait.jpg' %}')" role="img" aria-label="{{ site_name }} owner illustration"></div>
+    {% comment %}Owner portrait ring removed from the hero per request — still used elsewhere (header avatar, Promise panel "meet the kitchen").{% endcomment %}
     {% if featured %}
     <div class="pv-sticker"><b>{{ featured.price_cents|cents }}</b><span>Each</span></div>
     {% endif %}
