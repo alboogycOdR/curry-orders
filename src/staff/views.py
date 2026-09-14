@@ -914,12 +914,30 @@ def menu_list(request: HttpRequest) -> HttpResponse:
     return render(request, "staff/menu_list.html", {"rows": rows})
 
 
+def _enforce_single_featured_dish(saved_dish: Dish) -> None:
+    """At most one dish is ever the Home hero's "this week's special"
+    (`Dish.is_featured` — see that field's own docstring). Not a DB
+    constraint (a cross-row "at most one True" rule isn't a single-row
+    CheckConstraint), so enforced here: whichever dish was just saved
+    with the flag on wins, every other dish's flag is cleared in the
+    same transaction the form save already runs inside (Django wraps
+    each request's ORM writes autocommit-per-statement by default, but
+    callers of this helper are expected to also wrap their own
+    `form.save()` + this call in `transaction.atomic()` — see the two
+    call sites below).
+    """
+    if saved_dish.is_featured:
+        Dish.objects.exclude(pk=saved_dish.pk).filter(is_featured=True).update(is_featured=False)
+
+
 @staff_login_required
 def dish_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = DishForm(request.POST)
         if form.is_valid():
-            dish = form.save()
+            with transaction.atomic():
+                dish = form.save()
+                _enforce_single_featured_dish(dish)
             messages.success(request, f"{dish.name} created.")
             return redirect("manage:dish_edit", dish_id=dish.pk)
     else:
@@ -1040,7 +1058,9 @@ def dish_edit(request: HttpRequest, dish_id: int) -> HttpResponse:
         # Plain dish-field save.
         form = DishForm(request.POST, instance=dish, editing=True)
         if form.is_valid():
-            form.save()
+            with transaction.atomic():
+                form.save()
+                _enforce_single_featured_dish(dish)
             messages.success(request, f"{dish.name} saved.")
             return redirect("manage:dish_edit", dish_id=dish.pk)
     else:

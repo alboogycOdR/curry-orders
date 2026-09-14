@@ -57,7 +57,7 @@ staff roles qualify — nothing above manager exists per §4).
       <tr class="{% if row.dish.archived_at %}archived{% endif %}">
         <td>{{ row.dish.category|default:"—" }}</td>
         <td class="num">{{ row.dish.sort_order }}</td>
-        <td><a href="{% url 'manage:dish_edit' row.dish.pk %}">{{ row.dish.name }}</a></td>
+        <td><a href="{% url 'manage:dish_edit' row.dish.pk %}">{{ row.dish.name }}</a>{% if row.dish.is_featured %} <span class="menu-badge" title="Shown on the homepage hero">★ Featured</span>{% endif %}</td>
         <td class="num">R{{ row.price_rand }}</td>
         <td>{% if row.dish.is_active_on_menu %}Yes{% else %}No{% endif %}</td>
         <td>

@@ -238,9 +238,21 @@ _CHIP_TILES = (
 
 
 def _featured_dish(active: list[Dish], requested_slug: str | None) -> Dish | None:
+    """Precedence: an explicit `?featured=<slug>` link (unchanged,
+    still useful for one-off promotional links) beats the staff's own
+    choice (`Dish.is_featured` — Menu editor, "Featured on homepage"),
+    which beats the historical hardcoded default
+    ("chicken-masala-roti-roll", kept only as a safety net for a
+    install/dataset where no dish has ever been flagged), which beats
+    "just pick something" as a last resort so Home never has nothing to
+    show.
+    """
     by_slug = {d.slug: d for d in active}
     if requested_slug and requested_slug in by_slug:
         return by_slug[requested_slug]
+    featured = next((d for d in active if d.is_featured), None)
+    if featured is not None:
+        return featured
     if "chicken-masala-roti-roll" in by_slug:
         return by_slug["chicken-masala-roti-roll"]
     ordered = sorted(active, key=lambda d: (d.sort_order, d.name))

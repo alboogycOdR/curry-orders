@@ -143,12 +143,15 @@ class DishForm(forms.ModelForm):
             "slug", "name", "price_cents", "portion_label",
             "short_description", "long_description", "spice_default",
             "allergen_text", "dietary_tags", "category", "sort_order",
-            "is_active_on_menu", "allow_notes",
+            "is_active_on_menu", "allow_notes", "is_featured",
         ]
         widgets = {
             "short_description": forms.Textarea(attrs={"rows": 2}),
             "long_description": forms.Textarea(attrs={"rows": 4}),
             "allergen_text": forms.Textarea(attrs={"rows": 2}),
+        }
+        labels = {
+            "is_featured": "Featured on homepage (this week's special)",
         }
 
     def __init__(self, *args, editing: bool = False, **kwargs):

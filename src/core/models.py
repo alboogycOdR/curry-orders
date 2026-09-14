@@ -519,6 +519,17 @@ class Dish(models.Model):
     category = models.TextField(null=True, blank=True)
     sort_order = models.IntegerField(default=0)
     is_active_on_menu = models.BooleanField(default=False)
+    # The Home hero's "this week's special" dish (poster variant —
+    # public/views.py::_featured_dish()). At most one dish should ever
+    # have this set — enforced in staff/views.py::dish_edit /
+    # dish_create by clearing it off every other dish in the same
+    # transaction, not by a DB constraint (a cross-row "at most one
+    # True" rule isn't expressible as a single-row CheckConstraint).
+    # Previously there was no staff-editable control for this at all —
+    # the hero always showed whichever dish had the hardcoded slug
+    # "chicken-masala-roti-roll", which _featured_dish() still falls
+    # back to if no dish has this flag set.
+    is_featured = models.BooleanField(default=False)
     allow_notes = models.BooleanField(default=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

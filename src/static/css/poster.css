@@ -47,7 +47,13 @@ body.route-v2 a:hover { color: var(--poster-gold-soft); }
 .pv-hero { position: relative; overflow: hidden; padding: 22px 18px 26px; background: var(--poster-navy); color: #fff; }
 .pv-brush { position: absolute; background: var(--poster-blue); opacity: .16; transform: rotate(-24deg); border-radius: 40px; pointer-events: none; }
 .pv-eyebrow { position: relative; display: inline-block; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--poster-navy); background: var(--poster-gold); padding: 5px 10px; }
-.pv-h1 { position: relative; font-size: 72px; font-weight: 900; line-height: .8; letter-spacing: -.01em; text-transform: uppercase; margin: 16px 0 0; text-shadow: 3px 4px 0 rgba(12, 54, 121, .85); }
+/* Capped at 2 lines with an ellipsis — a long dish name (e.g. "Chicken
+   Masala Roti Roll", the hardcoded default before Dish.is_featured
+   existed) would otherwise wrap to 3 lines at this size and dominate
+   the whole hero. `-webkit-line-clamp` needs the box/orient pair below
+   even outside Safari; it's supported in every current browser despite
+   the vendor prefix. */
+.pv-h1 { position: relative; font-size: 72px; font-weight: 900; line-height: .8; letter-spacing: -.01em; text-transform: uppercase; margin: 16px 0 0; text-shadow: 3px 4px 0 rgba(12, 54, 121, .85); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .pv-script { display: block; font-family: "Brush Script MT", "Segoe Script", cursive; font-weight: 700; font-size: 58px; text-transform: none; letter-spacing: 0; color: var(--poster-gold); line-height: .95; margin-top: 2px; text-shadow: none; }
 .pv-lede { position: relative; font-size: 15px; font-weight: 500; color: var(--poster-muted-dark); max-width: 32ch; margin: 14px 0 0; line-height: 1.4; }
 .pv-art { position: relative; margin-top: 18px; height: 210px; }

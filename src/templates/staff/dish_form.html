@@ -74,6 +74,7 @@ occupying the dish, a typed/ticked confirmation once there is.
         {{ field }}
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {% if field.name == "slug" %}<p class="df-slug-note">Cannot be changed after this dish is created.</p>{% endif %}
+        {% if field.name == "is_featured" %}<p class="df-slug-note">Only one dish can be featured at a time — checking this un-features whichever dish currently has it.</p>{% endif %}
         {{ field.errors }}
       </div>
     {% endfor %}
