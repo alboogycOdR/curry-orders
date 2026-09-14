@@ -468,8 +468,11 @@ screen readers.
       <a role="menuitem" href="{% url 'manage:menu_list' %}" {% if request.resolver_match.url_name == 'menu_list' or request.resolver_match.url_name == 'dish_create' or request.resolver_match.url_name == 'dish_edit' %}aria-current="page"{% endif %}>Menu editor</a>
       <hr class="staff-menu-divider">
       <a role="menuitem" href="{% url 'manage:assisted_order_new' %}" {% if request.resolver_match.url_name == 'assisted_order_new' %}aria-current="page"{% endif %}>New assisted order</a>
-      {% if request.staff_user.role == "owner" %}
+      {% if request.staff_user.role == "owner" or request.staff_user.role == "admin" %}
       <a role="menuitem" href="{% url 'manage:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+      {% endif %}
+      {% if request.staff_user.role == "admin" %}
+      <a role="menuitem" href="{% url 'manage:team' %}" {% if request.resolver_match.url_name == 'team' %}aria-current="page"{% endif %}>Team</a>
       {% endif %}
       <hr class="staff-menu-divider">
       <form method="post" action="{% url 'manage:logout' %}">{% csrf_token %}<button type="submit" role="menuitem">Log out</button></form>

@@ -97,7 +97,7 @@ exists and is tested.
               <button type="button" data-action="verify_eft" data-needs-reason="1">Verify (seen in bank app)</button>
               <button type="button" data-action="expire_hold_now">Expire now</button>
               {% endif %}
-              <button type="button" data-action="extend_hold" title="Extends the hold by the default EFT window (usually 2 hours) — use when the customer says payment is on its way">Extend hold</button>
+              <button type="button" data-action="extend_hold" title="Extends the hold by {{ hold_extension_minutes }} minutes — use when the customer says payment is on its way">Extend hold</button>
             </div>
             <p class="pq-row-error" hidden></p>
           </td>

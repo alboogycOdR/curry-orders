@@ -674,6 +674,12 @@ def payments_queue(request: HttpRequest) -> HttpResponse:
     return render(request, "staff/payments.html", {
         "rows": rows,
         "now_label": now.strftime("%H:%M"),
+        # STAFF_GUIDE.md flagged the "Extend hold" tooltip's hardcoded
+        # "usually 2 hours" as wrong/stale against the real (owner-
+        # editable, defaults to 15) setting — pass the live value
+        # through instead of a second guess that would just as easily
+        # drift again.
+        "hold_extension_minutes": Settings.current().hold_extension_minutes,
     })
 
 
