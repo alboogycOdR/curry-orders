@@ -16,12 +16,25 @@ const _devBaseUrl = 'https://roticonnect.duckdns.org/api/v1/';
 /// `getCookie('csrftoken')` dance. See `public.api.csrf_cookie`'s own
 /// docstring for the server side of this.
 ///
-/// The cookie jar is in-memory only — a fresh app launch means a fresh
-/// session (the user has to sign in again). Persisting it across
-/// restarts (`PersistCookieJar` + `path_provider`) is a reasonable Phase
-/// 4 addition once the rest of the auth flow is proven out.
+/// The cookie jar persists to disk when [cookieStorageDir] is given
+/// (`main.dart` resolves it via `path_provider` before `runApp`, then
+/// passes an already-built [ApiClient] into `apiClientProvider` —
+/// resolving a real filesystem path is inherently async, and this
+/// constructor stays synchronous rather than pushing that awaiting onto
+/// every consumer of the provider). This is what makes fingerprint
+/// sign-in (`state/biometric_auth.dart`, Phase 9) meaningful at all: a
+/// session surviving app restarts is the thing biometric unlock gates
+/// access to — without persistence, every cold start would be a fresh
+/// anonymous session with nothing for a fingerprint check to resume.
+/// Falls back to a plain in-memory jar (the original behaviour — a
+/// fresh launch means a fresh session) when no directory is given, e.g.
+/// in a widget test.
 class ApiClient {
-  ApiClient({String baseUrl = _devBaseUrl}) : dio = Dio(
+  ApiClient({String baseUrl = _devBaseUrl, String? cookieStorageDir})
+      : cookieJar = cookieStorageDir == null
+            ? CookieJar()
+            : PersistCookieJar(storage: FileStorage(cookieStorageDir), ignoreExpires: false),
+        dio = Dio(
           BaseOptions(
             baseUrl: baseUrl,
             connectTimeout: const Duration(seconds: 10),
@@ -47,7 +60,7 @@ class ApiClient {
   }
 
   final Dio dio;
-  final CookieJar cookieJar = CookieJar();
+  final CookieJar cookieJar;
 
   static bool _needsCsrf(String method) =>
       const {'POST', 'PUT', 'PATCH', 'DELETE'}.contains(method.toUpperCase());
@@ -63,4 +76,12 @@ class ApiClient {
   /// Call once at app start (`ProviderScope` init or splash) so the
   /// first real POST already has a `csrftoken` cookie to send back.
   Future<void> primeCsrf() => dio.get<void>('csrf/');
+
+  /// Wipes every stored cookie — called when fingerprint sign-in is
+  /// turned off (`state/biometric_auth.dart`) so a persisted session
+  /// can't be resumed without it, and on a deliberate sign-out
+  /// (`state/staff_auth.dart::logout`), so a shared kitchen device
+  /// doesn't leave the next person able to resume a session for
+  /// someone else.
+  Future<void> clearCookies() => cookieJar.deleteAll();
 }

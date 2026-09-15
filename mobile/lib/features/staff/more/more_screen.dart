@@ -81,6 +81,9 @@ class MoreScreen extends ConsumerWidget {
           const _MoreRow(
             label: 'Notifications', route: '/staff/notifications', icon: Icons.notifications_none_rounded,
           ),
+          const _MoreRow(
+            label: 'Device settings', route: '/staff/device', icon: Icons.smartphone_rounded,
+          ),
           if (user?.isOwnerOrAdmin ?? false) ...[
             const Divider(height: 24, indent: 16, endIndent: 16),
             const _SectionLabel('Admin'),

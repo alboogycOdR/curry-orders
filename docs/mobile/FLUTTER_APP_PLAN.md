@@ -511,6 +511,96 @@ other secret in this project).
   owner-avatar.jpg` at 160×160 (~8KB) rather than shipping the web
   original's 213KB for what's only ever a small avatar.
 
+## Phase 9 — Back button, battery optimisation, fingerprint sign-in
+
+- **Status:** done — 2026-09-15
+- **Depends on:** Phase 7/8 (the staff-only app and its Google/notification infra this extends)
+
+### Back button
+Explicit direction: the system/gesture back button always returns to
+Inbox first, from anywhere in the app (any bottom-nav tab, or any
+screen pushed from the More list, no matter how many levels deep) —
+pressing it again once already on Inbox falls through to the normal
+"exit the app" behaviour. `main.dart`'s `MaterialApp.router` wraps the
+whole routed `child` in a single `PopScope(canPop: false, ...)` that
+reads the current location directly off `appRouter.routerDelegate.
+currentConfiguration` (not `GoRouterState.of(context)`, which wouldn't
+reliably resolve from a `builder` sitting above the Router).
+
+### Battery optimisation (configurable)
+A hand-written platform channel (`android/app/.../MainActivity.kt`,
+`roti_connect/battery_optimization`) rather than a package — two
+one-line `PowerManager.isIgnoringBatteryOptimizations`/`Settings.
+ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` calls didn't need a whole
+dependency. `state/battery_optimization.dart` wraps it; a card on the
+new **Device settings** screen (reached from More, not nested in the
+owner/admin-only business Settings — see `state/notifications.dart`'s
+already-established reasoning for the same pattern) shows live status
+and a "FIX" button when not yet exempted. Matters specifically for
+this app: several Android OEM battery managers (not stock Android's
+own Doze mode, which FCM already handles) kill backgrounded apps
+aggressively enough to silently stop push notifications arriving.
+
+### Fingerprint sign-in ("if that option is available")
+Implemented as **biometric-gated session resume**, the same pattern
+banking apps use — never stores or re-enters a password on the
+device's behalf:
+- `data/api_client.dart`'s cookie jar now persists to disk
+  (`PersistCookieJar` + `path_provider`, resolved once in `main.dart`
+  before `runApp()` and handed to `apiClientProvider` via `ProviderScope`
+  `overrides`) — a prerequisite that didn't exist before this phase; a
+  session used to be wiped on every app restart, leaving nothing for a
+  biometric check to meaningfully gate.
+- `state/biometric_auth.dart` — `local_auth` (official Flutter
+  Community plugin). Turning the preference *on* requires a real
+  successful fingerprint check first (a stale "on" setting from a
+  sensor that later breaks must never be able to lock someone out with
+  no way back in); turning it *off* also wipes the persisted cookie
+  jar, since leaving a session silently resumable while "disabling" the
+  extra gate on it would defeat the point.
+- `app/staff_shell.dart` is now a `ConsumerStatefulWidget` (needed a
+  `WidgetsBindingObserver` — a plain `ConsumerWidget` can't register
+  one) — re-locks (`unlocked: false`) on every `paused`/`inactive`
+  lifecycle transition, not just a cold start, so leaving the app and
+  coming back re-gates it too. `features/staff/biometric_lock_screen.dart`
+  is shown instead of the real shell whenever biometrics are on and
+  this process hasn't unlocked yet; always offers a "TRY AGAIN" retry,
+  never a true dead end.
+- A card on the same **Device settings** screen as battery
+  optimisation, shown only when `local_auth` reports a usable biometric
+  actually available on this device (`isAvailable()` — `canCheckBiometrics`
+  + `isDeviceSupported` + a non-empty `getAvailableBiometrics()`) — no
+  disabled toggle explaining why on a device with no sensor, the whole
+  section just isn't there.
+- `state/staff_auth.dart::logout` now also clears the persisted cookie
+  jar — the server-side session flush alone isn't enough once sessions
+  survive app restarts; a stale cookie sitting on disk on a shared
+  kitchen device is worth avoiding on principle even though Django's
+  own session store would reject it anyway.
+- **Native requirement found the hard way**: `local_auth`'s Android
+  implementation needs a `FragmentActivity` host for its
+  `BiometricPrompt` — `MainActivity.kt` now extends
+  `FlutterFragmentActivity`, not the Flutter template's default
+  `FlutterActivity`. Also needed `<uses-permission android:name=
+  "android.permission.USE_BIOMETRIC"/>` in the manifest.
+- **Also found the hard way**: XML comments forbid a literal `--`
+  anywhere inside the comment body, not just as the closing delimiter
+  (`-->`) — every other language's comments used throughout this
+  project (Python, Dart, Kotlin) use `--` as a plain separator freely,
+  and one such comment added to `AndroidManifest.xml` this same phase
+  broke the release build's manifest merge
+  (`org.xml.sax.SAXParseException: The string "--" is not permitted
+  within comments`) until caught and reworded. Worth remembering for
+  any future hand-written XML comment in this project.
+
+Verified: `flutter analyze` clean, a full signed release build
+succeeds with every native change in place (this machine's own memory
+pressure — several unrelated apps already using most of its ~15GB —
+caused a string of build-process kills unrelated to the code, each
+resolved by freeing memory / temporarily lowering `org.gradle.jvmargs`
+Xmx and retrying, not by changing anything in the project; the
+temporary Xmx changes were reverted before committing).
+
 ## Open questions (carried from poster variant README — still apply here)
 
 1. Phone number discrepancy (082 602 3931 vs 3031) — confirm before shipping any screen with a `tel:`/dial-intent link.

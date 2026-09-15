@@ -2,6 +2,13 @@
     <!-- Real network access in release builds too (debug/AndroidManifest.xml
          only covers the Flutter tool's own dev-server connection). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Lets the app ask the user to exempt it from battery optimisation
+         (mobile Phase 9, MainActivity.kt): required to even show that
+         system dialog, separate from the notification permission
+         firebase_messaging's own manifest merge already adds. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Fingerprint/face sign-in (mobile Phase 9, local_auth package). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="Roti Connect Staff"
         android:name="${applicationName}"

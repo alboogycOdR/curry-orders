@@ -5,6 +5,7 @@ import '../features/staff/calendar/calendar_screen.dart';
 import '../features/staff/cash/cash_screen.dart';
 import '../features/staff/collection/collection_screen.dart';
 import '../features/staff/daily_controls/daily_controls_screen.dart';
+import '../features/staff/device/device_settings_screen.dart';
 import '../features/staff/help/staff_help_screen.dart';
 import '../features/staff/inbox/inbox_screen.dart';
 import '../features/staff/kitchen/kitchen_screen.dart';
@@ -72,6 +73,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/staff/orders/new', builder: (context, state) => const AssistedOrderScreen()),
     GoRoute(path: '/staff/help', builder: (context, state) => const StaffHelpScreen()),
     GoRoute(path: '/staff/notifications', builder: (context, state) => const NotificationsScreen()),
+    GoRoute(path: '/staff/device', builder: (context, state) => const DeviceSettingsScreen()),
     GoRoute(path: '/staff/settings', builder: (context, state) => const StaffSettingsScreen()),
     GoRoute(path: '/staff/team', builder: (context, state) => const TeamScreen()),
   ],

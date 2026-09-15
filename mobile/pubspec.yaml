@@ -73,6 +73,16 @@ dependencies:
   # re-added 2026-09-15 after being dropped in Phase 7 (it used to back
   # the removed customer basket's persistence; unrelated new use here).
   shared_preferences: ^2.3.3
+  # Fingerprint/biometric sign-in (Phase 9). Gates *resuming* an
+  # already-established session (see api_client.dart's PersistCookieJar,
+  # just below) behind a biometric check — never stores or re-enters a
+  # password on the device's behalf. Official Flutter Community plugin.
+  local_auth: ^2.3.0
+  # A real filesystem directory for PersistCookieJar to write into
+  # (api_client.dart) -- was already a transitive dependency via
+  # shared_preferences; declared directly now that this app relies on
+  # it for something of its own too.
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:

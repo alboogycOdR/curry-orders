@@ -40,10 +40,11 @@ class StaffAuthState {
 }
 
 class StaffAuthNotifier extends StateNotifier<StaffAuthState> {
-  StaffAuthNotifier(this._api) : super(const StaffAuthState()) {
+  StaffAuthNotifier(this._ref, this._api) : super(const StaffAuthState()) {
     _restore();
   }
 
+  final Ref _ref;
   final StaffApi _api;
   final _google = GoogleSignIn(serverClientId: _googleServerClientId, scopes: ['email']);
 
@@ -94,10 +95,19 @@ class StaffAuthNotifier extends StateNotifier<StaffAuthState> {
   /// Google on-device (`GoogleSignIn.signOut`, a no-op if the last
   /// sign-in was password-based) so a later "Sign in with Google" tap
   /// shows the account picker again rather than silently reusing
-  /// whichever Google account was last used here.
+  /// whichever Google account was last used here. And clears the
+  /// persisted cookie jar (`ApiClient.clearCookies`, Phase 9's
+  /// `PersistCookieJar`) — the server-side flush alone isn't enough any
+  /// more once sessions survive app restarts: without this, a stale
+  /// session cookie would just sit on disk (Django's own session store
+  /// already invalidated it, so it wouldn't actually work, but leaving
+  /// a dead credential lying around on a shared kitchen device is worth
+  /// avoiding on principle, not just relying on the server to reject
+  /// it).
   Future<void> logout() async {
     await _api.logout();
     await _google.signOut();
+    await _ref.read(apiClientProvider).clearCookies();
     state = const StaffAuthState(restoring: false);
   }
 }
@@ -105,5 +115,5 @@ class StaffAuthNotifier extends StateNotifier<StaffAuthState> {
 final staffApiProvider = Provider<StaffApi>((ref) => StaffApi(ref.watch(apiClientProvider)));
 
 final staffAuthProvider = StateNotifierProvider<StaffAuthNotifier, StaffAuthState>(
-  (ref) => StaffAuthNotifier(ref.watch(staffApiProvider)),
+  (ref) => StaffAuthNotifier(ref, ref.watch(staffApiProvider)),
 );

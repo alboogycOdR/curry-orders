@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/staff/biometric_lock_screen.dart';
+import '../state/biometric_auth.dart';
 import '../state/staff_auth.dart';
 import '../theme/poster_tokens.dart';
 
@@ -17,13 +19,47 @@ import '../theme/poster_tokens.dart';
 /// "not signed in yet" case and a session expiring mid-use — the
 /// staff session's own 12h absolute / 2h idle lifetime,
 /// `staff.sessions`).
-class StaffShell extends ConsumerWidget {
+///
+/// Also the fingerprint sign-in gate (mobile Phase 9,
+/// `state/biometric_auth.dart`): once past the auth check above, if
+/// biometrics are turned on and this process hasn't unlocked yet
+/// (cold start, or just came back from the background — this widget's
+/// own `WidgetsBindingObserver` re-locks on every pause), shows
+/// `BiometricLockScreen` instead of the real shell. A `ConsumerWidget`
+/// can't register a lifecycle observer (needs `State.dispose()` to
+/// unregister it), hence `ConsumerStatefulWidget` here rather than the
+/// plain `ConsumerWidget` every other screen in this app uses.
+class StaffShell extends ConsumerStatefulWidget {
   const StaffShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StaffShell> createState() => _StaffShellState();
+}
+
+class _StaffShellState extends ConsumerState<StaffShell> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      ref.read(biometricAuthProvider.notifier).lock();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(staffAuthProvider);
 
     if (auth.restoring) {
@@ -36,9 +72,14 @@ class StaffShell extends ConsumerWidget {
       return const _Splash();
     }
 
+    final biometric = ref.watch(biometricAuthProvider);
+    if (biometric.enabled && !biometric.unlocked) {
+      return const BiometricLockScreen();
+    }
+
     return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: _StaffBottomNav(navigationShell: navigationShell),
+      body: widget.navigationShell,
+      bottomNavigationBar: _StaffBottomNav(navigationShell: widget.navigationShell),
     );
   }
 }

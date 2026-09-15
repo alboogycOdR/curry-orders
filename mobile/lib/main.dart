@@ -3,8 +3,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app/router.dart';
+import 'data/api_client.dart';
 import 'state/api_providers.dart';
 import 'state/notifications.dart';
 import 'theme/poster_theme.dart';
@@ -32,7 +34,23 @@ Future<void> main() async {
   // this).
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
-  runApp(const ProviderScope(child: RotiConnectApp()));
+
+  // Resolved once, here, before runApp() -- getApplicationDocumentsDirectory
+  // is inherently async (a real platform-channel call), and ApiClient's own
+  // constructor deliberately stays synchronous rather than pushing that
+  // await onto every `ref.watch(apiClientProvider)` call site (see that
+  // class's own docstring). This is what makes the session survive an app
+  // restart at all -- the prerequisite fingerprint sign-in (Phase 9,
+  // state/biometric_auth.dart) actually gates.
+  final cookieDir = await getApplicationDocumentsDirectory();
+  final apiClient = ApiClient(cookieStorageDir: '${cookieDir.path}/.cookies');
+
+  runApp(
+    ProviderScope(
+      overrides: [apiClientProvider.overrideWithValue(apiClient)],
+      child: const RotiConnectApp(),
+    ),
+  );
 }
 
 class RotiConnectApp extends ConsumerStatefulWidget {
