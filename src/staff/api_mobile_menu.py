@@ -26,6 +26,7 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from core.http import absolute_media_url
 from core.menu import dish_photo_url
 from core.models import Dish, DishOption, DishOptionValue, Media, MediaKind
 from core.tz import now_sast
@@ -78,16 +79,13 @@ def _upload_invalid_response(message: str, **extra: object) -> JsonResponse:
 
 
 def _absolute_photo_url(request: HttpRequest, dish: Dish) -> str:
-    """Same reasoning as `public/api.py::_absolute_photo_url` (see that
-    function's own docstring, added 2026-09-15 after the Menu screen
-    shipped zero dish cards): `core.menu.dish_photo_url()` returns a
-    relative `/media/...` path in this deploy's current config, which a
-    browser resolves fine but `Image.network()` cannot — always hand the
-    Flutter app an absolute URL. `build_absolute_uri` is a no-op on an
-    already-absolute URL (the CDN/S3 branches), so this is safe either way.
+    """`core.http.absolute_media_url` — see that function's own
+    docstring for why a plain `request.build_absolute_uri()` isn't
+    enough on its own (both the original relative-path bug AND a
+    second same-day bug it doesn't cover: a wrong `http://` scheme on
+    this HTTPS domain, invisible until tested on a real device).
     """
-    url = dish_photo_url(dish)
-    return request.build_absolute_uri(url) if url else ""
+    return absolute_media_url(request, dish_photo_url(dish))
 
 
 # ---------------------------------------------------------------- read shapes
