@@ -51,10 +51,16 @@ urlpatterns = [
     path("menu/new/", api_mobile_menu.dish_create_json, name="dish_create"),
     path("menu/<int:dish_id>/", api_mobile_menu.dish_detail_json, name="dish_detail"),
     path(
-        "menu/<int:dish_id>/image/", api_mobile_menu.dish_image_upload_json, name="dish_image_upload",
+        "menu/<int:dish_id>/image/",
+        api_mobile_menu.dish_image_upload_json, name="dish_image_upload",
     ),
-    path("menu/<int:dish_id>/archive/", api_mobile_menu.dish_archive_json, name="dish_archive"),
-    path("menu/<int:dish_id>/unarchive/", api_mobile_menu.dish_unarchive_json, name="dish_unarchive"),
+    path(
+        "menu/<int:dish_id>/archive/", api_mobile_menu.dish_archive_json, name="dish_archive",
+    ),
+    path(
+        "menu/<int:dish_id>/unarchive/",
+        api_mobile_menu.dish_unarchive_json, name="dish_unarchive",
+    ),
     path(
         "menu/<int:dish_id>/options/",
         api_mobile_menu.dish_option_create_json, name="dish_option_create",
