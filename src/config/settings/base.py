@@ -31,6 +31,18 @@ SITE_URL = env("SITE_URL", default="http://localhost:8102")
 DEBUG = False
 ALLOWED_HOSTS: list[str] = env.list("ALLOWED_HOSTS", default=["*"])
 
+# Needed whenever a proxy in front of Django terminates HTTPS that Django
+# itself doesn't know about (DJANGO_TLS=false — SECURE_PROXY_SSL_HEADER
+# unset, so request.is_secure() reads False even though the browser really
+# is on HTTPS, e.g. roticonnect.duckdns.org -> host Caddy -> plain HTTP to
+# this container). Django's CSRF middleware then computes an "expected"
+# http:// origin and rejects the browser's real https:// Origin header as
+# untrusted (visible as "Origin checking failed" in the logs) — this
+# allowlist is the fix, scheme-and-host explicit entries, e.g.
+# "https://roticonnect.duckdns.org". Empty by default (matches Django's
+# own default); unrelated to ALLOWED_HOSTS, which is host-only, no scheme.
+CSRF_TRUSTED_ORIGINS: list[str] = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
 # --- Applications ----------------------------------------------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
