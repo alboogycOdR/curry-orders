@@ -454,21 +454,47 @@ ever turning it on) and `features/staff/notifications/
 notifications_screen.dart`, reached from the More tab (not nested
 inside Settings, for the same reason).
 
-**Still needed, external**: a Firebase project + `google-services.json`
-(app config) + a service-account private key (server config, for
-`FIREBASE_CREDENTIALS_PATH`) — in progress with the user. `firebase_core`/
-`firebase_messaging` are already dependencies and the app was verified
-to still build cleanly with them present but **unconfigured**
-(`Firebase.initializeApp()` is deliberately not called anywhere yet —
-doing so without a real `google-services.json` in place would break
-the Android build outright, not just leave push non-functional).
-Once both files land: add `google-services.json` to `mobile/android/
-app/`, apply the `google-services` Gradle plugin, call `Firebase.
-initializeApp()` + register for a token + wire it through to `POST
-.../notifications/register/` in `state/notifications.dart`, and set
-`FIREBASE_CREDENTIALS_PATH` in the server's `.env` pointing at the
-service-account key (kept outside the repo, like every other secret
-here).
+**Update, same day**: the app side is now fully wired. The user
+created the Firebase project (adding Firebase to the *same* underlying
+Google Cloud project the web `GOOGLE_CLIENT_ID` already lives in,
+project number `32517717084`, project id `roti-connect`) and
+registered the Android app there under the same package name + release
+SHA-1 already given for the Google Sign-In step above — Firebase
+Console associates a registered SHA-1 with an Android OAuth client
+automatically, so this one console action likely satisfied *both*
+outstanding external steps at once (confirmed once real-device sign-in
+is tested). `google-services.json` is committed at `mobile/android/
+app/google-services.json` — deliberately not gitignored, matching
+standard Firebase/Flutter practice: it's build configuration (an API
+key scoped to this package name + SHA-1 at the platform level), not a
+bearer credential, unlike the release keystore or the service-account
+key below. `com.google.gms.google-services` is applied
+(`android/settings.gradle.kts` declares the plugin version, `android/
+app/build.gradle.kts` applies it), `Firebase.initializeApp()` runs in
+`main.dart` before `runApp()`, and `state/notifications.dart` now does
+the real thing: requests notification permission, fetches this
+device's FCM token, registers/re-registers it with `POST .../
+notifications/register/` (including on `onTokenRefresh`, since Google
+Play Services can rotate a device's token at any time, not just on
+reinstall — without re-registering the new one a staff member who
+opted in would silently stop receiving alerts with no visible
+symptom), and unregisters on opt-out. A foreground-message listener
+shows a `SnackBar` (`rootScaffoldMessengerKey`) since Android doesn't
+surface a system notification for a foreground FCM message on its own,
+only for background/terminated. Verified: a full signed release build
+succeeds with the real config in place (this machine hit real system
+memory pressure partway through — unrelated to the code, see the
+commit's own note — resolved by freeing memory and retrying, not by
+changing anything in the project).
+
+**Still needed, external**: only the **service-account private key**
+now (Firebase Console → Project settings → Service accounts →
+Generate new private key) — this is what lets the *server* actually
+send a push, as opposed to the app being ready to receive one. Set
+`FIREBASE_CREDENTIALS_PATH` in the server's `.env` pointing at it once
+it arrives (kept outside the repo entirely, unlike `google-services.json`
+above — this one really is a bearer credential, same handling as every
+other secret in this project).
 
 ### Branding (done)
 - Bottom nav expanded from 4 to 6 tabs — Inbox / Kitchen / Collection /

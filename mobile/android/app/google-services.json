@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "32517717084",
+    "project_id": "roti-connect",
+    "storage_bucket": "roti-connect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:32517717084:android:432a97bc7e241a2be9fa99",
+        "android_client_info": {
+          "package_name": "com.rotiConnect.roti_connect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "32517717084-mul5ga91cvhmal85cfqh3752cgt7de22.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3ASoutKCaelDB5Wmbo2lPGB5v5_2cuZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "32517717084-mul5ga91cvhmal85cfqh3752cgt7de22.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

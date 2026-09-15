@@ -6,6 +6,10 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Reads google-services.json (this directory — mobile Phase 8, push
+    // notifications); the version is declared once in
+    // android/settings.gradle.kts.
+    id("com.google.gms.google-services")
 }
 
 // Release signing (docs/mobile/FLUTTER_APP_PLAN.md Phase 5). key.properties
