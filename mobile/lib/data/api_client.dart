@@ -2,13 +2,13 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
-/// Points at the poster-variant deploy per docs/DEPLOYMENTS.md — dev/test
-/// only, no build-flavor split yet. Swap for a real HTTPS domain once
-/// Caddy/TLS lands (docs/DOMAIN_AND_SSL.md) — and delete
-/// `android/app/src/main/res/xml/network_security_config.xml`'s
-/// cleartext carve-out for this IP at the same time. See
-/// docs/mobile/FLUTTER_APP_PLAN.md Phase 2/5.
-const _devBaseUrl = 'http://204.168.249.99:8105/api/v1/';
+/// Points at the poster-variant deploy per docs/DEPLOYMENTS.md, over the
+/// real HTTPS domain (roticonnect.duckdns.org, added 2026-09-15 —
+/// docs/DOMAIN_AND_SSL.md) rather than the raw IP:port. No build-flavor
+/// split yet. The cleartext carve-out this used to need
+/// (`android/app/src/main/res/xml/network_security_config.xml`) is gone
+/// along with it — see that file's own history for why it existed.
+const _devBaseUrl = 'https://roticonnect.duckdns.org/api/v1/';
 
 /// Thin wrapper around [Dio] that carries the Django session across
 /// requests (a cookie jar — dio has none built in) and attaches
