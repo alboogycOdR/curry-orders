@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
@@ -68,6 +69,37 @@ class _RotiConnectAppState extends ConsumerState<RotiConnectApp> {
       theme: PosterTheme.light,
       routerConfig: appRouter,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
+      // The system/gesture back button always returns to Inbox first,
+      // from anywhere in the app — a bottom-nav tab, or any screen
+      // pushed from the More list (Cash, Menu editor, Team, ...), no
+      // matter how many levels deep. Explicit direction: this is a
+      // staff kitchen tool, not a document-style app with a "natural"
+      // back history worth preserving — one predictable "take me home"
+      // button beats retracing whatever path got them here. Pressing
+      // back again once already on Inbox falls through to the normal
+      // "exit the app" behaviour, not a second no-op.
+      //
+      // `canPop: false` here means *every* system pop is intercepted
+      // app-wide (this wraps the whole routed `child`, not one
+      // screen) — `onPopInvokedWithResult` is where the actual
+      // decision happens, reading the router's own current location
+      // directly (`appRouter.routerDelegate.currentConfiguration`)
+      // rather than `GoRouterState.of(context)`, since this `builder`
+      // sits above the Router in the widget tree and wouldn't reliably
+      // resolve the latter.
+      builder: (context, child) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          final location = appRouter.routerDelegate.currentConfiguration.uri.toString();
+          if (location == '/staff/inbox') {
+            SystemNavigator.pop();
+          } else {
+            appRouter.go('/staff/inbox');
+          }
+        },
+        child: child!,
+      ),
     );
   }
 }
