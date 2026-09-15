@@ -6,6 +6,8 @@ Two site variants are currently live on Clawsrv for comparison: `http://204.168.
 
 Google OAuth login (staff + customer, fully consolidated) shipped 2026-09-15 — see `docs/handovers/2026-09-15.md`. Not on the original M10 backlog; done ahead of it.
 
+The Flutter Android app (`mobile/`) became **staff-only** 2026-09-15 (all customer-facing screens removed) and shipped Google Sign-In, native Help pages, Firebase push notifications, branding, a fixed back-button-returns-to-Inbox behaviour, configurable battery-optimisation exemption, and fingerprint/biometric sign-in — see `docs/handovers/2026-09-15-mobile.md` and `docs/mobile/FLUTTER_APP_PLAN.md` (Phases 7–9). Nothing outstanding except the user confirming a real push notification round-trip from a live device.
+
 Active focus: dish-card UI polish (not yet scoped anywhere — confirm scope before starting), then **M10** (reports, retention/backups, Caddy/TLS, runbook, load + security tests — none of M10 started except security headers/robots.txt, already checked off). See `docs/PHASE_2_PLAN.md` for the M10 backlog.
 
 Design detail: **`docs/ROTI_CONNECT_WIREFRAME_PLAN.md`**. That plan wins over the wireframe extract on auth and order numbers.

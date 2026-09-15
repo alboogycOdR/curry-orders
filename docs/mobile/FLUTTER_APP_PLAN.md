@@ -521,11 +521,39 @@ Explicit direction: the system/gesture back button always returns to
 Inbox first, from anywhere in the app (any bottom-nav tab, or any
 screen pushed from the More list, no matter how many levels deep) —
 pressing it again once already on Inbox falls through to the normal
-"exit the app" behaviour. `main.dart`'s `MaterialApp.router` wraps the
-whole routed `child` in a single `PopScope(canPop: false, ...)` that
-reads the current location directly off `appRouter.routerDelegate.
-currentConfiguration` (not `GoRouterState.of(context)`, which wouldn't
-reliably resolve from a `builder` sitting above the Router).
+"exit the app" behaviour.
+
+**First attempt (broken, shipped then reported live)**: a single
+`PopScope(canPop: false, ...)` wrapping `MaterialApp.router`'s whole
+routed `child` in `main.dart`, reading the current location off
+`appRouter.routerDelegate.currentConfiguration`. This passed
+`flutter analyze` clean and a full signed release build with zero
+errors, yet was completely non-functional at runtime: a `PopScope`
+positioned *above* go_router's own `Navigator`/`Router` widgets is
+never part of the pop-propagation chain the system back button
+actually walks, so it silently intercepted nothing everywhere, not
+just on some screens. It looked correct from Inbox purely by
+coincidence — "already on Inbox, do nothing extra" and "no PopScope
+did anything" produce the same visible result there. The user caught
+it live: pressing back from the Calendar tab exited the app instead of
+going to Inbox (commit `3acb16b`, fixing `869392d`/`7e4fa51`'s
+original placement).
+
+**Fix**: moved the `PopScope` into `features/staff/staff_scaffold.dart`
+— the shared chrome every staff screen actually wraps its own content
+in (both bottom-nav tabs and screens pushed from More) — where it's
+genuinely inside each route's own widget subtree and gets consulted.
+`main.dart` no longer has any `PopScope` at all.
+
+**Lesson**: compile success and static analysis do not prove a
+`PopScope`/back-button mechanism actually intercepts anything — the
+only real proof is exercising the actual pop-propagation path. The fix
+was verified with a throwaway `flutter_test` widget test (deleted
+after use) that called `tester.binding.handlePopRoute()` against both
+the broken and fixed widget-tree shapes before shipping again. Any
+future Flutter back-button/`PopScope` work in this project should
+write a similar disposable test before trusting it, not just compile
+it.
 
 ### Battery optimisation (configurable)
 A hand-written platform channel (`android/app/.../MainActivity.kt`,
@@ -599,7 +627,20 @@ pressure — several unrelated apps already using most of its ~15GB —
 caused a string of build-process kills unrelated to the code, each
 resolved by freeing memory / temporarily lowering `org.gradle.jvmargs`
 Xmx and retrying, not by changing anything in the project; the
-temporary Xmx changes were reverted before committing).
+temporary Xmx changes were reverted before committing). The back
+button specifically was additionally verified with a real widget test
+simulating a system pop (see above) after the analyze-clean/
+build-succeeds claim alone turned out not to be enough proof the first
+time.
+
+Also found the hard way, same build round: the background build task's
+own "killed" / "completed (exit code 0)" status label was misleading
+relative to the actual outcome on at least three separate checks — a
+timing race between OOM-kill detection and the build process's own
+final APK write. The only reliable check is the real APK file's own
+timestamp (compare `ls -la` against the current time) and/or grepping
+the build's actual output for `BUILD FAILED`/`Built build`, never the
+task-notification label alone.
 
 ## Open questions (carried from poster variant README — still apply here)
 
