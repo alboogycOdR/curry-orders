@@ -40,6 +40,7 @@ from django.contrib import messages
 from django.contrib.auth.hashers import check_password, make_password
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from core import lookup as lookup_service
@@ -62,6 +63,7 @@ from core.models import (
 )
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import coerce_time, now_sast, orderable_dates
+from staff import services as staff_services
 
 from . import customer_sessions
 from . import status_ui as _status_ui
@@ -938,6 +940,17 @@ def customer_google_callback(request: HttpRequest) -> HttpResponse:
     uid = info["sub"]
     email = info["email"]
     name = info.get("name", "")
+
+    # Login consolidation (2026-09-15): one Google sign-in, reachable
+    # either here (Account tab) or at /manage/auth/google/, also grants
+    # a staff session when this email is on StaffAllowlist — alongside
+    # whatever customer session this same request establishes below.
+    # Best-effort: doesn't change anything about the customer flow
+    # either way, `staff_services.try_grant_staff_session` just returns
+    # False (the outcome for nearly every customer) when it isn't.
+    staff_services.try_grant_staff_session(
+        request, email=email, sub=uid, name=name, now=timezone.now(),
+    )
 
     # Find existing social identity
     try:

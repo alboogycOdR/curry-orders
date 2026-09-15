@@ -57,9 +57,13 @@ match the Broadsheet site's own information architecture.
 
 {% comment %}
 Footer — mirrors base.html's own customer footer exactly (Find my
-order / Help / Policies / Staff login, staff-login only when logged
-out) rather than the design reference's Menu/Collection links, which
-have no equivalent in the Broadsheet footer.
+order / Help / Policies / Staff login) rather than the design
+reference's Menu/Collection links, which have no equivalent in the
+Broadsheet footer. Login consolidation (2026-09-15): the staff link
+always shows now, targeting straight to the Inbox (no repeat login
+prompt) once already staff-authenticated — reachable via the same
+Google sign-in as the Account tab, see public.views.
+customer_google_callback and staff.services.try_grant_staff_session.
 {% endcomment %}
 <footer class="pv-footer">
   <div class="pv-footer-brand">
@@ -74,7 +78,9 @@ have no equivalent in the Broadsheet footer.
     <a href="{% url 'v2:lookup' %}">Find my order</a>
     <a href="{% url 'v2:help' %}">Help</a>
     <a href="{% url 'v2:policies' %}">Policies</a>
-    {% if not request.staff_user %}
+    {% if request.staff_user %}
+    <a href="{% url 'manage:inbox' %}">Staff area</a>
+    {% else %}
     <a href="{% url 'manage:login' %}">Staff login</a>
     {% endif %}
   </div>
@@ -116,7 +122,9 @@ lives on the Account hub page and in the footer above, same as there.
   <div class="pv-modal" id="pv-more-panel" style="top:auto;bottom:88px;">
     <a href="{% url 'v2:help' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Help &amp; FAQ</a>
     <a href="{% url 'v2:policies' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Policies</a>
-    {% if not request.staff_user %}
+    {% if request.staff_user %}
+    <a href="{% url 'manage:inbox' %}" class="pv-textlink" style="margin-top:6px;">Staff area</a>
+    {% else %}
     <a href="{% url 'manage:login' %}" class="pv-textlink" style="margin-top:6px;">Kitchen staff login</a>
     {% endif %}
   </div>

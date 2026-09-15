@@ -558,7 +558,12 @@ screen readers.
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M9 7h6M9 11h6M9 15h4"></path></svg>
       Policies
     </a>
-    {% if not request.staff_user %}
+    {% if request.staff_user %}
+    <a href="{% url 'manage:inbox' %}" class="more-sheet-staff-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12H3m0 0 4-4m-4 4 4 4"></path><path d="M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"></path></svg>
+      Staff area
+    </a>
+    {% else %}
     <a href="{% url 'manage:login' %}" class="more-sheet-staff-link">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 12H3m0 0 4-4m-4 4 4 4"></path><path d="M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"></path></svg>
       Kitchen staff login
@@ -574,20 +579,25 @@ from .site-nav above, which already mixes customer nav with five
 staff-board links; policy links belong somewhere a customer will look,
 not buried in that list.
 
-"Staff login" only when logged out: the header's staff nav (above) is
-gated on request.staff_user so customers never see it — but that gate
-also removed the ONLY path to manage:login for a logged-OUT staff member
-(previously they'd land on it by accident, via one of the links that
-shouldn't have been customer-visible in the first place). A low-key
-footer link, not a prominent nav item, matches how staff/admin entry
-points are usually kept out of a customer-facing header without removing
-them entirely.
+Staff link always shows (header's staff nav above is still gated on
+request.staff_user so customers never see *that*) — logged out it goes
+to manage:login (the ONLY path there for a logged-out staff member,
+since the header nav is hidden); logged in it goes straight to
+manage:inbox instead, no repeat login prompt. Login consolidation
+(2026-09-15): reachable via the same Google sign-in as the Account
+tab now grants a staff session too when the email is on StaffAllowlist
+— see public.views.customer_google_callback /
+staff.services.try_grant_staff_session. A low-key footer link, not a
+prominent nav item, matches how staff/admin entry points are usually
+kept out of a customer-facing header without removing them entirely.
 {% endcomment %}
 <footer class="site-footer">
   <a href="{% url 'public:lookup' %}">Find my order</a>
   <a href="{% url 'public:help' %}">Help</a>
   <a href="{% url 'public:policies' %}">Policies</a>
-  {% if not request.staff_user %}
+  {% if request.staff_user %}
+  <a href="{% url 'manage:inbox' %}">Staff area</a>
+  {% else %}
   <a href="{% url 'manage:login' %}">Staff login</a>
   {% endif %}
 </footer>

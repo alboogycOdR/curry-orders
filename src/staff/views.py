@@ -45,7 +45,7 @@ from core.auth import (
 )
 from core.models import SocialIdentity, StaffAllowlist
 
-from . import google_auth
+from . import google_auth, services
 from core.capacity import (
     OCCUPYING_STATUSES,
     CapacityError,
@@ -208,45 +208,16 @@ def google_login_callback(request: HttpRequest) -> HttpResponse:
         messages.error(request, "Invalid OAuth state — please try again.")
         return redirect("manage:login")
 
-    email = info["email"].lower()
     now = timezone.now()
-
-    # Check allowlist
-    try:
-        entry = StaffAllowlist.objects.get(email=email)
-    except StaffAllowlist.DoesNotExist:
-        messages.error(request, "Your Google account is not authorised as staff. Contact the owner.")
-        return redirect("manage:login")
-
-    # Find or create the core.User for this email
-    from core.models import User as CoreUser
-    user, created = CoreUser.objects.get_or_create(
-        email=email,
-        defaults={
-            "name": info.get("name", email),
-            "role": entry.role,
-            "password_hash": "",
-            "must_change_password": False,
-            "active": True,
-        },
+    granted = services.try_grant_staff_session(
+        request, email=info["email"], sub=info["sub"], name=info.get("name", ""), now=now,
     )
-    if not user.active:
-        messages.error(request, "Your staff account is inactive. Contact the owner.")
+    if not granted:
+        messages.error(
+            request,
+            "Your Google account is not authorised as staff (or is inactive). Contact the owner.",
+        )
         return redirect("manage:login")
-
-    # Keep role in sync with allowlist
-    if user.role != entry.role:
-        user.role = entry.role
-        user.save(update_fields=["role"])
-
-    # Record the social identity
-    SocialIdentity.objects.get_or_create(
-        provider="google", uid=info["sub"],
-        defaults={"email": email, "staff_user": user},
-    )
-
-    from staff.sessions import log_in as staff_log_in
-    staff_log_in(request, user, now)
     return redirect("manage:inbox")
 
 
