@@ -142,6 +142,10 @@ body.route-v2 {
   --poster-muted-dark: #AEB8C9;
   --poster-error: #D9343E;
   --poster-success: #55A868;
+  /* Not in the style guide's §4.1 table — added 2026-09-15 per direct
+     request, scoped to the "More" sheet's menu items only (poster.css's
+     #pv-more-sheet rules), not a general-purpose addition to the palette. */
+  --poster-green-dark: #0B4D3A;
 
   --shadow-gold-offset: 5px 6px 0 #FFC400;
   --shadow-blue-offset: 4px 4px 0 #0C55B0;

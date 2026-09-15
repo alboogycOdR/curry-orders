@@ -229,6 +229,22 @@ body.route-v2 .pv-textlink { background: none; border: none; padding: 0; font-fa
 
 .pv-modal { position: fixed; left: 18px; right: 18px; top: 96px; z-index: 110; background: #fff; color: var(--poster-navy); border: 3px solid var(--poster-blue); border-radius: 6px; box-shadow: var(--shadow-gold-offset); padding: 20px; animation: pvRise 300ms var(--ease-poster); max-width: 420px; margin: 0 auto; }
 @keyframes pvRise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+
+/* "More" sheet menu items (Help & FAQ / Policies / Staff area) — request
+   2026-09-15: uniform treatment across all three (previously the staff
+   link was a plain text link, visually inconsistent with the other two
+   button-styled items), a dark-green border rather than the site-wide
+   blue .pv-btn-outline default (scoped to this sheet only via the ID
+   selector below — every other outline button elsewhere keeps the blue
+   border), and a leading icon per item. Text colour is already navy
+   from .pv-btn-outline.on-light — no change needed there. */
+#pv-more-panel .pv-more-item {
+  justify-content: flex-start;
+  margin-bottom: 10px;
+  border-color: var(--poster-green-dark);
+}
+#pv-more-panel .pv-more-item:last-child { margin-bottom: 0; }
+#pv-more-panel .pv-more-item svg { width: 18px; height: 18px; flex: none; }
 .pv-modal h2 { font-size: 34px; font-weight: 900; text-transform: uppercase; margin: 12px 0 0; line-height: .9; }
 .pv-icon-block { width: 46px; height: 46px; border-radius: 5px; background: var(--poster-navy); color: var(--poster-gold); display: flex; align-items: center; justify-content: center; }
 .pv-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--poster-muted); margin: 18px 0 6px; }

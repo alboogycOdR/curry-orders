@@ -120,12 +120,24 @@ lives on the Account hub page and in the footer above, same as there.
 <div id="pv-more-sheet" role="dialog" aria-label="More options" aria-modal="true" hidden>
   <div class="pv-backdrop" id="pv-more-backdrop"></div>
   <div class="pv-modal" id="pv-more-panel" style="top:auto;bottom:88px;">
-    <a href="{% url 'v2:help' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Help &amp; FAQ</a>
-    <a href="{% url 'v2:policies' %}" class="pv-btn pv-btn-outline on-light pv-btn-block" style="margin-bottom:10px;justify-content:flex-start;">Policies</a>
+    <a href="{% url 'v2:help' %}" class="pv-btn pv-btn-outline on-light pv-btn-block pv-more-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"></path><path d="M12 17h.01"></path></svg>
+      Help &amp; FAQ
+    </a>
+    <a href="{% url 'v2:policies' %}" class="pv-btn pv-btn-outline on-light pv-btn-block pv-more-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+      Policies
+    </a>
     {% if request.staff_user %}
-    <a href="{% url 'manage:inbox' %}" class="pv-textlink" style="margin-top:6px;">Staff area</a>
+    <a href="{% url 'manage:inbox' %}" class="pv-btn pv-btn-outline on-light pv-btn-block pv-more-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      Staff area
+    </a>
     {% else %}
-    <a href="{% url 'manage:login' %}" class="pv-textlink" style="margin-top:6px;">Kitchen staff login</a>
+    <a href="{% url 'manage:login' %}" class="pv-btn pv-btn-outline on-light pv-btn-block pv-more-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      Kitchen staff login
+    </a>
     {% endif %}
   </div>
 </div>
