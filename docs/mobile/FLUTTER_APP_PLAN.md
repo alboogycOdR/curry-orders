@@ -206,6 +206,99 @@ screens, and record the actual decision here once made:
 
 ---
 
+## Phase 6 — Staff app
+
+- **Status:** in_progress — foundation + all 7 build groups launched 2026-09-15
+- **Depends on:** Phase 3 (customer app pattern this mirrors), Phase 1's auth/API conventions
+
+**Decisions locked in (2026-09-15, explicit user direction):**
+- **Redesign each staff screen for native/mobile-first**, not a literal
+  port of `/manage/`'s desktop layout — same principle Phase 3 applied
+  to the customer screens. The *inventory* (which 12 areas exist, their
+  grouping) mirrors the web nav exactly, for staff familiarity; each
+  screen's own layout/interaction pattern does not have to.
+- **Built all at once**, not staged phase-by-phase with review between
+  — the whole surface (backend + app) was built in one continuous pass
+  across parallel subagents, one per functional group (see below).
+
+**Auth:** independent of customer auth — its own `StaffAuthState`/
+`staffAuthProvider` (`lib/state/staff_auth.dart`), own login screen
+(`lib/features/staff/staff_login_screen.dart`, email+password only,
+same as the web's primary login path), own backend session check
+(`GET /api/v1/staff/auth/me/`). A staff session and a customer session
+coexist in the same Django session cookie (existing web behaviour,
+`staff.sessions` + `public.customer_sessions`) — the app's single
+shared `ApiClient`/cookie jar carries both without extra plumbing.
+Entry point: a low-emphasis "Kitchen staff sign in" link on the Account
+screen when not staff, a real "Staff dashboard" card once signed in
+(`account_screen.dart`'s `_StaffEntryPoint`) — not a 5th bottom-nav tab
+(the ~everyone who isn't staff shouldn't see staff chrome by default).
+
+**Navigation:** staff mode is its own full-screen route stack
+(`/staff/...`), entirely outside the customer `StatefulShellRoute`.
+Each staff screen wraps its content in `StaffScaffold`
+(`lib/features/staff/staff_scaffold.dart`) — an app bar + `Drawer`
+listing all 12 areas grouped exactly like the web nav — rather than a
+shared `go_router` `ShellRoute`, specifically so the 7 build groups
+below could each own their own screen file(s) with zero shared-file
+edits to router/shell plumbing (avoids merge conflicts between agents
+working in parallel).
+
+**Backend:** `src/staff/urls_api_mobile.py` mounts `/api/v1/staff/` in
+`config/urls_v2_root.py` (poster-variant deploy only, matching the
+customer API). View functions are split across several
+`staff/api_mobile_*.py` modules (one per build group) rather than one
+large file, for the same parallel-write-safety reason. Auth
+(`login_json`/`logout_json`/`me_json`) plus the shared
+`staff_login_required_json` decorator (a 401 JSON body, not the HTML
+boards' 302-to-login-page) live in `staff/api_mobile.py` itself, which
+every other module imports from. **Action endpoints were not
+duplicated** — `staff.api.transition`/`assign_order`/`lock_prep_list`/
+`close_out_day`/`move_all_orders` (the existing `/manage/api/...`
+JSON endpoints the web boards' own `fetch()` calls already use) are
+called directly by the app, same URLs, same session+CSRF auth. Only
+each screen's *read* side needed a new JSON endpoint.
+
+### The 7 build groups (backend + mobile screen(s) together, one subagent each)
+
+| Group | Screens | Backend module | Mobile screen file(s) |
+|---|---|---|---|
+| 1 | Inbox, Kitchen desk | `api_mobile_boards.py` | `features/staff/inbox/`, `features/staff/kitchen/` |
+| 2 | Collection, Cash | `api_mobile_collection_cash.py` | `features/staff/collection/`, `features/staff/cash/` |
+| 3 | Payments, Calendar | `api_mobile_payments.py` | `features/staff/payments/`, `features/staff/calendar/` |
+| 4 | Daily controls, Help | `api_mobile_daily_controls.py` (Help needs none — see below) | `features/staff/daily_controls/`, `features/staff/help/` |
+| 5 | Menu editor (solo — biggest: dish CRUD, image upload, options/values CRUD) | `api_mobile_menu.py` | `features/staff/menu/` |
+| 6 | New assisted order (solo — checkout-equivalent form/capacity flow) | `api_mobile_assisted_order.py` | `features/staff/assisted_order/` |
+| 7 | Settings, Team (both owner/admin-gated) | `api_mobile_admin.py` | `features/staff/settings/`, `features/staff/team/` |
+
+**Help** deliberately has no backend endpoint and no native content port
+— it opens `https://roticonnect.duckdns.org/manage/help/#<anchor>` in
+the device browser (`url_launcher`, added to `pubspec.yaml`) from a
+native list of section links, rather than re-porting 600+ lines of
+`docs/STAFF_GUIDE.md` content that would drift out of sync with the
+source guide.
+
+**Full functional spec per screen** (data shown, every action, role
+gates, validation rules) was captured live from the actual `src/staff/`
+source on 2026-09-15 before this phase started — see each build group's
+own module/screen docstrings for the specific rules that applied to it;
+the source survey itself was not kept as a separate doc (it was a
+one-time input to the build, not an ongoing reference — `src/staff/`
+itself is the source of truth going forward).
+
+### Known gaps after this phase
+- No Dart-side tests for any staff screen (same pre-existing gap as the
+  customer side — see Phase 5's own open item).
+- Staff Google sign-in isn't wired into the app (customer Google
+  sign-in isn't either — tracked as one combined follow-up, not
+  staff-specific).
+- Real-time/polling: none anywhere in the web staff boards today either
+  (every JS file says so explicitly) — this phase doesn't add any; a
+  "pull to refresh" gesture per screen is the mobile-native minimum bar
+  and should exist, full push-based live updates would be new ground
+  neither surface has.
+- Not verified on a real device yet (same open item as Phase 5).
+
 ## Open questions (carried from poster variant README — still apply here)
 
 1. Phone number discrepancy (082 602 3931 vs 3031) — confirm before shipping any screen with a `tel:`/dial-intent link.

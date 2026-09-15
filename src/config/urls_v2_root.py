@@ -39,4 +39,9 @@ urlpatterns = [
     # namespace "api_v1" — the Flutter Android app's JSON API, see that
     # module's own docstring (docs/mobile/FLUTTER_APP_PLAN.md Phase 1).
     path("api/v1/", include("public.urls_v1_api")),
+    # namespace "api_v1_staff" — the app's staff-mode JSON API (Phase 6).
+    # Separate module from the customer-facing one above, same reasoning
+    # `manage:`/`v2:`/`public:` already keep the web's staff and
+    # customer surfaces apart.
+    path("api/v1/staff/", include("staff.urls_api_mobile")),
 ]

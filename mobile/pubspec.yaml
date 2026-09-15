@@ -49,6 +49,11 @@ dependencies:
   shared_preferences: ^2.3.3
   # Native camera/gallery picker for EFT proof upload (Phase 4)
   image_picker: ^1.1.2
+  # Opens the live web staff help page (/manage/help/#anchor) in the
+  # device browser from the staff-mode Help screen (Phase 6) — see
+  # features/staff/help/staff_help_screen.dart's own docstring for why
+  # that content isn't re-ported natively.
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

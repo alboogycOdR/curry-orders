@@ -6,6 +6,7 @@ import '../../data/api_exception.dart';
 import '../../data/models.dart';
 import '../../state/api_providers.dart';
 import '../../state/auth.dart';
+import '../../state/staff_auth.dart';
 import '../../theme/poster_tokens.dart';
 import '../../util/money.dart';
 
@@ -79,7 +80,48 @@ class _SignedInBody extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, _) => Text('$err', style: PosterText.bodyDefault),
         ),
+        const SizedBox(height: 32),
+        const _StaffEntryPoint(),
       ],
+    );
+  }
+}
+
+/// Staff mode's own entry point (docs/mobile/FLUTTER_APP_PLAN.md Phase
+/// 6) — independent of the customer sign-in state above: a device can
+/// be signed in as a customer, staff, both, or neither, since the two
+/// sessions coexist. Low-emphasis when not staff (a plain text link,
+/// matching the web footer's always-present but unobtrusive "Staff
+/// login"), a real card once `staffAuthProvider` confirms a staff
+/// session exists.
+class _StaffEntryPoint extends ConsumerWidget {
+  const _StaffEntryPoint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staffAuth = ref.watch(staffAuthProvider);
+    if (staffAuth.restoring) return const SizedBox.shrink();
+
+    if (staffAuth.isStaff) {
+      final user = staffAuth.user!;
+      return Container(
+        decoration: BoxDecoration(color: PosterColors.navy, borderRadius: BorderRadius.circular(5)),
+        child: ListTile(
+          leading: const Icon(Icons.badge_rounded, color: PosterColors.gold),
+          title: Text('Staff dashboard', style: PosterText.cardTitle.copyWith(fontSize: 16, color: PosterColors.white)),
+          subtitle: Text('${user.name} · ${user.roleDisplay}', style: const TextStyle(color: PosterColors.mutedDark)),
+          trailing: const Icon(Icons.arrow_forward_rounded, color: PosterColors.white),
+          onTap: () => context.push('/staff/inbox'),
+        ),
+      );
+    }
+
+    return Center(
+      child: TextButton.icon(
+        onPressed: () => context.push('/staff/login'),
+        icon: const Icon(Icons.badge_outlined, size: 16, color: PosterColors.muted),
+        label: const Text('Kitchen staff sign in', style: TextStyle(color: PosterColors.muted)),
+      ),
     );
   }
 }
@@ -248,6 +290,8 @@ class _SignedOutBodyState extends ConsumerState<_SignedOutBody> {
                 onTap: () => context.push('/orders/${order.publicToken}'),
               ),
             ),
+        const SizedBox(height: 32),
+        const _StaffEntryPoint(),
       ],
     );
   }
