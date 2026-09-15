@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+from django.db import IntegrityError, transaction
 from django.http import HttpRequest
 
 from core.models import SocialIdentity, StaffAllowlist, User
@@ -54,19 +55,31 @@ def try_grant_staff_session(
         user.role = entry.role
         user.save(update_fields=["role"])
 
-    # SocialIdentity is unique on (provider, uid) and links to *both*
-    # staff_user and customer independently (both nullable OneToOne on
-    # the same row) — a caller that already ran its own customer-side
-    # get_or_create on this exact (provider, uid) may have created the
-    # row already this same request; get_or_create's `defaults` only
-    # apply on create, so backfill staff_user explicitly if it's an
-    # existing row that doesn't have it yet.
-    identity, created = SocialIdentity.objects.get_or_create(
-        provider="google", uid=sub, defaults={"email": email, "staff_user": user},
-    )
-    if not created and identity.staff_user_id != user.pk:
-        identity.staff_user = user
-        identity.save(update_fields=["staff_user"])
+    # SocialIdentity is unique on (provider, uid) *and* staff_user is
+    # its own OneToOneField (one linked identity per staff account) —
+    # a caller that already ran its own customer-side get_or_create on
+    # this exact (provider, uid) may have created the row already this
+    # same request; get_or_create's `defaults` only apply on create, so
+    # backfill staff_user explicitly if it's an existing row that
+    # doesn't have it yet. Wrapped in its own savepoint and never
+    # allowed to block granting the session below: this is bookkeeping
+    # (which SocialIdentity row a staff account happens to be recorded
+    # against), not a precondition for authentication — the User row
+    # and role are already resolved above regardless of what happens
+    # here. A real IntegrityError here (this user's staff_user slot
+    # already taken by a *different* uid — e.g. a stale/test row, or a
+    # second Google account someone mistakenly tries) should never 500
+    # a login.
+    try:
+        with transaction.atomic():
+            identity, created = SocialIdentity.objects.get_or_create(
+                provider="google", uid=sub, defaults={"email": email, "staff_user": user},
+            )
+            if not created and identity.staff_user_id != user.pk:
+                identity.staff_user = user
+                identity.save(update_fields=["staff_user"])
+    except IntegrityError:
+        pass
 
     from staff.sessions import log_in as staff_log_in
     staff_log_in(request, user, now)
