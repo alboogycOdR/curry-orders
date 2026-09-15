@@ -1,6 +1,6 @@
 # Domain & SSL Setup
 
-**Status: Pending — to be done before go-live.**
+**Status: Done for the poster-variant deploy (2026-09-15) — `https://roticonnect.duckdns.org/` → port 8105.** See `docs/DEPLOYMENTS.md`'s "HTTPS via DuckDNS + host Caddy" section for exactly what was done. Production (port 8102) still has no domain/TLS of its own — Option B (a real `.co.za` domain) below is still the right call before a real customer-facing go-live; DuckDNS was chosen for 8105 as the free, immediate option to unblock Google OAuth (which rejects non-HTTPS redirect URIs) and general HTTPS testing.
 
 Clean URL and HTTPS are both achievable on Clawsrv at zero or near-zero cost. They depend on each other — SSL requires a domain name; hiding the port requires Caddy, which is already on the server.
 
