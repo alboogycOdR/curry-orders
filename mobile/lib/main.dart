@@ -1,7 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -81,43 +80,22 @@ class _RotiConnectAppState extends ConsumerState<RotiConnectApp> {
 
   @override
   Widget build(BuildContext context) {
+    // The "back always goes to Inbox" behaviour used to live here, as a
+    // PopScope wrapping this whole `builder`'s `child` -- moved to
+    // features/staff/staff_scaffold.dart (every screen's own chrome)
+    // after that placement turned out not to work: a PopScope sitting
+    // *above* go_router's own Router/Navigator entirely is never part
+    // of the pop-propagation chain the system back button actually
+    // walks, so it silently intercepted nothing (found live: back
+    // exited the app from the Calendar tab instead of going to Inbox).
+    // See StaffScaffold's own docstring for the real fix and why it
+    // works from inside each route's own widget subtree instead.
     return MaterialApp.router(
       title: 'Roti Connect Staff',
       debugShowCheckedModeBanner: false,
       theme: PosterTheme.light,
       routerConfig: appRouter,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
-      // The system/gesture back button always returns to Inbox first,
-      // from anywhere in the app — a bottom-nav tab, or any screen
-      // pushed from the More list (Cash, Menu editor, Team, ...), no
-      // matter how many levels deep. Explicit direction: this is a
-      // staff kitchen tool, not a document-style app with a "natural"
-      // back history worth preserving — one predictable "take me home"
-      // button beats retracing whatever path got them here. Pressing
-      // back again once already on Inbox falls through to the normal
-      // "exit the app" behaviour, not a second no-op.
-      //
-      // `canPop: false` here means *every* system pop is intercepted
-      // app-wide (this wraps the whole routed `child`, not one
-      // screen) — `onPopInvokedWithResult` is where the actual
-      // decision happens, reading the router's own current location
-      // directly (`appRouter.routerDelegate.currentConfiguration`)
-      // rather than `GoRouterState.of(context)`, since this `builder`
-      // sits above the Router in the widget tree and wouldn't reliably
-      // resolve the latter.
-      builder: (context, child) => PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          final location = appRouter.routerDelegate.currentConfiguration.uri.toString();
-          if (location == '/staff/inbox') {
-            SystemNavigator.pop();
-          } else {
-            appRouter.go('/staff/inbox');
-          }
-        },
-        child: child!,
-      ),
     );
   }
 }

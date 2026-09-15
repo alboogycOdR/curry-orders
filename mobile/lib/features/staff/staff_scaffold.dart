@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../app/router.dart';
 import '../../theme/poster_tokens.dart';
 
 /// Shared chrome for every staff screen — an app bar (small branding
@@ -20,6 +22,19 @@ import '../../theme/poster_tokens.dart';
 /// image the web/poster header uses, re-exported small for the app
 /// bundle — see `assets/img/owner-avatar.jpg`'s own comment in
 /// `pubspec.yaml` for why it isn't the full-size web asset.
+///
+/// Also where the "back always goes to Inbox" behaviour actually lives
+/// (Phase 9) — **not** `main.dart`'s `MaterialApp.router.builder` as
+/// first built: a `PopScope` positioned there sits *above* go_router's
+/// own `Navigator`/`Router` widgets entirely, so it's never registered
+/// with the pop-propagation chain the system back button actually
+/// walks — it silently intercepted nothing, and every screen just fell
+/// through to the OS default (pop if possible, else exit). Found live:
+/// the back button exited the app from the Calendar tab instead of
+/// going to Inbox. Every staff screen wraps its content in this class,
+/// so a `PopScope` *here* — genuinely inside each route's own widget
+/// subtree — is what actually gets consulted, for shell tabs and
+/// pushed screens (Cash, Menu editor, Team, ...) alike.
 class StaffScaffold extends StatelessWidget {
   const StaffScaffold({
     super.key,
@@ -44,27 +59,39 @@ class StaffScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: PosterColors.paper,
-      appBar: AppBar(
-        backgroundColor: PosterColors.navy,
-        foregroundColor: PosterColors.white,
-        automaticallyImplyLeading: automaticallyImplyLeading,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircleAvatar(
-              radius: 12,
-              backgroundImage: AssetImage('assets/img/owner-avatar.jpg'),
-            ),
-            const SizedBox(width: 10),
-            Text(title.toUpperCase(), style: PosterText.button),
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final location = appRouter.routerDelegate.currentConfiguration.uri.toString();
+        if (location == '/staff/inbox') {
+          SystemNavigator.pop();
+        } else {
+          appRouter.go('/staff/inbox');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: PosterColors.paper,
+        appBar: AppBar(
+          backgroundColor: PosterColors.navy,
+          foregroundColor: PosterColors.white,
+          automaticallyImplyLeading: automaticallyImplyLeading,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 12,
+                backgroundImage: AssetImage('assets/img/owner-avatar.jpg'),
+              ),
+              const SizedBox(width: 10),
+              Text(title.toUpperCase(), style: PosterText.button),
+            ],
+          ),
+          actions: actions,
         ),
-        actions: actions,
+        body: SafeArea(child: body),
+        floatingActionButton: floatingActionButton,
       ),
-      body: SafeArea(child: body),
-      floatingActionButton: floatingActionButton,
     );
   }
 }
