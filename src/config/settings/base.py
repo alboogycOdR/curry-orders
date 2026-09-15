@@ -261,6 +261,19 @@ GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 # first deploy via: python manage.py bootstrap_admin
 ADMIN_EMAIL = env("ADMIN_EMAIL", default="")
 
+# --- Push notifications (Firebase Cloud Messaging, mobile Phase 8) --------
+# Absolute path to a Firebase service-account JSON key (Firebase Console
+# → Project settings → Service accounts → Generate new private key) —
+# grants send-message permission for the project the mobile app's
+# `google-services.json` registers against. Never committed (a real
+# credential, same handling as any other secret in this project) — set
+# only in the server's own .env, pointing at a file placed outside the
+# repo (e.g. /srv/curry-orders/firebase-adminsdk.json). Left unset in
+# dev/test: `core.notifications.send_to_user()` no-ops (logs and
+# returns) rather than raising, so nothing that calls it needs its own
+# "is this configured" branch.
+FIREBASE_CREDENTIALS_PATH = env("FIREBASE_CREDENTIALS_PATH", default="")
+
 # --- Email backend (magic links, D-36) ------------------------------------
 # Dev default: console (prints to stdout). Prod: SMTP via .env.
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

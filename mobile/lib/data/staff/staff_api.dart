@@ -76,4 +76,21 @@ class StaffApi {
     final resp = await _client.dio.post<dynamic>('staff/auth/logout/');
     parseStaffJson(resp, (_) => null);
   }
+
+  /// Native Google Sign-In (Phase 8) — `idToken` comes from
+  /// `state/staff_auth.dart`'s Google sign-in flow (the `google_sign_in`
+  /// package performs the OAuth dance on-device; this only ever sends
+  /// the resulting ID token). Throws `ApiException(code: 'forbidden')`
+  /// when the Google account isn't on the staff allowlist — same
+  /// meaning as a wrong password on [login], just a different cause.
+  Future<StaffUser> googleLogin({required String idToken}) async {
+    final resp = await _client.dio.post<dynamic>(
+      'staff/auth/google/',
+      data: {'id_token': idToken},
+    );
+    return parseStaffJson(
+      resp,
+      (d) => StaffUser.fromJson((d as Map<String, dynamic>)['user'] as Map<String, dynamic>),
+    );
+  }
 }

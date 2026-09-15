@@ -1091,6 +1091,34 @@ class ThrottleEvent(models.Model):
         ]
 
 
+class DeviceToken(models.Model):
+    """One Firebase Cloud Messaging registration token for one staff
+    device (docs/mobile/FLUTTER_APP_PLAN.md Phase 8 — push
+    notifications). A staff member can be signed in on more than one
+    device (a shared kitchen tablet and their own phone), so this is a
+    many-to-one on `User`, not a single column on it. `core.
+    notifications.send_to_user` fans out to every live token for a
+    user; `fcm_token` itself is opaque and can change at any time
+    (app reinstall, Google Play Services token rotation) — the app
+    re-registers on every launch (`state/notifications.dart`), so a
+    stale row here just stops receiving pushes rather than erroring.
+    """
+
+    staff_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="device_tokens")
+    fcm_token = models.TextField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "device_tokens"
+        indexes = [
+            models.Index(fields=["staff_user"], name="device_tokens_staff_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.staff_user.email} ({self.fcm_token[:12]}…)"
+
+
 class JobHeartbeat(models.Model):
     job_name = models.TextField(primary_key=True)
     last_run_at = models.DateTimeField()

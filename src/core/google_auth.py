@@ -86,6 +86,52 @@ def get_userinfo(access_token: str) -> dict:
     return resp.json()
 
 
+def verify_id_token(id_token: str) -> dict:
+    """Verifies a Google ID token issued to a **native** client — the
+    Flutter staff app's own Google Sign-In (`google_sign_in` package,
+    configured with `serverClientId: GOOGLE_CLIENT_ID` so the token it
+    gets is audienced for *this* server, the same web client every
+    other Google flow here already uses — no separate Android client
+    ID needed for verification, only for letting the sign-in itself
+    happen on-device, a Google Cloud Console registration step outside
+    this code). Distinct from `get_verified_google_user()` above (the
+    web's authorization-code redirect flow) — the app performs the
+    whole OAuth dance on-device and hands this function only the
+    resulting ID token (a signed JWT), which needs its own
+    verification path, not a code exchange.
+
+    Uses Google's `tokeninfo` endpoint (https://developers.google.com/
+    identity/sign-in/web/backend-auth#calling-the-tokeninfo-endpoint) —
+    validates the signature/expiry server-side at Google and returns
+    the decoded claims; simpler than a local JWK-verification library
+    for this app's request volume (an internal staff tool, not a
+    public-scale API), which is exactly the trade-off Google's own
+    docs describe that endpoint as appropriate for.
+
+    Returns the same dict shape as `get_verified_google_user()`: sub/
+    email/name/picture. Raises `ValueError` if the token is invalid,
+    expired, or audienced for a different client (never trust `aud`
+    unchecked — that's the whole point of verifying server-side rather
+    than trusting whatever the app claims).
+    """
+    resp = httpx.get(
+        "https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token}, timeout=10,
+    )
+    if resp.status_code != 200:
+        raise ValueError("Invalid or expired Google ID token")
+    info = resp.json()
+    if info.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise ValueError("Google ID token was not issued for this app")
+    if str(info.get("email_verified")).lower() != "true":
+        raise ValueError("Google account email is not verified")
+    return {
+        "sub": info["sub"],
+        "email": info["email"],
+        "name": info.get("name", ""),
+        "picture": info.get("picture", ""),
+    }
+
+
 def get_verified_google_user(request: HttpRequest, callback_path: str) -> dict | None:
     """
     Complete the OAuth callback. Returns dict(sub, email, name, picture) on

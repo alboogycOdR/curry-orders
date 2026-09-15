@@ -1,77 +1,121 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../theme/poster_tokens.dart';
 import '../staff_scaffold.dart';
+import 'help_content.dart';
+import 'help_detail_screen.dart';
 
-/// Staff Help (docs/mobile/FLUTTER_APP_PLAN.md Phase 6). No backend JSON
-/// at all -- the staff guide already exists as a live, always-current web
-/// page (`https://roticonnect.duckdns.org/manage/help/`) with stable
-/// per-section anchor ids (`src/templates/staff/help.html` /
-/// `docs/STAFF_GUIDE.md`). This screen is just a native list of section
-/// links that open that page (at the matching anchor) in the device
-/// browser -- avoids re-porting/duplicating 600+ lines of guide content
-/// that would drift out of sync with the source.
+/// Staff Help — the tab's landing/index screen. Fully native, offline
+/// content ported from `docs/STAFF_GUIDE.md` (see `help_content.dart` for
+/// the actual copy); no more linking out to the website. Tapping a section
+/// pushes [HelpDetailScreen] for just that section's content.
 class StaffHelpScreen extends StatelessWidget {
   const StaffHelpScreen({super.key});
-
-  static const _baseUrl = 'https://roticonnect.duckdns.org/manage/help/';
-
-  // Label + anchor id, taken verbatim from the guide's own table of
-  // contents -- these ids are already stable and used elsewhere in the
-  // codebase, do not invent new ones.
-  static const _sections = <(String, String)>[
-    ('Getting in', 'getting-in'),
-    ('Inbox', 'inbox'),
-    ('Calendar', 'calendar'),
-    ('Kitchen desk', 'kitchen-desk'),
-    ('Collection', 'collection'),
-    ('Payments', 'payments'),
-    ('Cash', 'cash'),
-    ('Daily controls', 'daily-controls'),
-    ('Menu editor', 'menu-editor'),
-    ('New assisted order', 'new-assisted-order'),
-    ('Other screens', 'other-screens'),
-    ('Roles', 'roles'),
-    ('Order flow (EFT)', 'order-flow-eft'),
-    ('Order flow (Cash)', 'order-flow-cash'),
-    ('Quick reference', 'quick-reference'),
-    ('Troubleshooting', 'troubleshooting'),
-  ];
-
-  Future<void> _open(BuildContext context, String anchor) async {
-    final uri = Uri.parse('$_baseUrl#$anchor');
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't open the help page.")),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return StaffScaffold(
       title: 'Help',
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(
-          horizontal: PosterSpace.pageSidePadding,
-          vertical: 12,
+      body: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(
+          PosterSpace.pageSidePadding, 16, PosterSpace.pageSidePadding, PosterSpace.bottomPagePadding,
         ),
-        itemCount: _sections.length,
-        separatorBuilder: (context, index) => const Divider(height: 1, color: PosterColors.border),
+        itemCount: helpSections.length + 1,
         itemBuilder: (context, index) {
-          final (label, anchor) = _sections[index];
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              label,
-              style: PosterText.bodyLarge.copyWith(color: PosterColors.navy, fontWeight: FontWeight.w600),
-            ),
-            trailing: const Icon(Icons.open_in_new_rounded, color: PosterColors.muted, size: 20),
-            onTap: () => _open(context, anchor),
-          );
+          if (index == 0) return const _IndexIntro();
+          return _SectionTile(section: helpSections[index - 1]);
         },
+      ),
+    );
+  }
+}
+
+class _IndexIntro extends StatelessWidget {
+  const _IndexIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('STAFF GUIDE', style: PosterText.eyebrow.copyWith(color: PosterColors.blue)),
+          const SizedBox(height: 6),
+          Text(
+            'Every screen, in one place',
+            style: PosterText.drawerTitle.copyWith(color: PosterColors.navy, fontSize: 26),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Tap a section below for the full walkthrough — actions, rules and gotchas, '
+            'right on your phone.',
+            style: PosterText.bodyDefault.copyWith(color: PosterColors.muted, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTile extends StatelessWidget {
+  const _SectionTile({required this.section});
+  final HelpSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: PosterColors.white,
+        borderRadius: BorderRadius.circular(PosterSpace.radiusInput),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(PosterSpace.radiusInput),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => HelpDetailScreen(section: section)),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: PosterColors.border),
+              borderRadius: BorderRadius.circular(PosterSpace.radiusInput),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(color: PosterColors.navy, shape: BoxShape.circle),
+                  child: Icon(section.icon, color: PosterColors.goldSoft, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        section.title,
+                        style: PosterText.bodyLarge.copyWith(
+                          color: PosterColors.navy,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        section.teaser,
+                        style: PosterText.bodyDefault.copyWith(color: PosterColors.muted, height: 1.3),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right_rounded, color: PosterColors.muted),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

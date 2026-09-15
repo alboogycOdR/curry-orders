@@ -65,7 +65,9 @@ from core.models import (
     PaymentMethod,
     Settings,
     ThrottleEvent,
+    User,
 )
+from core.notifications import notify_staff
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.tz import now_sast
 from public import customer_sessions
@@ -306,6 +308,20 @@ def checkout(request: HttpRequest) -> JsonResponse:
             exc.code, exc.message,
             line_index=exc.line_index, alternatives=exc.alternatives or None,
         )
+
+    # Outside the transaction above on purpose -- a push-notification
+    # failure must never roll back or fail an order that already
+    # committed (core.notifications.send_to_user's own fail-soft
+    # design covers Firebase itself being unavailable/unconfigured;
+    # keeping the call here, after commit, covers the transaction
+    # succeeding but the process crashing before this line, which just
+    # means one missed notification, not a lost or corrupted order).
+    notify_staff(
+        list(User.objects.filter(active=True)),
+        title="New order",
+        body=f"{order.order_number} — {req.customer_name}",
+        data={"order_number": order.order_number, "type": "new_order"},
+    )
 
     return JsonResponse(
         {

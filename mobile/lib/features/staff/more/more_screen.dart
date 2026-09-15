@@ -6,15 +6,16 @@ import '../../../state/staff_auth.dart';
 import '../../../theme/poster_tokens.dart';
 import '../staff_scaffold.dart';
 
-/// The 4th bottom-nav tab (docs/mobile/FLUTTER_APP_PLAN.md Phase 7's
+/// The last bottom-nav tab (docs/mobile/FLUTTER_APP_PLAN.md Phase 7's
 /// staff-only IA rework) — everything that isn't frequent/urgent enough
-/// to earn its own tab: Calendar, Payments, Cash, Daily controls, Menu
-/// editor, New assisted order, Help, and the role-gated Settings/Team,
-/// plus Sign out. Replaces Phase 6's hamburger `Drawer` (every screen
-/// used to carry one) — one screen instead of chrome repeated on all
-/// twelve. Also carries the staff-identity header the old drawer used
-/// to show (avatar/name/role) since there's no separate Account tab
-/// any more to put it on.
+/// to earn its own tab: Cash, Daily controls, Menu editor, New assisted
+/// order, Help, and the role-gated Settings/Team, plus Sign out.
+/// (Calendar and Payments started out here too but moved to their own
+/// bottom-nav tabs the same day — explicit direction.) Replaces Phase
+/// 6's hamburger `Drawer` (every screen used to carry one) — one
+/// screen instead of chrome repeated on all twelve. Also carries the
+/// staff-identity header the old drawer used to show (avatar/name/
+/// role) since there's no separate Account tab any more to put it on.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
@@ -68,8 +69,6 @@ class MoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           const _SectionLabel('Daily operations'),
-          const _MoreRow(label: 'Calendar', route: '/staff/calendar', icon: Icons.calendar_month_rounded),
-          const _MoreRow(label: 'Payments', route: '/staff/payments', icon: Icons.account_balance_rounded),
           const _MoreRow(label: 'Cash', route: '/staff/cash', icon: Icons.payments_rounded),
           const _MoreRow(label: 'Daily controls', route: '/staff/daily-controls', icon: Icons.tune_rounded),
           const _MoreRow(label: 'Menu editor', route: '/staff/menu', icon: Icons.restaurant_menu_rounded),
@@ -79,6 +78,9 @@ class MoreScreen extends ConsumerWidget {
             label: 'New assisted order', route: '/staff/orders/new', icon: Icons.phone_forwarded_rounded,
           ),
           const _MoreRow(label: 'Help', route: '/staff/help', icon: Icons.help_outline_rounded),
+          const _MoreRow(
+            label: 'Notifications', route: '/staff/notifications', icon: Icons.notifications_none_rounded,
+          ),
           if (user?.isOwnerOrAdmin ?? false) ...[
             const Divider(height: 24, indent: 16, endIndent: 16),
             const _SectionLabel('Admin'),

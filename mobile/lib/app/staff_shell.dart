@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../state/staff_auth.dart';
 import '../theme/poster_tokens.dart';
 
-/// App shell for the (now staff-only) app: a 4-tab bottom nav — Inbox,
-/// Kitchen, Collection, More — wrapping a `StatefulShellRoute`
-/// (`app/router.dart`). Also doubles as the app's auth gate
+/// App shell for the (now staff-only) app: a 6-tab bottom nav — Inbox,
+/// Kitchen, Collection, Calendar, Payments, More — wrapping a
+/// `StatefulShellRoute` (`app/router.dart`). Also doubles as the app's
+/// auth gate
 /// (docs/mobile/FLUTTER_APP_PLAN.md Phase 7): since every screen in
 /// this app is now a staff screen, there's no separate "Account tab"
 /// to hold a login link any more — this shell itself checks
@@ -85,9 +86,19 @@ class _StaffBottomNav extends StatelessWidget {
                 onTap: () => navigationShell.goBranch(2),
               ),
               _NavItem(
-                icon: Icons.more_horiz_rounded, label: 'More',
+                icon: Icons.calendar_month_rounded, label: 'Calendar',
                 selected: navigationShell.currentIndex == 3,
                 onTap: () => navigationShell.goBranch(3),
+              ),
+              _NavItem(
+                icon: Icons.account_balance_rounded, label: 'Payments',
+                selected: navigationShell.currentIndex == 4,
+                onTap: () => navigationShell.goBranch(4),
+              ),
+              _NavItem(
+                icon: Icons.more_horiz_rounded, label: 'More',
+                selected: navigationShell.currentIndex == 5,
+                onTap: () => navigationShell.goBranch(5),
               ),
             ],
           ),
@@ -119,9 +130,22 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: color, size: 21),
             const SizedBox(height: 2),
-            Text(label, style: PosterText.metadata.copyWith(color: color)),
+            Text(
+              label,
+              // Six tabs across a phone width is tight for the app's
+              // usual PosterText.metadata (11px + wide letter-spacing,
+              // tuned for a 4-5 item bar) -- a smaller, tighter local
+              // style keeps every one of the six labels on one line at
+              // narrow widths without truncating ("Collection",
+              // "Payments" are the longest).
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.1)
+                  .copyWith(color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

@@ -38,8 +38,17 @@ app_name = "api_v1_staff"
 
 urlpatterns = [
     path("auth/login/", api_mobile.login_json, name="login"),
+    path("auth/google/", api_mobile.google_login_json, name="google_login"),
     path("auth/logout/", api_mobile.logout_json, name="logout"),
     path("auth/me/", api_mobile.me_json, name="me"),
+    path(
+        "notifications/register/",
+        api_mobile.register_device_token_json, name="register_device_token",
+    ),
+    path(
+        "notifications/unregister/",
+        api_mobile.unregister_device_token_json, name="unregister_device_token",
+    ),
     path("inbox/", api_mobile_boards.inbox_json, name="inbox"),
     path("kitchen/", api_mobile_boards.kitchen_json, name="kitchen"),
     path("collection/", api_mobile_collection_cash.collection_json, name="collection"),

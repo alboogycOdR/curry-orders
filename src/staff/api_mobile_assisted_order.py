@@ -35,7 +35,8 @@ from django.views.decorators.http import require_http_methods
 from core.capacity import CapacityError, CheckoutLine, ReservationRequest, reserve
 from core.materialise import materialise_days
 from core.menu import MenuDish, dishes_for_date
-from core.models import ActorKind, OrderStatus, PaymentMethod, Settings, TradingDay
+from core.models import ActorKind, OrderStatus, PaymentMethod, Settings, TradingDay, User
+from core.notifications import notify_staff
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.transitions import Actor, TransitionError
 from core.transitions import apply as apply_transition
@@ -261,6 +262,19 @@ def _post_response(
         order = reserve(req, settings)
     except CapacityError as exc:
         return _capacity_error_response(exc)
+
+    # Same "new order" push public/api.py::checkout sends for a web
+    # order — an assisted order is just as much a new order for
+    # everyone else on shift to know about, even though the staff
+    # member who placed it obviously already knows. Fired before the
+    # EFT-escalation branch below, and regardless of whether that
+    # branch succeeds -- the order itself exists either way.
+    notify_staff(
+        list(User.objects.filter(active=True)),
+        title="New order",
+        body=f"{order.order_number} — {req.customer_name}",
+        data={"order_number": order.order_number, "type": "new_order"},
+    )
 
     warning: str | None = None
     if payment_method == PaymentMethod.EFT and eft_mode != "hold":

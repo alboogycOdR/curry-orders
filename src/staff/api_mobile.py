@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 from functools import wraps
 
+import httpx
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
@@ -36,9 +37,10 @@ from core.auth import (
     register_successful_login,
     verify_password,
 )
-from core.models import User
+from core.google_auth import verify_id_token
+from core.models import DeviceToken, User
 
-from . import sessions
+from . import services, sessions
 
 _ERROR_STATUS = {
     "auth_required": 401,
@@ -141,6 +143,52 @@ def logout_json(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"ok": True})
 
 
+@require_POST
+@csrf_protect
+def google_login_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/staff/auth/google/` — the app's native Google
+    Sign-In (the `google_sign_in` Flutter package performs the whole
+    OAuth dance on-device; this endpoint only ever sees the resulting
+    ID token). Distinct from the web's redirect-based OAuth
+    (`staff.views.google_login_begin`/`google_login_callback`), but
+    converges on the exact same `staff.services.try_grant_staff_session`
+    the web callback uses — one allowlist check, one session-granting
+    code path, reached from two different auth flows, same as
+    `login_json` above converges with the web's password login on
+    identical account/lockout rules.
+
+    Body: `{"id_token": "..."}`.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    id_token = data.get("id_token") if isinstance(data, dict) else None
+    if not isinstance(id_token, str) or not id_token:
+        return _error_response("validation_error", "id_token is required.")
+
+    try:
+        info = verify_id_token(id_token)
+    except (ValueError, httpx.HTTPError):
+        return _error_response("validation_error", "Could not verify Google sign-in.")
+
+    granted = services.try_grant_staff_session(
+        request, email=info["email"], sub=info["sub"], name=info.get("name", ""),
+        now=timezone.now(), picture=info.get("picture", ""),
+    )
+    if not granted:
+        return _error_response(
+            "forbidden", "This Google account isn't on the staff list. Contact the owner.",
+        )
+    # try_grant_staff_session logs the session in on `request` directly
+    # (staff.sessions.log_in) but doesn't hand back the User row it
+    # used -- a plain re-fetch by the now-verified email is simpler
+    # than changing that function's return shape for every other
+    # caller (the web callback) that doesn't need it.
+    user = User.objects.get(email=info["email"].lower())
+    return JsonResponse({"user": _user_json(user)})
+
+
 @require_GET
 def me_json(request: HttpRequest) -> JsonResponse:
     """`GET /api/v1/staff/auth/me/` — 200 with the signed-in staff user,
@@ -156,3 +204,61 @@ def me_json(request: HttpRequest) -> JsonResponse:
     if request.staff_user is None:
         return JsonResponse({"user": None})
     return JsonResponse({"user": _user_json(request.staff_user)})
+
+
+@require_POST
+@csrf_protect
+@staff_login_required_json
+def register_device_token_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/staff/notifications/register/` — the app calls
+    this on every launch once notifications are turned on
+    (`state/notifications.dart`), handing over the current Firebase
+    Cloud Messaging registration token for this device. `get_or_create`
+    on the token itself (not `(staff_user, token)`): `fcm_token` is
+    already unique in the schema, and a token reused across an app
+    reinstall or a different staff member signing in on the same
+    device should move to the new owner, not create a duplicate row --
+    `update_or_create` on the token value achieves exactly that.
+
+    Body: `{"fcm_token": "..."}`.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    token = data.get("fcm_token") if isinstance(data, dict) else None
+    if not isinstance(token, str) or not token:
+        return _error_response("validation_error", "fcm_token is required.")
+
+    DeviceToken.objects.update_or_create(
+        fcm_token=token, defaults={"staff_user": request.staff_user},
+    )
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+@csrf_protect
+@staff_login_required_json
+def unregister_device_token_json(request: HttpRequest) -> JsonResponse:
+    """`POST /api/v1/staff/notifications/unregister/` — called when the
+    app's notification toggle is switched off, so this device stops
+    receiving pushes immediately rather than only "eventually, once
+    Firebase notices the token is stale" (`core.notifications.
+    send_to_user`'s own stale-token cleanup is a fallback for an
+    uninstall, not the primary path for a deliberate opt-out).
+    Missing/already-gone token is not an error — the end state
+    ("this device doesn't get pushes") is what the caller actually
+    wants, however it gets there.
+
+    Body: `{"fcm_token": "..."}`.
+    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return _error_response("validation_error", "Malformed JSON body.")
+    token = data.get("fcm_token") if isinstance(data, dict) else None
+    if not isinstance(token, str) or not token:
+        return _error_response("validation_error", "fcm_token is required.")
+
+    DeviceToken.objects.filter(fcm_token=token, staff_user=request.staff_user).delete()
+    return JsonResponse({"ok": True})

@@ -6,15 +6,15 @@ import '../../data/api_exception.dart';
 import '../../state/staff_auth.dart';
 import '../../theme/poster_tokens.dart';
 
-/// Staff sign-in — email + password only, same as the web's own
-/// primary login path (`staff/views.py::login`). The app's own front
-/// door (docs/mobile/FLUTTER_APP_PLAN.md Phase 7 — the app became
+/// Staff sign-in — password (`staff/views.py::login`'s own rules) or
+/// Google (Phase 8, `staff/services.py::try_grant_staff_session`, the
+/// same allowlist check and session-granting code the web's Google
+/// button uses). The app's own front door
+/// (docs/mobile/FLUTTER_APP_PLAN.md Phase 7 — the app became
 /// staff-only 2026-09-15, removing the customer-facing screens this
 /// used to sit alongside): `app/staff_shell.dart` bounces here whenever
 /// [staffAuthProvider] isn't signed in, and this screen pushes straight
-/// to `/staff/inbox` on success. Google sign-in for staff (the web has
-/// it, `staff/services.py::try_grant_staff_session`) isn't wired into
-/// the app yet — tracked, not part of this phase.
+/// to `/staff/inbox` on success either way.
 class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
 
@@ -53,6 +53,23 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
     }
   }
 
+  Future<void> _submitGoogle() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final signedIn = await ref.read(staffAuthProvider.notifier).loginWithGoogle();
+      if (signedIn && mounted) context.go('/staff/inbox');
+      // signedIn == false means the user cancelled the account picker —
+      // nothing went wrong, just stay on this screen quietly.
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,6 +83,33 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
             const SizedBox(height: 4),
             Text('Kitchen & office access', style: PosterText.cardTitle.copyWith(color: PosterColors.white)),
             const SizedBox(height: 24),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: PosterColors.white,
+                foregroundColor: PosterColors.navy,
+                side: const BorderSide(color: PosterColors.border),
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: _submitting ? null : _submitGoogle,
+              // A plain "G" mark rather than pulling in a logo asset —
+              // no brand-asset package/SVG dependency needed for one
+              // button; PosterColors.blue keeps it in the app's own
+              // palette rather than Google's literal brand colours.
+              icon: const Text('G', style: TextStyle(fontWeight: FontWeight.w900, color: PosterColors.blue)),
+              label: const Text('SIGN IN WITH GOOGLE', style: PosterText.button),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(child: Divider(color: PosterColors.bluePanel)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('OR', style: PosterText.eyebrow.copyWith(color: PosterColors.mutedDark)),
+                ),
+                const Expanded(child: Divider(color: PosterColors.bluePanel)),
+              ],
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,

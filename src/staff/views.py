@@ -74,6 +74,7 @@ from core.models import (
     TradingDay,
     User,
 )
+from core.notifications import notify_staff
 from core.phone import InvalidPhoneNumber, normalize_sa_mobile
 from core.transitions import Actor, TransitionError
 from core.transitions import apply as apply_transition
@@ -1255,6 +1256,18 @@ def assisted_order_new(request: HttpRequest) -> HttpResponse:
             except CapacityError as exc:
                 errors.append(exc.message)
             else:
+                # Same "new order" push public/api.py::checkout and
+                # staff/api_mobile_assisted_order.py send on their own
+                # order-creation paths — an assisted order placed from
+                # the web board is just as much a new order for
+                # everyone else on shift (including anyone on the
+                # mobile app) to hear about.
+                notify_staff(
+                    list(User.objects.filter(active=True)),
+                    title="New order",
+                    body=f"{order.order_number} — {req.customer_name}",
+                    data={"order_number": order.order_number, "type": "new_order"},
+                )
                 if payment_method == PaymentMethod.EFT and eft_mode != "hold":
                     actor = Actor(kind=ActorKind.STAFF, user=request.staff_user)
                     try:

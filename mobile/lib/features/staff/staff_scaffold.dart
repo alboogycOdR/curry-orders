@@ -2,16 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../../theme/poster_tokens.dart';
 
-/// Shared chrome for every staff screen — an app bar (title = section
-/// name, optional trailing actions). Simplified 2026-09-15 when the
-/// app became staff-only (`docs/mobile/FLUTTER_APP_PLAN.md` Phase 7):
-/// navigation used to be a hamburger `Drawer` on every screen (Phase
-/// 6); now that the whole app *is* the staff area, Inbox/Kitchen/
-/// Collection are direct bottom-nav tabs (`app/staff_shell.dart`) and
-/// everything else is one tap away via the More tab
-/// (`features/staff/more/more_screen.dart`, which also carries the
-/// staff-identity header the old drawer used to show) — so no screen
-/// needs its own drawer any more.
+/// Shared chrome for every staff screen — an app bar (small branding
+/// mark + title = section name, optional trailing actions). Simplified
+/// 2026-09-15 when the app became staff-only
+/// (`docs/mobile/FLUTTER_APP_PLAN.md` Phase 7): navigation used to be a
+/// hamburger `Drawer` on every screen (Phase 6); now that the whole app
+/// *is* the staff area, Inbox/Kitchen/Collection/Calendar/Payments are
+/// direct bottom-nav tabs (`app/staff_shell.dart`) and everything else
+/// is one tap away via the More tab (`features/staff/more/
+/// more_screen.dart`, which also carries the staff-identity header the
+/// old drawer used to show) — so no screen needs its own drawer any
+/// more.
+///
+/// The small owner-portrait mark next to the title (added same day,
+/// explicit direction: "bring through the branding... if we can reduce
+/// it in size so that it does not stand out too much") is the same
+/// image the web/poster header uses, re-exported small for the app
+/// bundle — see `assets/img/owner-avatar.jpg`'s own comment in
+/// `pubspec.yaml` for why it isn't the full-size web asset.
 class StaffScaffold extends StatelessWidget {
   const StaffScaffold({
     super.key,
@@ -42,7 +50,17 @@ class StaffScaffold extends StatelessWidget {
         backgroundColor: PosterColors.navy,
         foregroundColor: PosterColors.white,
         automaticallyImplyLeading: automaticallyImplyLeading,
-        title: Text(title.toUpperCase(), style: PosterText.button),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 12,
+              backgroundImage: AssetImage('assets/img/owner-avatar.jpg'),
+            ),
+            const SizedBox(width: 10),
+            Text(title.toUpperCase(), style: PosterText.button),
+          ],
+        ),
         actions: actions,
       ),
       body: SafeArea(child: body),

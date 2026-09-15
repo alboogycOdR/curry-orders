@@ -27,12 +27,23 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 
 from core.capacity import OCCUPYING_STATUSES
-from core.models import ActorKind, Order, Slot, TradingDay
+from core.models import ActorKind, Order, Slot, TradingDay, User
+from core.notifications import notify_staff
 from core.transitions import Actor, TransitionError, apply
 from core.transitions import close_out_day as _close_out_day
 from core.tz import now_sast
 
 from .decorators import staff_login_required
+
+# Push-notification copy for the two order-lifecycle events staff asked
+# to be alerted on beyond "a new order arrived" (public/api.py's own
+# checkout hook) — mobile Phase 8. Keyed by `core.transitions.apply()`'s
+# own action names so `transition()` below stays a one-line lookup
+# rather than an if/elif chain that'll drift as actions are added.
+_NOTIFY_ON_ACTION = {
+    "mark_ready": "Order ready",
+    "mark_collected": "Order collected",
+}
 
 # Appendix C's own table, same split public/api.py's checkout endpoint
 # uses — everything not listed here is a 422 (a §8.2-style capacity
@@ -88,6 +99,19 @@ def transition(request: HttpRequest, order_id: int) -> JsonResponse:
         order = apply(order, action, actor, expected_status, reason=reason, payload=payload)
     except TransitionError as exc:
         return _error_response(exc.code, exc.message, **exc.extra)
+
+    # Outside apply()'s own transaction on purpose -- see public/api.py
+    # checkout's identical comment on its own notify_staff call for why
+    # a push failure must never be able to affect a transition that
+    # already committed.
+    title = _NOTIFY_ON_ACTION.get(action)
+    if title is not None:
+        notify_staff(
+            list(User.objects.filter(active=True)),
+            title=title,
+            body=order.order_number,
+            data={"order_number": order.order_number, "type": action},
+        )
 
     return JsonResponse({"order_number": order.order_number, "status": order.status})
 

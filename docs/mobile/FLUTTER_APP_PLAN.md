@@ -369,6 +369,122 @@ does trigger the shell's own check correctly. A global 401-triggers-
 logout interceptor on the shared `ApiClient` would close this gap
 fully; not built here.
 
+## Phase 8 — Google Sign-In, native Help, push notifications, branding
+
+- **Status:** in_progress — everything buildable without external config is done; push notifications need a Firebase project (being set up with the user, in progress) before they can actually fire
+- **Depends on:** Phase 7 (the staff-only app this extends)
+
+### Google Sign-In (done, needs one Google Cloud Console step)
+Native sign-in (`google_sign_in` package) alongside the existing
+password login on `StaffLoginScreen` — not a replacement. Backend:
+`core.google_auth.verify_id_token()` (new — verifies a native ID token
+via Google's `tokeninfo` endpoint, distinct from `get_verified_
+google_user()`'s authorization-code flow the web uses) and `POST
+/api/v1/staff/auth/google/` (`staff/api_mobile.py::google_login_json`),
+both converging on the same `staff.services.try_grant_staff_session`
+the web's own Google callback uses — one allowlist check, one
+session-granting path, three entry points now (web password, web
+Google, app password, app Google — the shared function doesn't care
+which). Verified live: a real HTTP call to Google's `tokeninfo`
+endpoint correctly rejects a garbage token with a clean 400, not a 500.
+
+**Still needed, external, one-time**: an **Android** OAuth client
+(distinct from the existing web client `GOOGLE_CLIENT_ID`) registered
+in the same Google Cloud project, under package name
+`com.rotiConnect.roti_connect` and the release keystore's SHA-1
+fingerprint (`2E:49:BA:07:33:FD:41:A1:EA:F7:23:54:1E:16:B7:64:90:77:48:7E`
+— extracted from `mobile/android/app/roti-connect-upload-keystore.jks`).
+Without it, Google Play Services will refuse the sign-in on-device even
+though every line of code on both sides is already correct and
+verified. `google_sign_in`'s `serverClientId` is set to the existing
+web `GOOGLE_CLIENT_ID` (`mobile/lib/state/staff_auth.dart`) so the ID
+token it returns is already audienced for the server that needs to
+verify it — no code change once the Android client exists, this is
+purely a Console registration step.
+
+### Native Help (done)
+`docs/STAFF_GUIDE.md`'s full content (16 sections) ported to real
+Flutter widgets under `mobile/lib/features/staff/help/` — no more
+linking out to the web page. Structured content data
+(`help_content.dart`) + reusable rendering widgets (`help_widgets.dart`
+— colour-coded callouts, a stacked-card table renderer, a numbered
+step/timeline view for the two order-flow sections, role badges, an
+FAQ accordion) + an icon-badged index screen + a per-section detail
+screen. Built by a delegated subagent, then spot-checked against the
+source guide for completeness.
+
+### Push notifications (in progress — code done, delivery pending Firebase)
+Backend, all deployed and independently verified against a real DB:
+- `core.models.DeviceToken` (migration `0007_device_token`) — one FCM
+  token per staff device, many-to-one on `User`.
+- `core.notifications.send_to_user`/`notify_staff` — fail-soft by
+  design: a no-op (logged, not raised) whenever
+  `settings.FIREBASE_CREDENTIALS_PATH` is unset, and any Firebase API
+  error is caught and logged rather than propagated, so a
+  notifications outage can never break an order transition or
+  checkout. Auto-prunes a `DeviceToken` row once Firebase reports its
+  token as unregistered/not-found.
+- Three trigger points, matching what was asked for explicitly — "new
+  order arrives", "meals get done", "a pickup is placed": `public/
+  api.py::checkout` (also covers real website orders — this view is
+  shared with the unversioned `/api/checkout` the site itself calls),
+  `staff/api_mobile_assisted_order.py::assisted_order_json` and
+  `staff/views.py::assisted_order_new` (both order-creation paths, app
+  and web), and `staff/api.py::transition` for `mark_ready`/
+  `mark_collected` (the one generic endpoint every board's row action
+  already goes through, web and app alike — no separate app-side hook
+  needed for those two). Each call is placed *after* its own
+  transaction commits, never inside one.
+- `POST /api/v1/staff/notifications/register/`+`.../unregister/`
+  (`staff/api_mobile.py`) — the app's own token registration.
+- Verified live (Django test client against a real migrated DB, no
+  Firebase configured): checkout still returns 201 and creates a real
+  order with `notify_staff` wired in; `mark_ready`/`mark_collected`
+  still transition correctly; device-token register/re-register/
+  unregister all behave correctly; nothing anywhere raised despite
+  zero Firebase configuration — confirming the fail-soft design
+  actually holds, not just reads that way.
+
+Mobile: `state/notifications.dart` (a local, per-device on/off
+preference — `shared_preferences`, deliberately **not** a field on the
+shared business `core.models.Settings` the owner/admin-only Settings
+screen edits, since gating a personal notification preference behind
+admin access would stop the kitchen staff who need the alert most from
+ever turning it on) and `features/staff/notifications/
+notifications_screen.dart`, reached from the More tab (not nested
+inside Settings, for the same reason).
+
+**Still needed, external**: a Firebase project + `google-services.json`
+(app config) + a service-account private key (server config, for
+`FIREBASE_CREDENTIALS_PATH`) — in progress with the user. `firebase_core`/
+`firebase_messaging` are already dependencies and the app was verified
+to still build cleanly with them present but **unconfigured**
+(`Firebase.initializeApp()` is deliberately not called anywhere yet —
+doing so without a real `google-services.json` in place would break
+the Android build outright, not just leave push non-functional).
+Once both files land: add `google-services.json` to `mobile/android/
+app/`, apply the `google-services` Gradle plugin, call `Firebase.
+initializeApp()` + register for a token + wire it through to `POST
+.../notifications/register/` in `state/notifications.dart`, and set
+`FIREBASE_CREDENTIALS_PATH` in the server's `.env` pointing at the
+service-account key (kept outside the repo, like every other secret
+here).
+
+### Branding (done)
+- Bottom nav expanded from 4 to 6 tabs — Inbox / Kitchen / Collection /
+  **Calendar** / **Payments** / More (explicit direction: promote
+  Calendar and Payments off the More list onto direct tabs). Router
+  (`app/router.dart`) and shell (`app/staff_shell.dart`) both updated;
+  a smaller, tighter local label style keeps all six on one line at
+  phone width without the app's usual nav-label style (tuned for 4-5
+  items) truncating "Collection"/"Payments".
+- The owner portrait ("Brandon's face") now appears small (24px
+  circle) next to the section title in every screen's app bar
+  (`features/staff/staff_scaffold.dart`) — the same image the web/
+  poster header uses, re-exported to `mobile/assets/img/
+  owner-avatar.jpg` at 160×160 (~8KB) rather than shipping the web
+  original's 213KB for what's only ever a small avatar.
+
 ## Open questions (carried from poster variant README — still apply here)
 
 1. Phone number discrepancy (082 602 3931 vs 3031) — confirm before shipping any screen with a `tel:`/dial-intent link.

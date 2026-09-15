@@ -51,11 +51,28 @@ dependencies:
   # ever backed the customer basket's local persistence, gone along
   # with the rest of the customer-facing app in Phase 7.
   image_picker: ^1.1.2
-  # Opens the live web staff help page (/manage/help/#anchor) in the
-  # device browser from the staff-mode Help screen (Phase 6) — see
-  # features/staff/help/staff_help_screen.dart's own docstring for why
-  # that content isn't re-ported natively.
+  # Opens a WhatsApp chat to the customer straight from an Inbox row
+  # (features/staff/inbox/inbox_screen.dart) when a mobile number is on
+  # file. The staff Help screen used to depend on this too (it linked out
+  # to the web help page) but now embeds its own content natively — see
+  # features/staff/help/help_content.dart.
   url_launcher: ^6.3.1
+  # Native Google Sign-In — src/core/google_auth.py::verify_id_token /
+  # src/staff/api_mobile.py::google_login_json is the server side.
+  # Needs an Android OAuth client (not a Firebase one) registered in
+  # Google Cloud Console under the release keystore's SHA-1 fingerprint
+  # — see docs/mobile/FLUTTER_APP_PLAN.md Phase 8 for the exact steps.
+  google_sign_in: ^6.2.2
+  # Push notifications (FCM) — Phase 8. Needs `android/app/
+  # google-services.json` (not committed — real per-project Firebase
+  # config) before this actually initialises; see that phase's own
+  # notes for the setup this depends on.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+  # Local device preference (notifications on/off, Settings screen) —
+  # re-added 2026-09-15 after being dropped in Phase 7 (it used to back
+  # the removed customer basket's persistence; unrelated new use here).
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -120,10 +137,15 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Owner portrait ("Brandon's face") — the same mark the web/poster
+  # header uses (src/static/img/poster-owner-portrait.jpg), re-exported
+  # small (160x160, ~8KB vs the web original's 213KB) since this only
+  # ever renders as a small AppBar avatar (features/staff/staff_scaffold.dart) —
+  # no reason to ship the full-size web asset for that. Re-run the
+  # resize if the web source image is ever replaced:
+  #   python -c "from PIL import Image; im=Image.open(SRC).convert('RGB').resize((160,160)); im.save('assets/img/owner-avatar.jpg', quality=85, optimize=True)"
+  assets:
+    - assets/img/owner-avatar.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
