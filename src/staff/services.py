@@ -9,6 +9,20 @@ point — transparently also grants a staff session when the signed-in
 email is on `StaffAllowlist`. Both callers get identical behaviour
 (role sync, `SocialIdentity` linking, session creation) rather than
 two copies that could drift.
+
+Made properly bidirectional 2026-09-15 (same day, follow-up fix): this
+now *also* grants a customer session when the same Google identity is
+already linked to a `Customer` — signing in as staff shouldn't leave
+someone looking logged-out on the Account tab if they're also a
+customer under the same Google account. Found live: a stray test
+`SocialIdentity` row (this developer's own leftover test data, not a
+real user) was squatting on a staff account's `staff_user` OneToOne
+slot, so the *real* identity's own `staff_user` backfill kept silently
+failing (correctly swallowed — see below — so it never broke login,
+but nothing downstream of that fenced-off block ran either). The fix:
+look up the identity plainly, and check it for a linked customer,
+*outside* the fenced-off bookkeeping block — the customer-session grant
+must never depend on that bookkeeping succeeding.
 """
 from __future__ import annotations
 
@@ -55,6 +69,11 @@ def try_grant_staff_session(
         user.role = entry.role
         user.save(update_fields=["role"])
 
+    # Plain lookup first, kept outside the fenced-off bookkeeping block
+    # below — everything that follows (the customer-session check) must
+    # work even if the staff_user backfill fails.
+    identity = SocialIdentity.objects.filter(provider="google", uid=sub).first()
+
     # SocialIdentity is unique on (provider, uid) *and* staff_user is
     # its own OneToOneField (one linked identity per staff account) —
     # a caller that already ran its own customer-side get_or_create on
@@ -80,6 +99,16 @@ def try_grant_staff_session(
                 identity.save(update_fields=["staff_user"])
     except IntegrityError:
         pass
+
+    # Bidirectional consolidation: this same Google identity may already
+    # be linked to a Customer (e.g. from an earlier Account-tab sign-in,
+    # or vice versa) — grant that session too, regardless of whether the
+    # staff_user bookkeeping above succeeded.
+    if identity is not None and identity.customer_id:
+        customer = identity.customer
+        if customer.anonymised_at is None:
+            from public import customer_sessions
+            customer_sessions.log_in(request, customer)
 
     from staff.sessions import log_in as staff_log_in
     staff_log_in(request, user, now)
