@@ -993,6 +993,17 @@ def account_setup(
             # Find or create Customer for this mobile
             try:
                 customer = Customer.objects.get(mobile_e164=mobile_e164)
+                # A Google-verified name is more trustworthy than
+                # whatever name is already on file (e.g. a guest order
+                # placed under a mistyped/placeholder name) — keep it
+                # in sync on every Google-linked sign-in, not just at
+                # Customer creation (the bug: previously only the
+                # `except` branch below ever set full_name, so an
+                # existing Customer row's name silently never updated
+                # to match Google, however wrong the name on file was).
+                if name and customer.full_name != name:
+                    customer.full_name = name
+                    customer.save(update_fields=["full_name"])
             except Customer.DoesNotExist:
                 customer = Customer.objects.create(
                     full_name=name or "Customer",
