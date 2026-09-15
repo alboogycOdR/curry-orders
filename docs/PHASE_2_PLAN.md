@@ -207,12 +207,16 @@ not committed to any milestone yet.
       secrets, restore from backup, restart the stack) — this one is for
       Brandon himself, not a developer. Raised 2026-08-30; explicitly
       not to be started until asked.
-- [ ] **Google OAuth staff login** — raised earlier, deferred by the
-      user in favour of shipping the existing password login first (see
-      commit history around the M10 security-headers work). Revisit
-      once there's real appetite for it; role model (owner/manager)
-      already fits Google-authenticated users without change, only the
-      auth mechanism itself would need building.
+- [x] **Google OAuth login** — shipped 2026-09-15, extended beyond the
+      original staff-only scope: both staff and customer Google sign-in,
+      fully consolidated (one Google sign-in from either entry point
+      grants both a staff session and a linked customer session, in
+      either direction). Real HTTPS via DuckDNS + host Caddy
+      (`roticonnect.duckdns.org`) was a prerequisite and shipped
+      alongside it. See `docs/handovers/2026-09-15.md` for the full
+      change list and traps found (`get_or_create(defaults=...)` sync
+      bugs, CSRF_TRUSTED_ORIGINS, wrong userinfo endpoint). Password
+      login remains available alongside it, unchanged.
 - [ ] **Brand direction (Roti Connect vs. Brandon's Kitchen)** — a first
       logo asset came through reading "Roti Connect — Experience the
       taste, honour the legacy", which doesn't match "Brandon's
