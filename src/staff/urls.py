@@ -10,6 +10,7 @@ urlpatterns = [
     path("login/", views.login, name="login"),
     path("logout/", views.logout, name="logout"),
     path("change-password/", views.change_password, name="change_password"),
+    path("help/", views.staff_help, name="help"),
     path("auth/email/", views.magic_link_begin, name="magic_link_begin"),
     path("auth/email/callback/", views.magic_link_callback, name="magic_link_callback"),
     path("settings/", views.settings_view, name="settings"),

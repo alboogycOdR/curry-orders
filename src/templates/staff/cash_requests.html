@@ -44,7 +44,7 @@ Accept/Reject via static/js/cash_requests.js -> manage:api_transition.
   <div class="cr-dateline-thick"></div>
   <div class="cr-dateline-row">
     <span>Cash requests</span>
-    <span class="push">{{ now_label }} SAST</span>
+    <span class="push">{{ now_label }} SAST &middot; <a href="{% url 'manage:help' %}#cash">Help</a></span>
   </div>
 
   {% if not orders %}

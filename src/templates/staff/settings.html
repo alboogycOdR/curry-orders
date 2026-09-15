@@ -36,7 +36,7 @@ writes a `SettingsEvent` diff on every save that actually changes something.
 
 {% block content %}
 <div class="settings-wrap">
-  <h1>Settings</h1>
+  <h1>Settings <a href="{% url 'manage:help' %}#other-screens" style="font-size:13px;font-weight:normal;">Help</a></h1>
   <p class="settings-lead">
     {% if creating %}No settings row exists yet — saving this creates it (D-24's singleton row).{% else %}Owner-only (spec §6.2). Every save is recorded to the settings audit log.{% endif %}
   </p>

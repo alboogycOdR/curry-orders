@@ -156,7 +156,7 @@ Each row also shows the amount, the collection slot, a live-updating hold countd
 | **Verify (seen in bank app)** | Status is Awaiting EFT | You can see the payment landed in the bank account even though the customer hasn't uploaded a screenshot yet — asks for a reason first | `Confirmed (prep)` |
 | **Reject** | Status is Payment review | Proof is wrong/invalid — asks for a reason first | Back to `Awaiting EFT` (the hold isn't extended automatically — use Extend hold too if the customer needs more time to try again) |
 | **Expire now** | Status is Awaiting EFT | Manually close the hold early (e.g. customer says they're not paying) | `Payment expired` (a dead end — the order can be reinstated from the Inbox's "Recently expired" section within 48 hours) |
-| **Extend hold** | Always | Gives the customer more time — adds the default EFT hold window (usually 2 hours) to the deadline | Stays in Awaiting EFT, deadline pushed out |
+| **Extend hold** | Always | Gives the customer more time — adds the current EFT hold window (whatever's set in Settings, 15 minutes by default) to the deadline | Stays in Awaiting EFT, deadline pushed out |
 
 **Note:** clicking Verify updates the customer's own tracker on their phone from "Payment" straight to "Confirmed" immediately.
 
@@ -278,8 +278,8 @@ Click **Create order** at the bottom. On success you're taken back to the Inbox 
 
 | Screen | URL | Who can use it | What it's for |
 |---|---|---|---|
-| **Settings** | `/manage/settings/` | Owner and Admin only | Order/cash caps, EFT hold duration, extension limits, collection grace period, bank details, and around 40 other site-wide settings — every field on this form directly maps to a setting. Every save is written to a settings audit log automatically. There's no separate nav link for Admin roles even though Admins can open it (see Troubleshooting below) — Admins can still reach it by typing the URL. |
-| **Team** | `/manage/team/` | Admin only (not Owner) | Invite staff by email (choose their role: admin/owner/manager), remove someone from the allow-list, or change someone's role. **There is no link to this page anywhere in the staff menu** — you have to know the URL. If you're an Owner and need to manage the team, ask an Admin, or navigate here directly and you'll be redirected away with "Team management requires admin access." |
+| **Settings** | `/manage/settings/` | Owner and Admin only | Order/cash caps, EFT hold duration, extension limits, collection grace period, bank details, and around 40 other site-wide settings — every field on this form directly maps to a setting. Every save is written to a settings audit log automatically. The Staff dropdown shows a link to it for both Owner and Admin. |
+| **Team** | `/manage/team/` | Admin only (not Owner) | Invite staff by email (choose their role: admin/owner/manager), remove someone from the allow-list, or change someone's role. The Staff dropdown shows a link to it for Admins. If you're an Owner and need to manage the team, ask an Admin — Owner itself can't open this page and will be redirected away with "Team management requires admin access." |
 | **Change password** | `/manage/change-password/` | Any logged-in staff | Voluntary password change, or the forced screen you land on with a temporary password. |
 
 ---
@@ -375,18 +375,10 @@ Holds can only be extended a limited number of times (one, by default) — Exten
 Daily controls won't let a slot's capacity go below how many orders are already occupying it — you'll see the exact minimum in a validation message. Move some of those orders to another slot first (the "Move all to…" tool in the confirmation banner) if you need to shrink it further.
 
 **I'm a Manager and can't see a Settings link.**
-Correct — Settings is Owner/Admin only, and the link is hidden from Managers entirely (not just blocked). If you're an Admin and don't see the Settings link either, that's a real inconsistency in the current build, not something you're doing wrong — see the note below.
+Correct — Settings is Owner/Admin only, and the link is hidden from Managers entirely (not just blocked). Owner and Admin both see it in the Staff dropdown.
 
 **I need to add or remove a staff member, or change someone's role.**
-That's the Team screen at `/manage/team/` — Admin role only (an Owner cannot do this, even though Owner outranks Manager everywhere else). There's currently no link to it in the staff menu, so you need the URL directly.
+That's the Team screen at `/manage/team/` — Admin role only (an Owner cannot do this, even though Owner outranks Manager everywhere else). Admins see a link to it in the Staff dropdown.
 
 **A dish I need to sell out today isn't in Daily controls.**
 Daily controls only lists dishes that are active on the public menu (`Is active on menu` checked in the Menu editor). Check the Menu editor first if a dish seems to be missing.
-
----
-
-## Known inconsistencies in the current build (not your fault — flagged for the developer)
-
-- The Staff dropdown only shows the **Settings** link when your role is exactly `owner`; Admins (who are also allowed to open Settings via `owner_required`) don't get a nav link to it and must type the URL.
-- There is **no nav link anywhere** to the **Team** screen (`/manage/team/`), even for Admins who are the only role allowed to use it.
-- The EFT queue's "Extend hold" button text says it "usually" adds 2 hours, but the actual amount added is whatever the owner has set in Settings (`hold_extension_minutes`, default 15 minutes) — the button's own hover text and the real default don't currently match.

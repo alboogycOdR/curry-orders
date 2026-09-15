@@ -339,6 +339,17 @@ def change_password(request: HttpRequest) -> HttpResponse:
     })
 
 
+@staff_login_required
+def staff_help(request: HttpRequest) -> HttpResponse:
+    """In-app rendering of `docs/STAFF_GUIDE.md` at `/manage/help/`
+    (`manage:help`). Deliberately not role-gated — every staff role
+    should be able to read it, unlike Settings/Team. Named `staff_help`
+    (not `help_page`) to avoid clashing with `public.views.help_page`,
+    a completely unrelated customer-facing page.
+    """
+    return render(request, "staff/help.html")
+
+
 def magic_link_begin(request: HttpRequest) -> HttpResponse:
     """Staff: request a magic-link sign-in email."""
     if request.method != "POST":

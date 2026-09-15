@@ -35,7 +35,7 @@ staff roles qualify — nothing above manager exists per §4).
 {% block content %}
 <div class="menu-wrap">
   <div class="menu-top-bar">
-    <h1>Menu editor</h1>
+    <h1>Menu editor <a href="{% url 'manage:help' %}#menu-editor" style="font-size:13px;font-weight:normal;">Help</a></h1>
     <a class="btn btn-primary" href="{% url 'manage:dish_create' %}">+ New dish</a>
   </div>
 

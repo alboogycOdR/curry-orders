@@ -468,6 +468,7 @@ screen readers.
       <a role="menuitem" href="{% url 'manage:menu_list' %}" {% if request.resolver_match.url_name == 'menu_list' or request.resolver_match.url_name == 'dish_create' or request.resolver_match.url_name == 'dish_edit' %}aria-current="page"{% endif %}>Menu editor</a>
       <hr class="staff-menu-divider">
       <a role="menuitem" href="{% url 'manage:assisted_order_new' %}" {% if request.resolver_match.url_name == 'assisted_order_new' %}aria-current="page"{% endif %}>New assisted order</a>
+      <a role="menuitem" href="{% url 'manage:help' %}" {% if request.resolver_match.url_name == 'help' %}aria-current="page"{% endif %}>Help</a>
       {% if request.staff_user.role == "owner" or request.staff_user.role == "admin" %}
       <a role="menuitem" href="{% url 'manage:settings' %}" {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>Settings</a>
       {% endif %}

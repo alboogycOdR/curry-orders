@@ -1,0 +1,664 @@
+{% extends "base.html" %}
+
+{% comment %}
+Staff help — in-app rendering of docs/STAFF_GUIDE.md. Plain @staff_login_required
+view (staff/views.py::staff_help), no role gate — every role can read it.
+Every h2 here carries a stable, kebab-case id: other staff templates deep-link
+to these from their own page header (e.g. #inbox, #kitchen-desk). Keep the id
+list in sync with base.html's nav link and every per-screen "Help" link.
+{% endcomment %}
+
+{% block title %}Staff help — Roti Connect{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hp-wrap { max-width: 900px; margin: 0 auto; padding: 0 32px 80px; }
+  .hp-dateline-thick { height: 7px; background: var(--color-text); margin-top: 28px; }
+  .hp-dateline-row {
+    display: flex; flex-wrap: wrap; gap: 28px; align-items: baseline;
+    padding: 9px 0; font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-neutral-700);
+    border-bottom: 1px solid var(--color-text);
+  }
+  .hp-lead { font-size: 14.5px; color: var(--color-neutral-700); margin: 20px 0; max-width: 68ch; }
+  .hp-servers { font-size: 13.5px; color: var(--color-neutral-700); margin: 0 0 20px; }
+  .hp-servers code { font-size: 12.5px; }
+
+  .hp-toc {
+    border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+    padding: var(--space-4); margin: 0 0 40px; background: var(--color-surface, transparent);
+  }
+  .hp-toc h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 12px; }
+  .hp-toc ol { columns: 2; column-gap: 24px; margin: 0; padding-left: 20px; font-size: 14px; }
+  .hp-toc li { break-inside: avoid; margin-bottom: 6px; }
+  @media (max-width: 600px) { .hp-toc ol { columns: 1; } }
+
+  .hp-section { margin-top: 44px; scroll-margin-top: 90px; }
+  .hp-section h2 {
+    font-family: var(--font-heading); font-size: 22px;
+    border-bottom: 1px solid var(--color-text); padding-bottom: 8px; margin-bottom: 14px;
+  }
+  .hp-section h3 { font-size: 15.5px; margin: 22px 0 8px; }
+  .hp-section p { font-size: 14.5px; line-height: 1.55; margin: 0 0 12px; max-width: 72ch; }
+  .hp-section ul, .hp-section ol.hp-list { font-size: 14.5px; line-height: 1.55; margin: 0 0 12px; padding-left: 22px; }
+  .hp-section li { margin-bottom: 6px; }
+  .hp-section code { font-size: 13px; background: color-mix(in srgb, var(--color-text) 6%, transparent); padding: 1px 5px; border-radius: 3px; }
+  .hp-back-top { font-size: 12.5px; margin-top: 14px; }
+
+  .hp-table-wrap { overflow-x: auto; margin: 14px 0 18px; }
+  .hp-table-wrap .table { min-width: 480px; }
+
+  .hp-flow { list-style: none; margin: 0 0 14px; padding: 0; max-width: 60ch; }
+  .hp-flow li {
+    border-left: 3px solid var(--color-accent-700); padding: 6px 0 6px 14px;
+    margin-bottom: 4px; font-size: 14.5px;
+  }
+  .hp-flow li .hp-flow-note { display: block; font-size: 12.5px; color: var(--color-neutral-600); margin-top: 2px; }
+  .hp-flow-end { color: var(--color-neutral-600); font-size: 13.5px; max-width: 60ch; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hp-wrap">
+  <div class="hp-dateline-thick"></div>
+  <div class="hp-dateline-row"><span>Staff help</span></div>
+
+  <p class="hp-lead">
+    This is the staff order-management guide, in the order you'll touch each screen during a
+    normal service day. If something on screen doesn't match this page, trust the screen and
+    tell the developer &mdash; the system does get updated.
+  </p>
+  <p class="hp-servers">
+    <strong>Two servers are currently live.</strong> Ask if you're not sure which one you should
+    be using &mdash; production is <code>http://204.168.249.99:8102/manage/...</code>, the newer
+    "poster" version is <code>http://204.168.249.99:8105/manage/...</code>. Every URL below is
+    written as a path starting <code>/manage/...</code> &mdash; put whichever base above in front
+    of it.
+  </p>
+
+  <nav class="hp-toc" aria-label="Sections">
+    <h2>On this page</h2>
+    <ol>
+      <li><a href="#getting-in">Getting in</a></li>
+      <li><a href="#inbox">Screen 1 &mdash; Inbox</a></li>
+      <li><a href="#calendar">Screen 2 &mdash; Calendar</a></li>
+      <li><a href="#kitchen-desk">Screen 3 &mdash; Kitchen desk</a></li>
+      <li><a href="#collection">Screen 4 &mdash; Collection board</a></li>
+      <li><a href="#payments">Screen 5 &mdash; Payments (EFT queue)</a></li>
+      <li><a href="#cash">Screen 6 &mdash; Cash (requests)</a></li>
+      <li><a href="#daily-controls">Screen 7 &mdash; Daily controls</a></li>
+      <li><a href="#menu-editor">Screen 8 &mdash; Menu editor</a></li>
+      <li><a href="#new-assisted-order">Screen 9 &mdash; New assisted order</a></li>
+      <li><a href="#other-screens">Other screens (Settings / Team / Change password)</a></li>
+      <li><a href="#roles">Roles &mdash; who can do what</a></li>
+      <li><a href="#order-flow-eft">Complete order flow (EFT)</a></li>
+      <li><a href="#order-flow-cash">Complete order flow (cash)</a></li>
+      <li><a href="#quick-reference">Quick reference &mdash; what the customer sees</a></li>
+      <li><a href="#troubleshooting">Troubleshooting / FAQ</a></li>
+    </ol>
+  </nav>
+
+  <section class="hp-section" id="getting-in">
+    <h2 id="getting-in">Getting in</h2>
+    <p><strong>Login page:</strong> <code>/manage/login/</code></p>
+    <p>
+      The login page asks for your <strong>Email</strong> and <strong>Password</strong> &mdash;
+      not a username. (An earlier version of this guide said "username"; the field is your email
+      address.)
+    </p>
+    <ol class="hp-list">
+      <li>Go to <code>/manage/login/</code>.</li>
+      <li>Type your email address and password.</li>
+      <li>Click <strong>Log in</strong>.</li>
+    </ol>
+    <p>
+      You land on the <strong>Inbox</strong> afterwards (or wherever you were trying to go, if you
+      followed a link that sent you to login first).
+    </p>
+    <h3>Other ways to sign in</h3>
+    <p>Both are shown on the login page itself:</p>
+    <ul>
+      <li>
+        <strong>Sign in with Google</strong> &mdash; a button above the password form. This only
+        works if your Google account's email has been added to the staff allow-list by an admin;
+        if it hasn't, you'll see "Your Google account is not authorised as staff. Contact the
+        owner."
+      </li>
+      <li>
+        <strong>Sign in by email link instead</strong> &mdash; a link below the form, goes to
+        <code>/manage/auth/email/</code>. Enter your staff email address and, if it's on the
+        allow-list, you'll be sent a one-time sign-in link (no password needed). For security the
+        page always says a link was sent, even if your email isn't recognised &mdash; if you don't
+        get an email, double check the address or ask the owner to add you.
+      </li>
+    </ul>
+    <p>
+      <strong>If you get locked out:</strong> after too many wrong password attempts, the account
+      locks for <strong>15 minutes</strong>. The login page will tell you this and say to contact
+      the owner if you need in sooner.
+    </p>
+    <p>
+      <strong>Temporary passwords:</strong> if the owner has just set you up (or reset your
+      password), you'll be forced straight to a <strong>"Set a new password"</strong> screen the
+      first time you log in &mdash; you can't skip this and go straight to the Inbox. New
+      passwords must be at least <strong>10 characters</strong>.
+    </p>
+    <p>
+      <strong>Getting back here from the public website:</strong> on a phone, tap
+      <strong>More</strong> in the bottom nav, then <strong>Kitchen staff login</strong>. On a
+      wider screen while logged out, there's a small <strong>Staff login</strong> link in the site
+      footer.
+    </p>
+    <p>
+      <strong>Once logged in</strong>, look for the <strong>Staff</strong> dropdown in the
+      top-right of every page (next to the Order/Basket icons) &mdash; it's your menu for every
+      staff screen from here on: Inbox, Calendar, Kitchen desk, Collection, Payments, Cash, Daily
+      controls, Menu editor, New assisted order, and (owners only) Settings, plus
+      <strong>Log out</strong> at the bottom.
+    </p>
+  </section>
+
+  <section class="hp-section" id="inbox">
+    <h2 id="inbox">Screen 1 &mdash; Inbox (<code>/manage/</code>)</h2>
+    <p>
+      The landing page after login, and your morning briefing. It pulls together everything
+      across the whole system that might need attention <em>right now</em>, in five sections,
+      each shown only if it has something in it. If every section is empty you'll see a plain
+      "Inbox is clear &mdash; nothing needs attention right now."
+    </p>
+    <h3>The five sections</h3>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Section</th><th>What's in it</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Cash requests</strong></td><td>Every order a customer placed choosing to pay cash on collection, still waiting for you to accept or reject it. Same list as the dedicated Cash screen.</td></tr>
+          <tr><td><strong>Hold lapsed / SLA breached</strong></td><td>EFT orders whose payment hold has already run out with no proof uploaded, <em>and</em> orders sitting in "payment review" longer than the settings-configured review window (15 minutes by default). Both need a decision on the Payments screen.</td></tr>
+          <tr><td><strong>Orders with notes</strong></td><td>Any still-open order (not yet collected/cancelled/expired) carrying a customer note &mdash; most recent 30. Check these for dietary requirements or special requests before they reach the kitchen.</td></tr>
+          <tr><td><strong>Recent assisted</strong></td><td>The last 20 orders staff created on the customer's behalf (phone, WhatsApp, in-person) &mdash; shown for reference/follow-up, not for action.</td></tr>
+          <tr><td><strong>Recently expired</strong></td><td>Orders whose EFT hold expired in the last 48 hours, with a <strong>Reinstate</strong> option in case the customer still wants to pay.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>What each row shows and what you can do with it</h3>
+    <p>
+      Every row shows the order number (a link that opens the customer's own order-status page in
+      a new tab &mdash; there's no separate staff order-detail page), the customer's name with a
+      <strong>WhatsApp</strong> link straight to them (when a mobile number is on file), the
+      collection day/slot, the status (plus the note text, if any), who it's assigned to, and a
+      row of action buttons:
+    </p>
+    <ul>
+      <li><strong>Assign to me / Unassign</strong> &mdash; every row has this. Click it to put your name against the order (useful for "I'm handling this one"); click again to take your name back off. This is just a label, not a status change &mdash; nothing else on the order changes.</li>
+      <li><strong>Accept / Reject</strong> &mdash; cash-request rows only. Accept moves the order to <code>cash_due</code> (it then appears on the Kitchen desk); Reject cancels it and frees up its slot.</li>
+      <li><strong>Reinstate</strong> &mdash; recently-expired rows only. Asks for a reason (a text box appears), then puts the order back into "Awaiting EFT" with a brand new payment hold, so the customer can pay again. This only works if the day/slot/dishes still have room &mdash; if capacity has since filled up, it will fail with a capacity error rather than push the order back in.</li>
+      <li><strong>Move to&hellip; / Move</strong> &mdash; a dropdown of that day's other open slots plus a <strong>Move</strong> button, shown wherever the order still has other slots to move to. Changes the order's collection slot without changing anything else about it.</li>
+    </ul>
+    <p>
+      If any button fails (the order changed status in the meantime, for example &mdash; someone
+      else already actioned it), the row shows "Action failed &mdash; reload the page to check
+      this order's current status." rather than silently doing nothing.
+    </p>
+  </section>
+
+  <section class="hp-section" id="calendar">
+    <h2 id="calendar">Screen 2 &mdash; Calendar (<code>/manage/calendar/</code>)</h2>
+    <p>
+      An 8-day grid (today plus the next 7 days) showing how full each day is at a glance. Each
+      day is a clickable card that takes you straight to that day's <strong>Daily controls</strong>
+      screen to make changes.
+    </p>
+    <p>Each card shows:</p>
+    <ul>
+      <li>The date, and an <strong>Open</strong> / <strong>Closed</strong> badge for whether the day is taking orders at all.</li>
+      <li><strong>Orders: X / Y</strong> &mdash; how many orders are booked against that day's order cap.</li>
+      <li><strong>Cash: X / Y</strong> &mdash; how many of those are cash orders, against the cash cap for the day.</li>
+      <li>A row of small coloured bars, one per collection slot, showing how full each slot is &mdash; hover over a bar to see the exact time and occupancy. Colours: grey = empty, light green = under 50% full, yellow = 50&ndash;89% full, orange = 90%+ full.</li>
+      <li>A <strong>&#9888; warning line</strong> for any dish that's at 80% or more of its daily unit cap for that day (e.g. "&#9888; Chicken Masala Roti Roll: 16/20 &mdash; cap or mark unavailable") &mdash; a heads-up that you may want to close it out via Daily controls before it oversells.</li>
+    </ul>
+    <p>
+      Use this screen to spot a day that's filling up, or a dish that's about to run out, before it
+      becomes a problem &mdash; then click through to Daily controls to actually act on it.
+    </p>
+  </section>
+
+  <section class="hp-section" id="kitchen-desk">
+    <h2 id="kitchen-desk">Screen 3 &mdash; Kitchen desk (<code>/manage/kitchen/</code>)</h2>
+    <p>
+      Shows today's board by default; use the <strong>&larr; Prev day / Next day &rarr;</strong>
+      links at the top to look at another day, or <strong>Print</strong> to print the current view
+      (the page hides buttons/nav when printing so you get a clean prep sheet).
+    </p>
+    <p>
+      Orders land on this board the moment they're confirmed &mdash; either an EFT payment gets
+      verified, or a cash order gets accepted &mdash; and leave it once marked ready (to the
+      Collection board).
+    </p>
+    <h3>What you see</h3>
+    <ul>
+      <li><strong>Two meters</strong> at the top: orders secured today (against the day's order cap) and cash orders today (against the cash cap).</li>
+      <li><strong>Summary</strong> &mdash; every dish/option combination across all orders on the board today, with the total quantity needed and which order numbers contribute to it (e.g. "Chicken Masala Roti Roll &mdash; Medium &times;8"). This is your cook list.</li>
+      <li><strong>Lock prep list</strong> button, next to the Summary heading &mdash; stamps the current time as the kitchen's "prep locked" time. This cannot be undone once clicked (there's no unlock). After locking, anything confirmed later shows up separately in the <strong>Added after lock</strong> section below, so the kitchen knows what wasn't in the original count.</li>
+      <li><strong>Exceptions</strong> &mdash; any order carrying a customer note, a kitchen note on one of its dishes, or an allergen flag, listed with the actual note/allergen text so you don't have to open each order.</li>
+      <li><strong>Added after lock</strong> &mdash; only appears once you've locked the prep list; lists orders confirmed after that point.</li>
+      <li><strong>Today's run</strong> &mdash; one row per order: slot time, order number, customer, item summary, EFT/CASH tag, status, and an action button.</li>
+    </ul>
+    <h3>Actions</h3>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Button</th><th>Appears when</th><th>What it does</th><th>Order moves to</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Start kitchen</strong></td><td>Status is Confirmed (prep) or Cash due</td><td>Marks cooking as started</td><td><code>In kitchen</code> &mdash; customer sees "Cooking"</td></tr>
+          <tr><td><strong>Mark ready</strong></td><td>Status is In kitchen</td><td>Food is packaged and ready</td><td><code>Ready</code> &mdash; customer sees "Ready to collect", order appears on the Collection board</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      There are also two bulk buttons above the run list &mdash; <strong>Start kitchen (all
+      confirmed)</strong> and <strong>Mark ready (all in kitchen)</strong> &mdash; each with a
+      confirmation pop-up before it fires, for when a whole batch is going into or coming out of
+      the kitchen together.
+    </p>
+    <p>
+      This page doesn't auto-refresh &mdash; if another staff member has actioned an order, reload
+      the page to see the current state. If your click fails (the order already changed), the row
+      shows a "reload the page" error rather than silently failing.
+    </p>
+  </section>
+
+  <section class="hp-section" id="collection">
+    <h2 id="collection">Screen 4 &mdash; Collection board (<code>/manage/collection/</code>)</h2>
+    <p>
+      Shows all orders that are ready (or about to be), grouped by collection time slot in time
+      order; the slot matching the current time is highlighted with a <strong>Now</strong> tag and
+      shown in the accent colour. Use <strong>&larr; Prev day / Next day &rarr;</strong> to look at
+      other days.
+    </p>
+    <h3>Ticket appearance</h3>
+    <p>
+      Each order is a card showing the order number, customer name, item count, and a tag:
+      <strong>CASH R##.##</strong> for cash orders (so you know the amount to collect) or
+      <strong>PAID</strong> for EFT orders (already settled &mdash; nothing to collect). A card for
+      an order still <code>In kitchen</code> (not ready yet) is shown faded/greyed with a "Not
+      ready" tag, so you can see what's coming without confusing it for a ready order.
+    </p>
+    <h3>Actions per ticket</h3>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Button</th><th>Appears when</th><th>What it does</th><th>Order moves to</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Mark ready</strong></td><td>Status is In kitchen</td><td>Lets you fast-track a card straight from here if it wasn't already marked ready on the Kitchen desk</td><td><code>Ready</code></td></tr>
+          <tr><td><strong>Collected</strong></td><td>Status is Ready</td><td>Customer has arrived and picked up their food</td><td><code>Collected</code> (done)</td></tr>
+          <tr><td><strong>Uncollect</strong></td><td>Status is Collected</td><td>Undo an accidental "Collected" tap &mdash; asks for a reason first</td><td>Back to <code>Ready</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <strong>Uncollect only works within 10 minutes of the original "Collected" click.</strong>
+      After that the button won't work &mdash; if a genuine mistake needs correcting after 10
+      minutes, tell the developer/owner rather than trying to force it.
+    </p>
+    <h3>Uncollected bucket</h3>
+    <p>
+      Once the collection window plus a grace period (15 minutes by default) has passed, any order
+      still <code>Ready</code> moves out of its slot group into a separate <strong>Uncollected</strong>
+      section at the bottom, each with a <strong>No-show</strong> button (with a confirmation
+      pop-up &mdash; "This cannot be undone"). No-show cancels the order for that reason; the
+      food/units stay counted as used.
+    </p>
+    <h3>Close out day</h3>
+    <p>
+      Once the same deadline has passed, a <strong>Close out day</strong> box appears below
+      everything else. It tells you how many remaining ready orders will be marked as no-shows if
+      you proceed, and its button asks you to confirm the exact count before doing it. This is the
+      same action a nightly automatic job runs at 23:30 SAST anyway (as a safety net) &mdash; using
+      the button here just does it early and on demand. It cannot be undone.
+    </p>
+  </section>
+
+  <section class="hp-section" id="payments">
+    <h2 id="payments">Screen 5 &mdash; Payments &mdash; EFT queue (<code>/manage/payments/</code>)</h2>
+    <p>
+      Shows every order waiting on an EFT (bank transfer) payment, oldest-lapsing-hold first, then
+      by slot time. Cash orders never appear here &mdash; those are on the Cash screen.
+    </p>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Status shown</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Awaiting EFT</strong></td><td>Order placed, payment hold timer running, customer hasn't uploaded proof yet</td></tr>
+          <tr><td><strong>Payment review</strong></td><td>Customer has uploaded proof of payment &mdash; needs a staff member to check it</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Each row also shows the amount, the collection slot, a live-updating hold countdown (or
+      <strong>"Lapsed &mdash; hold expired"</strong> in red once it runs out), and whether proof
+      has been uploaded (<strong>Uploaded</strong> or <strong>&mdash;</strong>).
+    </p>
+    <h3>Actions per order</h3>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Button</th><th>Shown when</th><th>What it does</th><th>Order moves to</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Verify</strong></td><td>Status is Payment review</td><td>Proof looks correct &mdash; accept the payment</td><td><code>Confirmed (prep)</code> &rarr; appears on Kitchen desk</td></tr>
+          <tr><td><strong>Verify (seen in bank app)</strong></td><td>Status is Awaiting EFT</td><td>You can see the payment landed in the bank account even though the customer hasn't uploaded a screenshot yet &mdash; asks for a reason first</td><td><code>Confirmed (prep)</code></td></tr>
+          <tr><td><strong>Reject</strong></td><td>Status is Payment review</td><td>Proof is wrong/invalid &mdash; asks for a reason first</td><td>Back to <code>Awaiting EFT</code> (the hold isn't extended automatically &mdash; use Extend hold too if the customer needs more time to try again)</td></tr>
+          <tr><td><strong>Expire now</strong></td><td>Status is Awaiting EFT</td><td>Manually close the hold early (e.g. customer says they're not paying)</td><td><code>Payment expired</code> (a dead end &mdash; the order can be reinstated from the Inbox's "Recently expired" section within 48 hours)</td></tr>
+          <tr><td><strong>Extend hold</strong></td><td>Always</td><td>Gives the customer more time &mdash; adds the current EFT hold window (whatever's set in Settings, 15 minutes by default) to the deadline</td><td>Stays in Awaiting EFT, deadline pushed out</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Note:</strong> clicking Verify updates the customer's own tracker on their phone from "Payment" straight to "Confirmed" immediately.</p>
+    <p>
+      <strong>Hold extensions are limited.</strong> By default an order's hold can only be extended
+      once &mdash; clicking Extend hold again past that limit fails with a message saying the
+      maximum extensions have been used.
+    </p>
+    <p>This page doesn't auto-refresh either &mdash; reload to see other staff members' changes.</p>
+  </section>
+
+  <section class="hp-section" id="cash">
+    <h2 id="cash">Screen 6 &mdash; Cash (requests) (<code>/manage/cash/</code>)</h2>
+    <p>
+      Every order where the customer chose to pay cash on collection, oldest first &mdash; this is
+      a same-day queue, so there's no date picker, just today's outstanding requests. This is the
+      exact same list as the Inbox's "Cash requests" section, just without everything else around
+      it.
+    </p>
+    <h3>Actions</h3>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Button</th><th>What it does</th><th>Order moves to</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Accept</strong></td><td>Confirms the order &mdash; moves it to the kitchen board as cash-due, ready to prep</td><td><code>Cash due</code> &rarr; appears on Kitchen desk (still needs cash collected on pickup)</td></tr>
+          <tr><td><strong>Reject</strong></td><td>Declines the request &mdash; cancels the order and frees its slot capacity. Confirmation pop-up first: "Reject this cash order? It will be cancelled and the slot freed."</td><td><code>Cancelled</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="hp-section" id="daily-controls">
+    <h2 id="daily-controls">Screen 7 &mdash; Daily controls (<code>/manage/days/</code>, or a specific day at <code>/manage/days/&lt;date&gt;/</code>)</h2>
+    <p>
+      Visiting <code>/manage/days/</code> with no date takes you straight to today's page. This
+      screen is your day-by-day override layer &mdash; it lets you sell out one dish, close one
+      slot, or close the whole day, without touching the monthly menu (that's the Menu editor).
+    </p>
+    <h3>What you can change</h3>
+    <p><strong>Day section:</strong></p>
+    <ul>
+      <li><strong>Open</strong> checkbox &mdash; whether the day is taking orders at all.</li>
+      <li><strong>Daily order cap</strong> &mdash; override just for this day.</li>
+      <li><strong>Same-day cut-off</strong> &mdash; the time same-day ordering closes.</li>
+      <li><strong>Window start / Window end</strong> &mdash; the collection window for the day.</li>
+      <li><strong>Internal notes</strong> &mdash; a free-text field, staff-only, not shown to customers.</li>
+    </ul>
+    <p><strong>Slots table</strong> &mdash; one row per collection slot with its time window, a capacity number you can edit (it can never be set below the slot's current occupancy &mdash; you'll get a validation error listing the minimum), a <strong>Closed</strong> checkbox, and a read-only "Occupying" count.</p>
+    <p><strong>Dishes today table</strong> &mdash; one row per active dish, with an <strong>Available</strong> checkbox for that specific day and a <strong>Max units</strong> number (leave blank for uncapped), plus a read-only "Used today" count.</p>
+    <h3>Saving</h3>
+    <p>
+      Click <strong>Save daily controls</strong> at the bottom. If any of your changes would affect
+      orders that already exist &mdash; closing a slot or the whole day while it still has active
+      (occupying) orders on it &mdash; the page won't save immediately. Instead you'll see a
+      warning box listing every affected order by number, customer and status, and:
+    </p>
+    <ul>
+      <li>For each slot you're closing that has orders on it, a <strong>Move all to&hellip;</strong> dropdown plus a <strong>Move all</strong> button to shift every one of that slot's orders to a different open slot in one click.</li>
+      <li>A checkbox: <em>"I understand this affects the orders listed above and want to save anyway."</em> &mdash; tick this (after moving orders, or deliberately leaving them where they are) and click Save again to go through.</li>
+    </ul>
+    <p>
+      Existing orders on a slot or day you close <strong>keep their booking</strong> &mdash;
+      closing only stops <em>new</em> orders being placed against it.
+    </p>
+  </section>
+
+  <section class="hp-section" id="menu-editor">
+    <h2 id="menu-editor">Screen 8 &mdash; Menu editor (<code>/manage/menu/</code>)</h2>
+    <p>
+      Lists every dish, including archived ones, in the same order they appear on the public menu
+      (category, then sort order, then name) &mdash; archived dishes are shown dimmed at the end
+      of their category. Each row shows category, sort order, name (a link to edit it), price,
+      whether it's active on the public menu, a <strong>Live</strong>/<strong>Archived</strong>
+      badge, and how many currently-active orders reference that dish.
+    </p>
+    <ul>
+      <li><strong>+ New dish</strong> (top right) opens a blank dish form.</li>
+      <li>Click a dish's name, or <strong>Edit</strong>, to open its edit form (<code>/manage/menu/&lt;id&gt;/</code>).</li>
+    </ul>
+    <h3>The dish form</h3>
+    <p>
+      Fields: Slug (create only &mdash; permanent once set, cannot be changed afterwards), Name,
+      Price (cents), Portion label, Short description, Long description, Spice default, Allergen
+      text, Dietary tags, Category, Sort order, "Is active on menu" checkbox, "Allow notes"
+      checkbox. Click <strong>Create dish</strong> or <strong>Save dish</strong>.
+    </p>
+    <p><strong>Image upload</strong> (edit screen only) &mdash; a separate small form below the main one: choose a JPEG/PNG/WebP file and click <strong>Upload image</strong>.</p>
+    <p><strong>Options &amp; values</strong> (edit screen only) &mdash; for things like spice level, size, or extras:</p>
+    <ul>
+      <li>Add an option with a name, a <strong>Required</strong> checkbox, and a sort number, via the <strong>Add option</strong> form at the bottom.</li>
+      <li>Under each option, add values (name, price delta in cents, sort order) via its own <strong>Add value</strong> form; each value has a <strong>Yes/No &mdash; mark (un)available</strong> toggle and a <strong>Delete</strong> button (with a confirmation pop-up &mdash; deleting is permanent).</li>
+      <li><strong>Delete option</strong> removes the option and all its values &mdash; also asks for confirmation first.</li>
+    </ul>
+    <p>
+      <strong>Archiving a dish</strong> &mdash; a boxed section at the bottom, <strong>Archive
+      dish</strong>. If the dish has no orders currently using it, one click archives it (also
+      confirmed via a pop-up) and it disappears from the public menu immediately. If it does have
+      active orders referencing it, you'll see the exact count and must tick a confirmation
+      checkbox before the <strong>Archive dish</strong> button will go through &mdash; this is safe
+      to do even then, because every existing order line keeps its own frozen copy of the dish's
+      name and price regardless of what happens to the Dish record afterwards. Archiving is a soft
+      delete: an <strong>Unarchive</strong> button on the dish's edit page brings it back.
+    </p>
+  </section>
+
+  <section class="hp-section" id="new-assisted-order">
+    <h2 id="new-assisted-order">Screen 9 &mdash; New assisted order (<code>/manage/orders/new/</code>)</h2>
+    <p>
+      <strong>This is for staff placing an order on the customer's behalf</strong> &mdash; a
+      phone-in order, a walk-in customer who wants a human to take their order, or someone ordering
+      via a WhatsApp conversation with you rather than the website. It is never used for the
+      customer's own self-service web checkout (those always come through as "Website" orders
+      automatically).
+    </p>
+    <p>
+      It uses exactly the same underlying reservation logic as the customer's own online checkout
+      &mdash; same capacity checks, same dish-availability rules, same order numbering &mdash; so
+      anything you place here counts against the day/slot/cash/dish caps exactly like a normal web
+      order would.
+    </p>
+    <h3>Before you start, get from the customer:</h3>
+    <ul>
+      <li>Their full name.</li>
+      <li>Their mobile number (must be a valid South African mobile number &mdash; the system will reject anything else).</li>
+      <li>What they want to order (dish, quantity, and any required options like spice level or size).</li>
+      <li>Which collection slot they want.</li>
+      <li>How they're paying &mdash; EFT or cash (cash only shows as an option if it's currently enabled in Settings).</li>
+      <li>If it's a same-day order placed after the normal online cut-off time, you'll also need a short reason to enter (see "After-cut-off reason" below) &mdash; and this only works at all if the owner has turned that feature on.</li>
+    </ul>
+    <h3>Walking through the form, field by field</h3>
+    <p><strong>Date bar at top</strong> &mdash; shows the collection date you're placing this order for, with <strong>&larr; Prev day / Next day &rarr;</strong> links to change it (limited to today through the pre-order horizon, typically the next 7 days).</p>
+    <p><strong>Customer section:</strong></p>
+    <ul>
+      <li><strong>Full name</strong> &mdash; free text, 2&ndash;80 characters.</li>
+      <li><strong>Mobile number</strong> &mdash; must resolve to a valid SA mobile number.</li>
+      <li><strong>Order source</strong> &mdash; radio buttons: Phone, In person, or WhatsApp (assisted). Pick whichever matches how the customer actually reached you.</li>
+      <li><strong>Order note</strong> (optional) &mdash; up to 200 characters, visible to the kitchen.</li>
+    </ul>
+    <p><strong>Collection section:</strong></p>
+    <ul>
+      <li><strong>Slot</strong> &mdash; a dropdown of the day's collection slots, each showing its current occupancy (e.g. "12:00&ndash;12:30 (4/10)"); any slot that's full or closed is shown disabled and can't be selected.</li>
+      <li><strong>After-cut-off reason</strong> &mdash; only shown when you're placing an order for <em>today</em>. If the owner has enabled after-cut-off assisted orders in Settings, this becomes a required text field for a same-day order placed after the normal cut-off time. If that setting is off, the field is shown but disabled, with a note explaining that a same-day order will be refused until an admin turns it on.</li>
+    </ul>
+    <p><strong>Payment section:</strong></p>
+    <ul>
+      <li><strong>Method</strong> &mdash; EFT, or Cash if cash is currently enabled.</li>
+      <li>
+        <strong>EFT status</strong> (only relevant if Method is EFT) &mdash; three options:
+        <ul>
+          <li><strong>Awaiting EFT (default)</strong> &mdash; the normal case: the order is created exactly like a web order, with a payment hold running, and will show up on the Payments queue for someone to verify once the customer pays.</li>
+          <li><strong>Customer says paid</strong> &mdash; use this if the customer tells you (e.g. over the phone) that they've already paid but you don't have proof yet. This moves the order straight into "Payment review" so it's in the same review queue a real proof upload would land it in.</li>
+          <li><strong>Staff saw the funds</strong> &mdash; use this only if you have personally already seen the money land in the bank account. This confirms the payment immediately (no waiting) and sends the order straight to the kitchen board. <strong>A reason is mandatory for this option</strong> &mdash; a text box appears; you must fill it in or the order can't be escalated this way (it can still be created as a plain hold instead).</li>
+        </ul>
+      </li>
+      <li><strong>Reason</strong> &mdash; the text box backing "Staff saw the funds" above.</li>
+    </ul>
+    <p>
+      <strong>Dishes section:</strong> every active dish for the selected day, each with a quantity
+      box (0&ndash;20) and, where the dish has options (like spice level or extras), the option
+      choices inline underneath the dish name &mdash; required options are radio buttons (pick
+      one), optional ones are checkboxes (pick any). A dish that's sold out for the day is shown
+      greyed out with "&mdash; sold out today" and its quantity box disabled.
+    </p>
+    <p>
+      Click <strong>Create order</strong> at the bottom. On success you're taken back to the Inbox
+      with a confirmation message naming the new order number. If the escalation to "Payment
+      review" or "Staff saw the funds" fails for some reason (e.g. the reason was somehow missing),
+      the order is still created as a plain hold &mdash; you'll get a warning message rather than
+      losing the order entirely.
+    </p>
+    <p>
+      <strong>If something's wrong with the form</strong> &mdash; a missing name, an invalid mobile
+      number, no dishes selected, no slot chosen, capacity has run out since you loaded the page
+      &mdash; you'll see a list of specific error messages at the top and nothing is created; fix
+      the fields called out and click Create order again.
+    </p>
+  </section>
+
+  <section class="hp-section" id="other-screens">
+    <h2 id="other-screens">Other screens you may come across</h2>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Screen</th><th>URL</th><th>Who can use it</th><th>What it's for</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Settings</strong></td>
+            <td><code>/manage/settings/</code></td>
+            <td>Owner and Admin only</td>
+            <td>Order/cash caps, EFT hold duration, extension limits, collection grace period, bank details, and around 40 other site-wide settings &mdash; every field on this form directly maps to a setting. Every save is written to a settings audit log automatically. The Staff dropdown shows a link to it for both Owner and Admin.</td>
+          </tr>
+          <tr>
+            <td><strong>Team</strong></td>
+            <td><code>/manage/team/</code></td>
+            <td>Admin only (not Owner)</td>
+            <td>Invite staff by email (choose their role: admin/owner/manager), remove someone from the allow-list, or change someone's role. The Staff dropdown shows a link to it for Admins. If you're an Owner and need to manage the team, ask an Admin &mdash; Owner itself can't open this page and will be redirected away with "Team management requires admin access."</td>
+          </tr>
+          <tr>
+            <td><strong>Change password</strong></td>
+            <td><code>/manage/change-password/</code></td>
+            <td>Any logged-in staff</td>
+            <td>Voluntary password change, or the forced screen you land on with a temporary password.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="hp-section" id="roles">
+    <h2 id="roles">Roles &mdash; who can do what</h2>
+    <p>There are three staff roles (<code>UserRole</code> in the system): <strong>Admin</strong>, <strong>Owner</strong>, and <strong>Manager</strong>. In practice:</p>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Role</th><th>Can do</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Manager</strong></td><td>Everyday access to every board: Inbox, Calendar, Kitchen desk, Collection, Payments, Cash, Daily controls, Menu editor, New assisted order.</td></tr>
+          <tr><td><strong>Owner</strong></td><td>Everything a Manager can do, <strong>plus</strong> Settings, plus one extra permission most managers won't hit: <strong>only an Owner or Admin can cancel an order once it's already <code>In kitchen</code> or <code>Ready</code>.</strong> A Manager trying this gets an "Only the owner can cancel from this stage" error.</td></tr>
+          <tr><td><strong>Admin</strong></td><td>Everything an Owner can do, plus Team management (<code>/manage/team/</code>) to invite/remove staff and change roles.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      If you try an action your role doesn't allow, you won't be shown a broken page &mdash; the
+      system either hides the button/link entirely, or (for Settings/Team specifically) shows a
+      plain "access only"/"requires admin access" message and sends you back to the Inbox.
+    </p>
+  </section>
+
+  <section class="hp-section" id="order-flow-eft">
+    <h2 id="order-flow-eft">Complete order flow (EFT)</h2>
+    <ol class="hp-flow">
+      <li>Customer places order (or staff places an assisted order)</li>
+      <li><strong>Awaiting EFT</strong><span class="hp-flow-note">Payments screen &mdash; hold timer running</span></li>
+      <li>Customer uploads proof, or staff marks "Customer says paid"</li>
+      <li><strong>Payment review</strong><span class="hp-flow-note">Payments screen &mdash; staff clicks VERIFY</span></li>
+      <li><strong>Confirmed (prep)</strong><span class="hp-flow-note">Kitchen desk &mdash; staff clicks START KITCHEN</span></li>
+      <li><strong>In kitchen</strong><span class="hp-flow-note">Kitchen desk / Collection board &mdash; staff clicks MARK READY</span></li>
+      <li><strong>Ready</strong><span class="hp-flow-note">Collection board &mdash; customer arrives, staff clicks COLLECTED</span></li>
+      <li><strong>Collected</strong> &#10003;</li>
+    </ol>
+    <p class="hp-flow-end">
+      A hold that runs out with no action becomes <strong>Payment expired</strong> &mdash; a dead
+      end unless reinstated from the Inbox within 48 hours (a fresh hold is created).
+    </p>
+  </section>
+
+  <section class="hp-section" id="order-flow-cash">
+    <h2 id="order-flow-cash">Complete order flow (cash)</h2>
+    <ol class="hp-flow">
+      <li>Customer places a cash order (or staff places an assisted cash order)</li>
+      <li><strong>Cash request</strong><span class="hp-flow-note">Cash screen &mdash; staff clicks ACCEPT</span></li>
+      <li><strong>Cash due</strong><span class="hp-flow-note">Kitchen desk &mdash; staff clicks START KITCHEN</span></li>
+      <li><strong>In kitchen</strong><span class="hp-flow-note">Kitchen desk / Collection board &mdash; staff clicks MARK READY</span></li>
+      <li><strong>Ready</strong><span class="hp-flow-note">Collection board &mdash; customer pays cash + staff clicks COLLECTED</span></li>
+      <li><strong>Collected</strong> &#10003;</li>
+    </ol>
+    <p class="hp-flow-end">
+      Rejecting a cash request, or an order left <strong>Ready</strong> past the collection
+      deadline with no-show/close-out applied, both end in <strong>Cancelled</strong>.
+    </p>
+  </section>
+
+  <section class="hp-section" id="quick-reference">
+    <h2 id="quick-reference">Quick reference &mdash; what the customer sees at each step</h2>
+    <div class="hp-table-wrap">
+      <table class="table">
+        <thead><tr><th>Order status (internal)</th><th>Customer tracker shows</th></tr></thead>
+        <tbody>
+          <tr><td>Awaiting EFT</td><td>"Payment" step &mdash; upload your proof of payment</td></tr>
+          <tr><td>Payment review</td><td>"Payment" step &mdash; proof is with us, confirming shortly</td></tr>
+          <tr><td>Cash request</td><td>Waiting for staff to accept the cash order</td></tr>
+          <tr><td>Confirmed (prep) / Cash due</td><td>"Confirmed" step</td></tr>
+          <tr><td>In kitchen</td><td>"Cooking" step</td></tr>
+          <tr><td>Ready</td><td>"Ready to collect" step</td></tr>
+          <tr><td>Collected</td><td>Terminal &mdash; order complete</td></tr>
+          <tr><td>Payment expired / Cancelled</td><td>Terminal &mdash; order ended</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="hp-section" id="troubleshooting">
+    <h2 id="troubleshooting">Troubleshooting / FAQ</h2>
+
+    <h3>A button did nothing, or a row shows a red error saying to reload the page.</h3>
+    <p>Someone else (or a background job) already changed that order's status since your screen loaded &mdash; the system refuses to apply an action against a status it no longer matches, to stop two staff members' clicks from clashing. Reload the page and check the order's current status before trying again.</p>
+
+    <h3>I tried to cancel an order that's already In kitchen or Ready and got an error.</h3>
+    <p>That's expected if you're a Manager &mdash; only an Owner or Admin can cancel an order at that late a stage. Ask an Owner/Admin to do it, or hold the order at that status and contact the customer directly.</p>
+
+    <h3>A "reason" box suddenly appeared and won't let me submit without text.</h3>
+    <p>A handful of actions are deliberately gated behind a mandatory reason, because they bypass a normal safety check: verifying EFT payment without proof ("seen in bank app"), rejecting a payment, reinstating an expired order, uncollecting an order, and confirming "Staff saw the funds" on an assisted order. Just type a short, honest reason (e.g. "Customer showed me the bank SMS") &mdash; it's recorded against the order for the audit trail, it isn't shown to the customer.</p>
+
+    <h3>I marked an order Collected by mistake.</h3>
+    <p>Use <strong>Uncollect</strong> on the Collection board &mdash; but only within <strong>10 minutes</strong> of the original click. After that the button stops working; ask the developer/owner if a correction is genuinely needed past that window.</p>
+
+    <h3>An EFT hold ran out before the customer paid.</h3>
+    <p>The order moves to <strong>Payment expired</strong> automatically and drops off the Payments queue. It still shows up in the Inbox's "Recently expired" section for 48 hours, where you can <strong>Reinstate</strong> it (with a reason) &mdash; that opens a brand-new hold, but only if the day/slot/dish still has room. After 48 hours it's easiest to just have the customer place a new order.</p>
+
+    <h3>I can't extend a hold any further.</h3>
+    <p>Holds can only be extended a limited number of times (one, by default) &mdash; Extend hold will refuse once that limit is hit. Use Verify (seen in bank app) if you can confirm the payment another way, or let it lapse and reinstate later if the customer still wants to order.</p>
+
+    <h3>A slot or dish won't let me set its capacity/limit below a certain number.</h3>
+    <p>Daily controls won't let a slot's capacity go below how many orders are already occupying it &mdash; you'll see the exact minimum in a validation message. Move some of those orders to another slot first (the "Move all to&hellip;" tool in the confirmation banner) if you need to shrink it further.</p>
+
+    <h3>I'm a Manager and can't see a Settings link.</h3>
+    <p>Correct &mdash; Settings is Owner/Admin only, and the link is hidden from Managers entirely (not just blocked). Owner and Admin both see it in the Staff dropdown.</p>
+
+    <h3>I need to add or remove a staff member, or change someone's role.</h3>
+    <p>That's the Team screen at <code>/manage/team/</code> &mdash; Admin role only (an Owner cannot do this, even though Owner outranks Manager everywhere else). Admins see a link to it in the Staff dropdown.</p>
+
+    <h3>A dish I need to sell out today isn't in Daily controls.</h3>
+    <p>Daily controls only lists dishes that are active on the public menu (<code>Is active on menu</code> checked in the Menu editor). Check the Menu editor first if a dish seems to be missing.</p>
+    <p class="hp-back-top"><a href="#getting-in">&uarr; Back to top</a></p>
+  </section>
+</div>
+{% endblock %}

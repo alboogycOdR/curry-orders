@@ -20,6 +20,7 @@ warnings at >=80% of max_units. Each card taps through to
     text-transform: uppercase; color: var(--color-neutral-700);
     border-bottom: 1px solid var(--color-text);
   }
+  .cal-dateline-row .push { margin-left: auto; }
   .cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin-top: 28px; }
   .cal-card { display: block; border: 1px solid var(--color-text); padding: 16px; text-decoration: none; color: var(--color-text); }
   .cal-card:hover { background: var(--color-neutral-100); }
@@ -43,7 +44,7 @@ warnings at >=80% of max_units. Each card taps through to
 {% block content %}
 <div class="cal-wrap">
   <div class="cal-dateline-thick"></div>
-  <div class="cal-dateline-row"><span>Preorder calendar</span></div>
+  <div class="cal-dateline-row"><span>Preorder calendar</span><span class="push"><a href="{% url 'manage:help' %}#calendar">Help</a></span></div>
 
   <div style="display:flex;gap:16px;align-items:center;margin-top:16px;font-size:12px;color:var(--color-neutral-700);">
     <span>Slot heat:</span>

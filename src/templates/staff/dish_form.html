@@ -49,7 +49,7 @@ occupying the dish, a typed/ticked confirmation once there is.
 
 {% block content %}
 <div class="df-wrap">
-  <p class="df-back"><a href="{% url 'manage:menu_list' %}">&larr; Back to menu editor</a></p>
+  <p class="df-back"><a href="{% url 'manage:menu_list' %}">&larr; Back to menu editor</a> &middot; <a href="{% url 'manage:help' %}#menu-editor">Help</a></p>
   <h1>{% if editing %}{{ dish.name }}{% else %}New dish{% endif %}</h1>
 
   {% if messages %}
