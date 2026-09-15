@@ -179,6 +179,12 @@ class User(models.Model):
     locked_until = models.DateTimeField(null=True, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Google's own avatar for this account (OIDC userinfo's "picture"
+    # claim) — set on every Google sign-in (staff.services.
+    # try_grant_staff_session), blank for staff who've only ever used
+    # password/magic-link login. A plain hotlinked URL to Google's CDN,
+    # not downloaded/stored locally.
+    google_avatar_url = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = "users"

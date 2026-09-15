@@ -950,6 +950,7 @@ def customer_google_callback(request: HttpRequest) -> HttpResponse:
     # False (the outcome for nearly every customer) when it isn't.
     staff_services.try_grant_staff_session(
         request, email=email, sub=uid, name=name, now=timezone.now(),
+        picture=info.get("picture", ""),
     )
 
     # Find existing social identity

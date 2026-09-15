@@ -211,6 +211,7 @@ def google_login_callback(request: HttpRequest) -> HttpResponse:
     now = timezone.now()
     granted = services.try_grant_staff_session(
         request, email=info["email"], sub=info["sub"], name=info.get("name", ""), now=now,
+        picture=info.get("picture", ""),
     )
     if not granted:
         messages.error(

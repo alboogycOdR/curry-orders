@@ -75,7 +75,8 @@ def exchange_code(code: str, redirect_uri: str) -> dict:
 
 
 def get_userinfo(access_token: str) -> dict:
-    """Fetch email, name, sub from Google. Returns dict with 'sub', 'email', 'name'."""
+    """Fetch identity claims from Google. Returns the raw OIDC userinfo dict
+    (at least 'sub', 'email', 'name'; 'picture' when the account has one)."""
     resp = httpx.get(
         GOOGLE_USERINFO_URL,
         headers={"Authorization": f"Bearer {access_token}"},
@@ -87,9 +88,10 @@ def get_userinfo(access_token: str) -> dict:
 
 def get_verified_google_user(request: HttpRequest, callback_path: str) -> dict | None:
     """
-    Complete the OAuth callback. Returns dict(sub, email, name) on success,
-    None if state mismatch. Raises httpx.HTTPError / ValueError on network/API errors.
-    Called from callback views with request.GET containing 'code' and 'state'.
+    Complete the OAuth callback. Returns dict(sub, email, name, picture) on
+    success, None if state mismatch. Raises httpx.HTTPError / ValueError on
+    network/API errors. Called from callback views with request.GET
+    containing 'code' and 'state'.
     """
     state = request.GET.get("state", "")
     code = request.GET.get("code", "")
@@ -105,4 +107,11 @@ def get_verified_google_user(request: HttpRequest, callback_path: str) -> dict |
         "sub": info["sub"],
         "email": info["email"],
         "name": info.get("name", ""),
+        # OIDC's own field (present on the endpoint this project uses —
+        # see this module's own GOOGLE_USERINFO_URL comment for why it's
+        # the OIDC endpoint and not the legacy oauth2/v2/userinfo one).
+        # A plain hotlinked URL to Google's own CDN, not downloaded/
+        # stored locally — good enough for a small staff-facing avatar,
+        # not guaranteed permanent if the account's photo changes.
+        "picture": info.get("picture", ""),
     }

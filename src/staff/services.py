@@ -36,15 +36,17 @@ from core.models import SocialIdentity, StaffAllowlist, User
 
 def try_grant_staff_session(
     request: HttpRequest, *, email: str, sub: str, name: str, now: dt.datetime,
+    picture: str = "",
 ) -> bool:
     """If `email` (already Google-verified by the caller) is on
     `StaffAllowlist`, get-or-create the matching `core.User`, keep its
-    role in sync with the allowlist, link/record the `SocialIdentity`,
-    and log them into a staff session — alongside whatever session
-    state already exists on this same request (e.g. a customer session
-    already established by the caller). Returns `True` if staff access
-    was granted, `False` if this email simply isn't staff — not an
-    error case; that's the outcome for nearly every customer sign-in.
+    role (and Google avatar, when `picture` is given) in sync, link/
+    record the `SocialIdentity`, and log them into a staff session —
+    alongside whatever session state already exists on this same
+    request (e.g. a customer session already established by the
+    caller). Returns `True` if staff access was granted, `False` if
+    this email simply isn't staff — not an error case; that's the
+    outcome for nearly every customer sign-in.
     """
     email = email.lower()
     try:
@@ -60,14 +62,21 @@ def try_grant_staff_session(
             "password_hash": "",
             "must_change_password": False,
             "active": True,
+            "google_avatar_url": picture,
         },
     )
     if not user.active:
         return False
 
+    update_fields = []
     if user.role != entry.role:
         user.role = entry.role
-        user.save(update_fields=["role"])
+        update_fields.append("role")
+    if picture and user.google_avatar_url != picture:
+        user.google_avatar_url = picture
+        update_fields.append("google_avatar_url")
+    if update_fields:
+        user.save(update_fields=update_fields)
 
     # Plain lookup first, kept outside the fenced-off bookkeeping block
     # below — everything that follows (the customer-session check) must

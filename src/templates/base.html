@@ -175,6 +175,31 @@
       border-top: 1px solid var(--color-divider);
       margin: 6px 0;
     }
+    .staff-identity-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px var(--space-4);
+      font-size: 12.5px;
+      color: var(--color-neutral-700);
+      border-bottom: 1px solid var(--color-divider);
+    }
+    .staff-identity-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      flex: none;
+      object-fit: cover;
+    }
+    .staff-identity-avatar-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-neutral-600);
+      color: var(--color-bg);
+      font-size: 11px;
+      font-weight: 700;
+    }
     .site-header .cart-summary {
       font-size: 13px;
       text-transform: uppercase;
@@ -502,6 +527,33 @@ screen readers.
   <span class="cart-summary" id="cart-summary" hidden></span>
   {% endif %}
 </header>
+
+{% comment %}
+Staff identity bar — shown above every staff page's own "thick line"
+(each page's own {{ 'X' }}-dateline-thick div, e.g. inbox.html's
+.ib-dateline-thick, lives inside {% templatetag openblock %} block
+content {% templatetag closeblock %}, so this renders first regardless
+of which page it is). Requested directly by the user: name + role
+always visible, not just inside the Staff dropdown (which already
+shows the same name/role in .staff-menu-account, but only once opened)
+— plus the Google avatar when the account has signed in with Google at
+least once (User.google_avatar_url, set by
+staff.services.try_grant_staff_session). Same 12.5px size as the
+dateline-row convention every staff page already uses, per the request
+("same font size"). Password/magic-link-only staff (no
+google_avatar_url yet) get a plain initial-letter circle instead of a
+broken image.
+{% endcomment %}
+{% if request.staff_user %}
+<div class="staff-identity-bar">
+  {% if request.staff_user.google_avatar_url %}
+  <img src="{{ request.staff_user.google_avatar_url }}" alt="" class="staff-identity-avatar">
+  {% else %}
+  <span class="staff-identity-avatar staff-identity-avatar-fallback" aria-hidden="true">{{ request.staff_user.name|first|upper }}</span>
+  {% endif %}
+  <span>{{ request.staff_user.name }} &middot; {{ request.staff_user.get_role_display }}</span>
+</div>
+{% endif %}
 
 {% block content %}{% endblock %}
 
