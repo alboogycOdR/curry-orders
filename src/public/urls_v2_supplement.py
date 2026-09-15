@@ -27,22 +27,33 @@ existed under the "public" namespace at all (the docstring above only
 ever scoped this file to JSON/media endpoints), so every staff page —
 not just login, any page reachable after signing in too — 500'd with
 `NoReverseMatch` the moment anyone tried to load it on this deploy.
-Confirmed exhaustive by grepping every `{% url 'public:...' %}` (and
-double-quoted/`reverse()` variants) across `src/templates/staff/` and
-`base.html` — these eight names are the complete set. Staff `/manage/`
-logic itself is untouched (root CLAUDE.md: "do not rewrite... staff
-/manage/") — this only adds the missing *name* resolution
-`{% url 'public:...' %}` needs, aliased to the equivalent `views_v2`
-screen, exactly the aliasing technique `urls_v2.py`'s own docstring
-already describes for `customer_logout`/OAuth. Real GET traffic to
-these paths is still served entirely by `urls_v2`'s own patterns
-(listed first) — these entries exist for `{% url %}` reversal only.
-`order` has no direct v2 equivalent (the poster variant merged
-Broadsheet's separate Order/Menu split into one Menu screen) — aliased
-to `views_v2.menu`, the closest actual destination. `order_status`
-reuses `views_v2.order_status` (the poster-styled tracker page,
-`public_token` kwarg) rather than the Broadsheet one, matching every
-other page on this deploy.
+Staff `/manage/` logic itself is untouched (root CLAUDE.md: "do not
+rewrite... staff /manage/") — this only adds the missing *name*
+resolution `{% url 'public:...' %}` needs, aliased to the equivalent
+`views_v2` screen, exactly the aliasing technique `urls_v2.py`'s own
+docstring already describes for `customer_logout`/OAuth. Real GET
+traffic to these paths is still served entirely by `urls_v2`'s own
+patterns (listed first) — these entries exist for `{% url %}`/
+`reverse()` resolution only. `order` has no direct v2 equivalent (the
+poster variant merged Broadsheet's separate Order/Menu split into one
+Menu screen) — aliased to `views_v2.menu`, the closest actual
+destination. `order_status` reuses `views_v2.order_status` (the
+poster-styled tracker page, `public_token` kwarg) rather than the
+Broadsheet one, matching every other page on this deploy.
+
+Second bug found 2026-09-15, same root cause: this wasn't actually
+exhaustive — the first pass only grepped `{% url 'public:...' %}` in
+*templates*. `public.views.customer_google_callback` (Python code, hit
+whenever anyone completes Google sign-in from the Account tab) calls
+`redirect("public:customer_login")` and `redirect("public:account_setup")`
+directly, neither of which were aliased, so that flow 500'd on this
+deploy too. Re-audited with `grep '"public:' src/public/views.py
+src/staff/*.py` (both `redirect("public:...")` calls *and* template
+tags now covered) — `customer_login` and `account_setup` were the only
+two still missing; added below. If a name is ever added to a
+`redirect("public:...")` call or a `{% url 'public:...' %}` tag
+anywhere in the future, re-run both greps against this file's alias
+list before assuming it'll work on this deploy.
 """
 from django.urls import path
 
@@ -58,13 +69,16 @@ urlpatterns = [
     path("robots.txt", views.robots_txt, name="robots_txt"),
     path("media/<path:key>", views.public_media, name="public_media"),
     # Name-only aliases so base.html's shared nav (staff pages included)
-    # resolves `{% url 'public:...' %}` on this deploy — see this
-    # module's own docstring above. Real requests to these paths never
-    # reach these entries; urls_v2's own patterns are registered first.
+    # and any Python-level redirect("public:...") resolve on this
+    # deploy — see this module's own docstring above. Real requests to
+    # these paths never reach these entries; urls_v2's own patterns are
+    # registered first.
     path("", views_v2.home, name="home"),
     path("menu/", views_v2.menu, name="order"),
     path("basket/", views_v2.basket, name="basket"),
     path("account/", views_v2.account, name="account"),
+    path("account/login/", views_v2.customer_login, name="customer_login"),
+    path("account/setup/", views_v2.account_setup, name="account_setup"),
     path("help/", views_v2.help_page, name="help"),
     path("policies/", views_v2.policies_page, name="policies"),
     path("lookup/", views_v2.lookup, name="lookup"),
