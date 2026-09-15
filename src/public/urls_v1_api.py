@@ -21,6 +21,7 @@ app_name = "api_v1"
 urlpatterns = [
     path("csrf/", api.csrf_cookie, name="csrf"),
     path("days/", api.orderable_days_json, name="days"),
+    path("featured/", api.featured, name="featured"),
     path("availability/", api.availability, name="availability"),
     path("checkout/", api.checkout, name="checkout"),
     path("orders/<str:public_token>/", api.order_status_json, name="order_status"),

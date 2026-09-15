@@ -47,6 +47,17 @@ class RotiConnectApi {
     );
   }
 
+  /// `null` when no dish is currently featured (an install/dataset with
+  /// zero active dishes — see `public.views._featured_dish`'s own
+  /// fallback chain for why this is rare in practice).
+  Future<FeaturedDish?> featuredDish() async {
+    final resp = await _client.dio.get<dynamic>('featured/');
+    return _parse(resp, (d) {
+      final dish = (d as Map<String, dynamic>)['dish'];
+      return dish == null ? null : FeaturedDish.fromJson(dish as Map<String, dynamic>);
+    });
+  }
+
   Future<DayAvailability> availability(String isoDate) async {
     final resp = await _client.dio.get<dynamic>('availability/', queryParameters: {'date': isoDate});
     return _parse(resp, (d) => DayAvailability.fromJson(d as Map<String, dynamic>));

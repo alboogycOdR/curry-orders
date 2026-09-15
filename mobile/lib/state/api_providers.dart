@@ -15,6 +15,11 @@ final orderableDaysProvider = FutureProvider<List<OrderableDay>>((ref) {
   return ref.watch(apiProvider).orderableDays();
 });
 
+/// `GET /api/v1/featured/` — Home's hero card (added 2026-09-15).
+final featuredDishProvider = FutureProvider<FeaturedDish?>((ref) {
+  return ref.watch(apiProvider).featuredDish();
+});
+
 /// `GET /api/v1/availability/?date=` for one day — Menu/Home read
 /// dishes+slots through this rather than calling the repository
 /// directly, so every screen sharing a date shares the one in-flight

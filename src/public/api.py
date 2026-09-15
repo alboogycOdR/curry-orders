@@ -71,6 +71,7 @@ from core.tz import now_sast
 from public import customer_sessions
 from public.views import (
     _LOOKUP_GENERIC_ERROR,
+    _featured_dish,
     _order_status_context,
     _order_status_lookup,
     _orderable_day_list,
@@ -481,6 +482,38 @@ def availability(request: HttpRequest) -> JsonResponse:
             for category_name, category_dishes in categories
         ],
         "slots": slots,
+    })
+
+
+@require_GET
+def featured(request: HttpRequest) -> JsonResponse:
+    """`GET /api/v1/featured/` — the "this week's special" hero dish
+    (poster web home page's own hero card, `public.views.home`'s
+    `featured`/`featured_photo_url` context). Added 2026-09-15: the app
+    had no way to show this at all — its Home screen only ever showed
+    the bare collection-status card, missing the one thing the web
+    home page leads with. Same selection precedence as the web
+    (`public.views._featured_dish`: `?featured=<slug>` query param,
+    else `Dish.is_featured`, else a hardcoded fallback slug, else "just
+    pick something") -- deliberately date-independent, same as the web
+    (a single global "this week's special", not scoped to one
+    collection day), so this endpoint takes no `date` param.
+    """
+    active = menu_queries.active_dishes()
+    dish = _featured_dish(active, request.GET.get("featured"))
+    if dish is None:
+        return JsonResponse({"dish": None})
+    return JsonResponse({
+        "dish": {
+            "id": dish.id,
+            "slug": dish.slug,
+            "name": dish.name,
+            "short_description": dish.short_description,
+            "price_cents": dish.price_cents,
+            "photo_url": absolute_media_url(request, menu_queries.dish_photo_url(dish)),
+            "portion_label": dish.portion_label,
+            "category": dish.category,
+        },
     })
 
 

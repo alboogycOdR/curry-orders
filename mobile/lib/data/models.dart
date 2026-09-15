@@ -80,6 +80,40 @@ class Dish {
   bool get hasOptions => options.isNotEmpty;
 }
 
+/// `GET /api/v1/featured/`'s "this week's special" hero dish — the
+/// poster web home page's own hero card (`public.views.home`'s
+/// `featured`), added to the app 2026-09-15 after Home shipped with no
+/// way to show it at all. Deliberately a separate, smaller model from
+/// [Dish] rather than reusing it: no `soldOut`/`options` here (Home
+/// only ever shows this as a teaser pointing at Menu, never lets you
+/// add it to the basket directly, so those fields don't apply).
+class FeaturedDish {
+  const FeaturedDish({
+    required this.slug,
+    required this.name,
+    required this.shortDescription,
+    required this.priceCents,
+    required this.photoUrl,
+    required this.portionLabel,
+  });
+
+  factory FeaturedDish.fromJson(Map<String, dynamic> json) => FeaturedDish(
+        slug: json['slug'] as String,
+        name: json['name'] as String,
+        shortDescription: (json['short_description'] as String?) ?? '',
+        priceCents: json['price_cents'] as int,
+        photoUrl: (json['photo_url'] as String?) ?? '',
+        portionLabel: (json['portion_label'] as String?) ?? '',
+      );
+
+  final String slug;
+  final String name;
+  final String shortDescription;
+  final int priceCents;
+  final String photoUrl;
+  final String portionLabel;
+}
+
 /// One entry from `GET /api/v1/days/` — an actually-orderable date (open
 /// + before cutoff), not just "in horizon". See that endpoint's own
 /// docstring for why `DayAvailability`'s date param alone isn't enough.

@@ -6,22 +6,34 @@ import '../../data/models.dart';
 import '../../state/api_providers.dart';
 import '../../state/auth.dart';
 import '../../theme/poster_tokens.dart';
+import '../../util/money.dart';
 
 /// Home — deliberately **not** a scroll-replica of the poster web
 /// page's hero → collection → menu-teaser → promise-panel → steps →
 /// final-CTA sequence (docs/mobile/FLUTTER_APP_PLAN.md Phase 3 IA note).
-/// A returning app user wants two things fast: "what can I order right
-/// now" and "where's my last order" — that's what this screen leads
-/// with. The promise/steps/"how it works" content belongs to a one-time
-/// first-run flow or a Help screen, not permanent Home real estate; it
-/// isn't built yet (`docs/mobile/FLUTTER_APP_PLAN.md` doesn't list it
-/// under Phase 3 for that reason).
+/// A returning app user wants three things fast: "what can I order
+/// right now" (the collection card, then the featured-dish card below
+/// it), "what's this week's special" and "where's my last order" —
+/// that's what this screen leads with. The promise/steps/"how it
+/// works" content belongs to a one-time first-run flow or a Help
+/// screen, not permanent Home real estate; it isn't built yet
+/// (`docs/mobile/FLUTTER_APP_PLAN.md` doesn't list it under Phase 3
+/// for that reason).
+///
+/// The featured-dish card (added 2026-09-15) is the one exception to
+/// "not a scroll-replica" — unlike the promise panel/steps/final CTA
+/// (marketing content, correctly left off), the hero dish is real,
+/// sellable, staff-editable content (Menu editor's "Featured on
+/// homepage" toggle) that answers Home's own stated question just as
+/// directly as the collection card does. Found missing live: the app
+/// had no endpoint at all for it until `GET /api/v1/featured/`.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final daysAsync = ref.watch(orderableDaysProvider);
+    final featuredAsync = ref.watch(featuredDishProvider);
     final auth = ref.watch(authProvider);
 
     return ColoredBox(
@@ -47,10 +59,89 @@ class HomeScreen extends ConsumerWidget {
               error: (err, _) => _ErrorCard(message: '$err'),
             ),
             const SizedBox(height: 16),
+            featuredAsync.when(
+              data: (dish) => dish == null ? const SizedBox.shrink() : _FeaturedCard(dish: dish),
+              loading: () => const _LoadingCard(),
+              // A missing featured dish shouldn't block the rest of
+              // Home -- fail quiet, not with an error card, unlike the
+              // collection card above (which the screen can't function
+              // without).
+              error: (err, _) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 16),
             if (!auth.restoring && auth.isSignedIn && auth.customer?.lastOrder != null)
               _LastOrderCard(orderNumber: auth.customer!.lastOrder!.orderNumber, publicToken: auth.customer!.lastOrder!.publicToken),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FeaturedCard extends StatelessWidget {
+  const _FeaturedCard({required this.dish});
+
+  final FeaturedDish dish;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: PosterColors.white,
+        borderRadius: BorderRadius.circular(PosterSpace.radiusButton),
+        boxShadow: PosterShadows.gold(),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (dish.photoUrl.isNotEmpty)
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.network(
+                dish.photoUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) =>
+                    const ColoredBox(color: PosterColors.bluePanel),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("THIS WEEK'S SPECIAL", style: PosterText.eyebrow.copyWith(color: PosterColors.blue)),
+                const SizedBox(height: 6),
+                Text(
+                  dish.name.toUpperCase(),
+                  style: PosterText.cardTitle.copyWith(color: PosterColors.navy),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (dish.shortDescription.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    dish.shortDescription,
+                    style: PosterText.bodyDefault.copyWith(color: PosterColors.muted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(formatCents(dish.priceCents), style: PosterText.priceCard.copyWith(color: PosterColors.navy)),
+                    ElevatedButton(
+                      onPressed: () => context.go('/menu'),
+                      child: const Text('ORDER THE SPECIAL'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
