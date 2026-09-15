@@ -68,7 +68,18 @@ def try_grant_staff_session(
     if not user.active:
         return False
 
+    # A Google-verified name is more trustworthy than whatever's on
+    # file (e.g. a placeholder set before this account ever signed in
+    # with Google) — keep it in sync on every Google sign-in, not just
+    # at creation. Same fix, same reasoning, as the analogous
+    # Customer.full_name bug found and fixed earlier today
+    # (public.views.account_setup) — get_or_create's `defaults` only
+    # ever apply on create, so an existing row's name silently never
+    # updated without this.
     update_fields = []
+    if name and user.name != name:
+        user.name = name
+        update_fields.append("name")
     if user.role != entry.role:
         user.role = entry.role
         update_fields.append("role")
