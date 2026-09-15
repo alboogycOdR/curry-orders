@@ -3,7 +3,7 @@
          only covers the Flutter tool's own dev-server connection). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Roti Connect"
+        android:label="Roti Connect Staff"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

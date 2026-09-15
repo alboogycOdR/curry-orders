@@ -37,17 +37,19 @@ dependencies:
 
   # State management (docs/mobile/FLUTTER_APP_PLAN.md Phase 2)
   flutter_riverpod: ^2.6.1
-  # Routing — 4-tab shell (Home/Menu/Basket/Orders) + nested screens
+  # Routing — staff-only 4-tab shell (Inbox/Kitchen/Collection/More,
+  # Phase 7) + full-screen pushes for everything else
   go_router: ^14.6.2
-  # API client for src/public/api.py JSON endpoints
+  # API client for the staff JSON API (src/staff/api_mobile*.py)
   dio: ^5.7.0
   # Persists the Django session/csrftoken cookies across requests —
   # dio has no cookie jar of its own (see lib/data/api_client.dart).
   dio_cookie_manager: ^3.1.1
   cookie_jar: ^4.0.8
-  # Local basket persistence (Phase 4)
-  shared_preferences: ^2.3.3
-  # Native camera/gallery picker for EFT proof upload (Phase 4)
+  # Native camera/gallery picker — dish photo upload (Menu editor,
+  # Phase 6). shared_preferences was removed here 2026-09-15: it only
+  # ever backed the customer basket's local persistence, gone along
+  # with the rest of the customer-facing app in Phase 7.
   image_picker: ^1.1.2
   # Opens the live web staff help page (/manage/help/#anchor) in the
   # device browser from the staff-mode Help screen (Phase 6) — see

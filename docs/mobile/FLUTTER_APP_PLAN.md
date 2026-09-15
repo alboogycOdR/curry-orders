@@ -299,6 +299,76 @@ itself is the source of truth going forward).
   neither surface has.
 - Not verified on a real device yet (same open item as Phase 5).
 
+## Phase 7 — App became staff-only
+
+- **Status:** done — 2026-09-15, same day as Phase 6
+- **Depends on:** Phase 6 (the staff surface this repurposes the whole app around)
+
+**Explicit direction:** the app is now a **staff companion app only** —
+every customer-facing screen (Home, Menu, Basket, Checkout, Account,
+Order status/lookup/reorder, customer sign-in) was removed. Not
+disabled behind a flag, not hidden — deleted, along with the state/
+data/util code that only ever served them (`state/auth.dart`,
+`state/basket.dart`, `state/selection.dart`, `util/idempotency.dart`,
+`data/repository.dart`, `app/shell.dart`, and every customer-only
+model in `data/models.dart`). The customer-facing website/poster
+variant is unaffected — this only touches `mobile/`; the Django
+backend's `/api/v1/...` customer endpoints (`public/api.py`) were left
+running (harmless if unused by the app, and the code stays available
+if a customer app is ever wanted again).
+
+**IA decisions:**
+- **Bottom nav, not a drawer**: Inbox / Kitchen / Collection / **More**
+  — the three highest-frequency, during-service boards get a direct
+  tab (one tap, not hamburger-then-item); everything else (Calendar,
+  Payments, Cash, Daily controls, Menu editor, New assisted order,
+  Help, Settings, Team) lives in More's own list, replacing Phase 6's
+  hamburger `Drawer` that used to wrap every single screen. Same
+  bottom-tab-plus-More pattern the (now-removed) customer app already
+  proved out — reused for consistency, not reinvented.
+- **Auth is the app's front door.** No more "Account tab with a
+  buried staff sign-in link" — there is no Account tab. `app/
+  staff_shell.dart` (the `StatefulShellRoute`'s `builder`) doubles as
+  the auth gate: watches `staffAuthProvider` directly, shows a splash
+  while restoring, bounces to `/staff/login` the instant it's anything
+  but signed-in (cold start *and* a session expiring mid-use — the
+  staff session's own 12h absolute / 2h idle lifetime). No
+  router-level `redirect:` wiring needed; a plain widget-level check
+  in the shell's `build()` was simpler and lower-risk than reactively
+  rebuilding `GoRouter` off Riverpod state.
+- **Staff identity moved to the top of the More screen** (avatar,
+  name, role) — replaces the old drawer header; there's nowhere else
+  for it now that Account is gone.
+- **One shared customer-era file survived**: `shared/dish_option_sheet.dart`
+  (moved out of the deleted `features/menu/`) — New assisted order
+  still needs a dish-options configurator and reuses this one rather
+  than building a second copy. `data/models.dart` was pruned to just
+  the three model classes that widget (and its `toSharedDish()`
+  adapter in `assisted_order_screen.dart`) actually needs
+  (`Dish`/`DishOption`/`DishOptionValue`) — every other model in that
+  file (orderable days, availability, order status, account, reorder,
+  featured dish) was customer-only and removed with it.
+- `pubspec.yaml`: `shared_preferences` dropped (only ever backed the
+  customer basket's local persistence). Everything else staff mode
+  already depended on (`dio`/`dio_cookie_manager`, `image_picker`,
+  `url_launcher`, `go_router`, `flutter_riverpod`) is unchanged.
+- App identity: Android launcher label and the `MaterialApp` `title`
+  both changed to "Roti Connect Staff" for clarity on a device — the
+  app icon/splash art were **not** regenerated (still the plain "Roti
+  Connect" mark); a distinct staff-branded icon is a reasonable
+  follow-up, not done here.
+
+**Known gap carried forward:** a staff screen reached only via the
+More tab (not one of the three bottom-tab screens) has no *individual*
+redirect-on-session-expiry guard of its own — if the 12h/2h session
+lifetime lapses while a staff member is deep in, say, the Menu editor,
+that screen's own API calls will 401 and show whatever error handling
+that screen already has, rather than bouncing to `/staff/login`
+immediately. Returning to a bottom-nav tab (or relaunching the app)
+does trigger the shell's own check correctly. A global 401-triggers-
+logout interceptor on the shared `ApiClient` would close this gap
+fully; not built here.
+
 ## Open questions (carried from poster variant README — still apply here)
 
 1. Phone number discrepancy (082 602 3931 vs 3031) — confirm before shipping any screen with a `tel:`/dial-intent link.

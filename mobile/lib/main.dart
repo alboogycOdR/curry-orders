@@ -24,13 +24,13 @@ class _RotiConnectAppState extends ConsumerState<RotiConnectApp> {
     // possibly reach a POST screen. A POST issued before this resolves
     // would still work (api_client.dart re-reads the cookie jar fresh
     // on every request) as long as this beats the user to the first tap.
-    ref.read(apiProvider).primeCsrf();
+    ref.read(apiClientProvider).primeCsrf();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Roti Connect',
+      title: 'Roti Connect Staff',
       debugShowCheckedModeBanner: false,
       theme: PosterTheme.light,
       routerConfig: appRouter,

@@ -6,14 +6,15 @@ import 'staff_models.dart';
 
 /// Shared response-parsing helper for every staff-mode screen's own dio
 /// calls (`/api/v1/staff/...`, `src/staff/api_mobile*.py` on the
-/// backend). Mirrors `RotiConnectApi._parse` in `data/repository.dart`
-/// exactly (same `{error, message, fields}` shape,
-/// `core.errors.ApiException`) — kept as a free function here rather
-/// than adding staff methods onto `RotiConnectApi` itself, so each
-/// staff screen's own repository/provider file (built independently —
+/// backend) — same `{error, message, fields}` shape as every response
+/// this app parses, turned into an [ApiException] in one place. A free
+/// function rather than a method on [StaffApi] itself, so each staff
+/// screen's own repository/provider file (built independently —
 /// docs/mobile/FLUTTER_APP_PLAN.md Phase 6) can call
 /// `parseStaffJson(resp, ...)` without every screen editing one shared
-/// class.
+/// class. (The app was customer+staff when this was written — the
+/// customer-facing `RotiConnectApi`/`data/repository.dart` this used
+/// to mirror was removed in Phase 7, when the app became staff-only.)
 T parseStaffJson<T>(Response<dynamic> response, T Function(dynamic data) parse) {
   final status = response.statusCode ?? 0;
   if (status >= 200 && status < 300) {

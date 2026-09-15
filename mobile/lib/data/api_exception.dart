@@ -1,4 +1,4 @@
-/// Thrown by [RotiConnectApi] for every non-2xx response. Mirrors
+/// Thrown by [StaffApi] for every non-2xx response. Mirrors
 /// `public/api.py`'s `_error_response` shape — `{"error": code,
 /// "message": ..., "fields": {...}?}` — so callers can branch on
 /// `code`/`fields` the same way the web JS does on the raw JSON.

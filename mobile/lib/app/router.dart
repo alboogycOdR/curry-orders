@@ -1,11 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-import '../features/account/account_screen.dart';
-import '../features/basket/basket_screen.dart';
-import '../features/checkout/checkout_screen.dart';
-import '../features/home/home_screen.dart';
-import '../features/menu/menu_screen.dart';
-import '../features/orders/order_detail_screen.dart';
 import '../features/staff/assisted_order/assisted_order_screen.dart';
 import '../features/staff/calendar/calendar_screen.dart';
 import '../features/staff/cash/cash_screen.dart';
@@ -16,55 +10,48 @@ import '../features/staff/inbox/inbox_screen.dart';
 import '../features/staff/kitchen/kitchen_screen.dart';
 import '../features/staff/menu/dish_form_screen.dart';
 import '../features/staff/menu/menu_list_screen.dart';
+import '../features/staff/more/more_screen.dart';
 import '../features/staff/payments/payments_screen.dart';
 import '../features/staff/settings/staff_settings_screen.dart';
 import '../features/staff/staff_login_screen.dart';
 import '../features/staff/team/team_screen.dart';
-import 'shell.dart';
+import 'staff_shell.dart';
 
-/// One `StatefulShellRoute` branch per bottom-nav tab: Home, Menu,
-/// Basket, **Account** — not "Orders" (docs/mobile/FLUTTER_APP_PLAN.md
-/// Phase 3 IA decision: Account gets a real persistent home instead of
-/// the poster web build's "no tab of its own", since order history
-/// lives there too). Checkout and order detail are full-screen pushes
-/// *outside* the shell (their own back stack, no bottom nav) — reached
-/// from Basket and Account respectively.
+/// The whole app is staff-only (docs/mobile/FLUTTER_APP_PLAN.md Phase
+/// 7 — every customer-facing screen was removed 2026-09-15). One
+/// `StatefulShellRoute` (Inbox / Kitchen / Collection / More — the
+/// three highest-frequency, during-service boards get a direct tab;
+/// everything else is one tap away via More) plus the remaining eight
+/// screens as full-screen pushes *outside* the shell, reached only via
+/// the More tab's own list. `StaffShell` (the shell's `builder`) is
+/// also this app's auth gate — see its own docstring.
 final appRouter = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/staff/inbox',
   routes: [
+    GoRoute(path: '/staff/login', builder: (context, state) => const StaffLoginScreen()),
     StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+      builder: (context, state, navigationShell) => StaffShell(navigationShell: navigationShell),
       branches: [
         StatefulShellBranch(
-          routes: [GoRoute(path: '/home', builder: (context, state) => const HomeScreen())],
+          routes: [GoRoute(path: '/staff/inbox', builder: (context, state) => const InboxScreen())],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/menu', builder: (context, state) => const MenuScreen())],
+          routes: [GoRoute(path: '/staff/kitchen', builder: (context, state) => const KitchenScreen())],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/basket', builder: (context, state) => const BasketScreen())],
+          routes: [
+            GoRoute(
+              path: '/staff/collection',
+              builder: (context, state) => const StaffCollectionScreen(),
+            ),
+          ],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/account', builder: (context, state) => const AccountScreen())],
+          routes: [GoRoute(path: '/staff/more', builder: (context, state) => const MoreScreen())],
         ),
       ],
     ),
-    GoRoute(path: '/checkout', builder: (context, state) => const CheckoutScreen()),
-    GoRoute(
-      path: '/orders/:token',
-      builder: (context, state) => OrderDetailScreen(publicToken: state.pathParameters['token']!),
-    ),
-    // Staff mode (docs/mobile/FLUTTER_APP_PLAN.md Phase 6) — its own
-    // full-screen stack, outside the customer bottom-nav shell
-    // entirely (reached from Account's "Staff dashboard" card, not a
-    // tab of its own; see `features/staff/staff_scaffold.dart`'s own
-    // docstring for why each screen carries its own chrome/drawer
-    // rather than a shared `ShellRoute`).
-    GoRoute(path: '/staff/login', builder: (context, state) => const StaffLoginScreen()),
-    GoRoute(path: '/staff/inbox', builder: (context, state) => const InboxScreen()),
     GoRoute(path: '/staff/calendar', builder: (context, state) => const StaffCalendarScreen()),
-    GoRoute(path: '/staff/kitchen', builder: (context, state) => const KitchenScreen()),
-    GoRoute(path: '/staff/collection', builder: (context, state) => const StaffCollectionScreen()),
     GoRoute(path: '/staff/payments', builder: (context, state) => const PaymentsScreen()),
     GoRoute(path: '/staff/cash', builder: (context, state) => const CashScreen()),
     GoRoute(path: '/staff/daily-controls', builder: (context, state) => const DailyControlsScreen()),

@@ -6,16 +6,15 @@ import '../../data/api_exception.dart';
 import '../../state/staff_auth.dart';
 import '../../theme/poster_tokens.dart';
 
-/// Staff sign-in (docs/mobile/FLUTTER_APP_PLAN.md Phase 6) — email +
-/// password only, same as the web's own primary login path
-/// (`staff/views.py::login`). Independent of the customer
-/// [authProvider]/login screen: staff mode has its own session check
-/// (`staffAuthProvider`) and its own credentials, reached from
-/// Account's "Staff dashboard" entry card, not from the customer
-/// sign-in form. Google sign-in for staff (web has it,
-/// `staff/services.py::try_grant_staff_session`) isn't wired into the
-/// app yet — same open gap as customer Google sign-in, tracked
-/// separately, not part of this phase.
+/// Staff sign-in — email + password only, same as the web's own
+/// primary login path (`staff/views.py::login`). The app's own front
+/// door (docs/mobile/FLUTTER_APP_PLAN.md Phase 7 — the app became
+/// staff-only 2026-09-15, removing the customer-facing screens this
+/// used to sit alongside): `app/staff_shell.dart` bounces here whenever
+/// [staffAuthProvider] isn't signed in, and this screen pushes straight
+/// to `/staff/inbox` on success. Google sign-in for staff (the web has
+/// it, `staff/services.py::try_grant_staff_session`) isn't wired into
+/// the app yet — tracked, not part of this phase.
 class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
 

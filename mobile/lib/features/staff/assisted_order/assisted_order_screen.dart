@@ -7,7 +7,7 @@ import '../../../data/staff/staff_api.dart';
 import '../../../state/api_providers.dart';
 import '../../../theme/poster_tokens.dart';
 import '../../../util/money.dart';
-import '../../menu/dish_option_sheet.dart';
+import '../../../shared/dish_option_sheet.dart';
 import '../staff_scaffold.dart';
 
 /// New assisted order (§12.9, M9) — staff placing an order on behalf of a

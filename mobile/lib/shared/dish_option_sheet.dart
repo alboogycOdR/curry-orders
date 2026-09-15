@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../data/models.dart';
-import '../../theme/poster_tokens.dart';
-import '../../util/money.dart';
+import '../data/models.dart';
+import '../theme/poster_tokens.dart';
+import '../util/money.dart';
 
 /// Result of the configurator: which `DishOptionValue` ids were picked,
 /// a display summary ("Hot, Extra cheese"), and the resulting unit price

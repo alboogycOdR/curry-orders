@@ -5,13 +5,12 @@ import '../data/staff/staff_api.dart';
 import '../data/staff/staff_models.dart';
 import 'api_providers.dart';
 
-/// Staff-mode auth state — deliberately independent of [AuthState]
-/// (`state/auth.dart`, the customer side): a signed-in customer and a
-/// signed-in staff member are two separate concerns even though they
-/// can coexist in the same Django session (see `StaffApi`'s own
-/// docstring). Staff mode is reached from Account (see
-/// `features/account/account_screen.dart`'s "Staff dashboard" entry
-/// point) but never assumes a customer session exists.
+/// Staff-mode auth state — this app's whole auth model since it became
+/// staff-only (docs/mobile/FLUTTER_APP_PLAN.md Phase 7, 2026-09-15).
+/// `app/staff_shell.dart` watches this directly as the app's auth gate:
+/// signed out (or a session that's expired — the staff session's own
+/// 12h absolute / 2h idle lifetime, `staff.sessions`) bounces to
+/// `/staff/login`.
 class StaffAuthState {
   const StaffAuthState({this.user, this.restoring = true});
 
@@ -45,12 +44,11 @@ class StaffAuthNotifier extends StateNotifier<StaffAuthState> {
     state = state._copyWith(user: user, restoring: false);
   }
 
-  /// Also ends any signed-in *customer* session sharing this cookie —
-  /// `staff.sessions.log_out` flushes the whole Django session, not
-  /// just the staff half of it (existing, already-shipped web
-  /// behaviour — see `api_mobile.logout_json`'s own docstring). The app
-  /// should also clear [authProvider]'s state after calling this if a
-  /// customer happened to be signed in too.
+  /// `staff.sessions.log_out` flushes the whole Django session server-
+  /// side (existing, already-shipped web behaviour — see
+  /// `api_mobile.logout_json`'s own docstring); harmless now that this
+  /// app never establishes a customer session in the first place
+  /// (Phase 7 removed that whole side of the app).
   Future<void> logout() async {
     await _api.logout();
     state = const StaffAuthState(restoring: false);
