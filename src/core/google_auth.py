@@ -14,7 +14,15 @@ from django.http import HttpRequest
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+# The OIDC userinfo endpoint, not the legacy oauth2/v2/userinfo one — that
+# older endpoint returns an "id" field, not "sub"; get_verified_google_user()
+# below reads info["sub"], which KeyErrors against the v2 shape (silently,
+# from the caller's point of view: the view's own `except Exception` catches
+# it and just bounces back to the login page with no visible trace, since
+# both the token exchange and this GET itself succeed — it's the field
+# lookup afterward that fails). This endpoint returns `sub` per the OIDC
+# spec, matching the "openid email profile" scope already requested.
+GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
 _STATE_SESSION_KEY = "_google_oauth_state"
 
