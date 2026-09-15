@@ -75,6 +75,50 @@ class TestAvailabilityApi:
         (only_dish,) = body["categories"][0]["dishes"]
         assert only_dish["sold_out"] is True
 
+    def test_photo_url_is_absolute_not_a_bare_media_path(self, client, biz_settings) -> None:
+        """`dish_photo_url()` (core.menu) returns a *relative* `/media/...`
+        path whenever neither CDN_BASE_URL nor S3_PUBLIC_ENDPOINT is
+        configured — fine for `order.js`, this same view's *web*
+        consumer (a browser resolves a root-relative `<img src>` against
+        the page's own origin), but silently broken for the Flutter app
+        (docs/mobile/FLUTTER_APP_PLAN.md), whose `Image.network()` has no
+        "page origin" to resolve against. Found live 2026-09-15: the
+        Menu screen showed category chips but zero dish cards — the
+        failed image loads never let the widget tree settle. Fixed by
+        making this endpoint always return an absolute URL.
+        """
+        from core.models import Media, MediaKind
+
+        media = Media.objects.create(
+            kind=MediaKind.DISH_IMAGE,
+            storage_key="dish-images/gatsby.jpg",
+            mime_type="image/jpeg",
+            byte_size=1000,
+            sha256=b"\x00" * 32,
+        )
+        _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry", image_media=media)
+        target = _tomorrow(biz_settings)
+
+        resp = client.get(
+            reverse("public:api_availability"), {"date": target.isoformat()}, SERVER_NAME="example.com",
+        )
+        (only_dish,) = resp.json()["categories"][0]["dishes"]
+        assert only_dish["photo_url"] == "http://example.com/media/dish-images/gatsby.jpg"
+
+    def test_photo_url_is_empty_string_not_a_bogus_absolute_url_when_no_photo(
+        self, client, biz_settings,
+    ) -> None:
+        # A naive `request.build_absolute_uri("")` on an empty photo_url
+        # would return the *request's own URL*, not an empty string —
+        # the endpoint must special-case this rather than let that
+        # happen silently.
+        _make_dish("chicken-curry-roti", "Chicken Curry & Roti", "Roti & Curry")
+        target = _tomorrow(biz_settings)
+
+        resp = client.get(reverse("public:api_availability"), {"date": target.isoformat()})
+        (only_dish,) = resp.json()["categories"][0]["dishes"]
+        assert only_dish["photo_url"] == ""
+
     def test_missing_date_is_a_validation_error(self, client, biz_settings) -> None:
         resp = client.get(reverse("public:api_availability"))
         assert resp.status_code == 400

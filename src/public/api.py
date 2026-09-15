@@ -403,6 +403,28 @@ def availability(request: HttpRequest) -> JsonResponse:
         )
 
     trading_day = materialise_days(selected_date, settings, count=1)[0]
+
+    def _absolute_photo_url(url: str) -> str:
+        # `dish_photo_url()` (core.menu) returns a *relative* `/media/...`
+        # path whenever neither CDN_BASE_URL nor S3_PUBLIC_ENDPOINT is
+        # configured (storage.service.public_dish_image_url's local-
+        # storage fallback branch) -- exactly this deploy's current
+        # config. That's fine for order.js, this same view's web
+        # consumer: a browser resolves a root-relative `<img src>`
+        # against the page's own origin automatically. It is NOT fine
+        # for the Flutter app (docs/mobile/FLUTTER_APP_PLAN.md Phase 1's
+        # other consumer, aliased verbatim onto this same view) --
+        # `Image.network()` has no "page origin" to resolve against, and
+        # silently, repeatedly fails to load a relative URL. Found live
+        # 2026-09-15: the Menu screen showed category chips (parsed from
+        # this same response) but zero dish cards -- a `flutter test`
+        # repro against this endpoint's real payload showed the failed
+        # loads triggering enough exceptions that the widget tree never
+        # settled into a rendered frame. `build_absolute_uri` is a no-op
+        # on an already-absolute URL (the CDN/S3 branches above), so
+        # this is safe for both consumers either way.
+        return request.build_absolute_uri(url) if url else ""
+
     # with_options=True: additive over this endpoint's pre-existing shape
     # (order.js, the web consumer, ignores unknown fields) — the Flutter
     # app needs `options` to render a Spice/Extras configurator before
@@ -428,7 +450,7 @@ def availability(request: HttpRequest) -> JsonResponse:
                         "short_description": dish.short_description,
                         "price_cents": dish.price_cents,
                         "sold_out": dish.sold_out,
-                        "photo_url": dish.photo_url,
+                        "photo_url": _absolute_photo_url(dish.photo_url),
                         "portion_label": dish.portion_label,
                         "category": dish.category,
                         "options": [
